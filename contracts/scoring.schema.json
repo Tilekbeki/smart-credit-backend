@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Scoring request v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["application_id", "monthly_revenue", "monthly_expenses", "existing_debt", "monthly_debt_payments", "overdue_count"],
+  "properties": {
+    "application_id": {"type": "string", "minLength": 1},
+    "monthly_revenue": {"type": "number", "minimum": 0},
+    "monthly_expenses": {"type": "number", "minimum": 0},
+    "existing_debt": {"type": "number", "minimum": 0},
+    "monthly_debt_payments": {"type": "number", "minimum": 0},
+    "overdue_count": {"type": "integer", "minimum": 0}
+  }
+}
