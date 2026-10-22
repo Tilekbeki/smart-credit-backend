@@ -1,15 +1,18 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Scoring request v1",
+  "title": "Synthetic scoring request v1",
+  "description": "Only synthetic business data may be submitted. This model is a hackathon prototype, not bank underwriting.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["application_id", "monthly_revenue", "monthly_expenses", "existing_debt", "monthly_debt_payments", "overdue_count"],
+  "required": ["application_id", "monthly_revenue", "monthly_expenses", "existing_debt", "monthly_debt_payments", "overdue_count", "requested_amount", "term_months"],
   "properties": {
-    "application_id": {"type": "string", "minLength": 1},
-    "monthly_revenue": {"type": "number", "minimum": 0},
-    "monthly_expenses": {"type": "number", "minimum": 0},
-    "existing_debt": {"type": "number", "minimum": 0},
-    "monthly_debt_payments": {"type": "number", "minimum": 0},
-    "overdue_count": {"type": "integer", "minimum": 0}
+    "application_id": {"type": "string", "minLength": 1, "maxLength": 100},
+    "monthly_revenue": {"type": "number", "minimum": 0, "maximum": 1000000000000},
+    "monthly_expenses": {"type": "number", "minimum": 0, "maximum": 1000000000000, "description": "Operating expenses excluding monthly debt payments."},
+    "existing_debt": {"type": "number", "minimum": 0, "maximum": 1000000000000},
+    "monthly_debt_payments": {"type": "number", "minimum": 0, "maximum": 1000000000000},
+    "overdue_count": {"type": "integer", "minimum": 0, "maximum": 100},
+    "requested_amount": {"type": "integer", "minimum": 1, "maximum": 1000000000000},
+    "term_months": {"type": "integer", "minimum": 1, "maximum": 120}
   }
 }

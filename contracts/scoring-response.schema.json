@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Synthetic scoring response v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["decision", "score", "approved_amount", "reasons", "factors"],
+  "properties": {
+    "decision": {"enum": ["approved", "counter_offer", "rejected"]},
+    "score": {"type": "integer", "minimum": 0, "maximum": 100},
+    "approved_amount": {"type": "integer", "minimum": 0},
+    "reasons": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "factors": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operating_cash_flow", "operating_margin", "estimated_new_monthly_payment", "debt_service_share", "existing_debt_to_annual_revenue", "overdue_count"],
+      "properties": {
+        "operating_cash_flow": {"type": "number"},
+        "operating_margin": {"type": "number"},
+        "estimated_new_monthly_payment": {"type": "number", "minimum": 0},
+        "debt_service_share": {"type": ["number", "null"]},
+        "existing_debt_to_annual_revenue": {"type": ["number", "null"]},
+        "overdue_count": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}
