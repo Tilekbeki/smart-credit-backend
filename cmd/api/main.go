@@ -16,6 +16,7 @@ import (
 	"smart-credit-backend/internal/company"
 	"smart-credit-backend/internal/config"
 	"smart-credit-backend/internal/credit"
+	"smart-credit-backend/internal/document"
 	"smart-credit-backend/internal/httpapi"
 	"smart-credit-backend/internal/postgres"
 )
@@ -52,7 +53,17 @@ func run() error {
 	catalogRepo := postgres.NewCompanyCreditRepository(pool, cfg.AuthDBTimeout)
 	creditHandler := httpapi.NewCreditHandler(company.NewService(catalogRepo), credit.NewService(catalogRepo, catalogRepo), auth.NewMiddleware(tokens, authRepo, cfg.AuthDBTimeout))
 	applicationHandler := httpapi.NewApplicationHandler(application.NewService(postgres.NewApplicationRepository(pool, cfg.AuthDBTimeout), catalogRepo, catalogRepo), auth.NewMiddleware(tokens, authRepo, cfg.AuthDBTimeout))
-	server := httpapi.NewServer(cfg.HTTP, httpapi.NewHandler(pool, logger, cfg.Database.PingTimeout, authHandler, creditHandler.Register, applicationHandler.Register), logger)
+	storage, err := document.NewLocalStorage(cfg.DocumentStoragePath)
+	if err != nil {
+		return errors.New("document storage initialization failed")
+	}
+	defer storage.Close()
+	documents := document.NewService(postgres.NewDocumentRepository(pool, cfg.AuthDBTimeout), storage)
+	if err := documents.Recover(ctx); err != nil {
+		return errors.New("document storage recovery failed")
+	}
+	documentHandler := httpapi.NewDocumentHandler(documents, auth.NewMiddleware(tokens, authRepo, cfg.AuthDBTimeout))
+	server := httpapi.NewServer(cfg.HTTP, httpapi.NewHandler(pool, logger, cfg.Database.PingTimeout, authHandler, creditHandler.Register, applicationHandler.Register, documentHandler.Register), logger)
 	listener, err := net.Listen("tcp", server.Addr)
 	if err != nil {
 		return fmt.Errorf("listen HTTP: %w", err)

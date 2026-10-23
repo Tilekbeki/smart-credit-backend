@@ -14,7 +14,7 @@ RUN addgroup -g 10001 app \
     && mkdir -p /var/lib/smart-credit/documents \
     && mkdir -p /var/lib/smart-credit/secrets \
     && chown app:app /var/lib/smart-credit/documents /var/lib/smart-credit/secrets \
-    && chmod 0700 /var/lib/smart-credit/secrets
+    && chmod 0700 /var/lib/smart-credit/secrets /var/lib/smart-credit/documents
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=builder /out/api /app/api
 

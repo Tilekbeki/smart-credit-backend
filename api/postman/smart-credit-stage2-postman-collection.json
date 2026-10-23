@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "Smart Credit — Backend API (OTP, Companies, Products, Recommendations, Drafts)",
-    "description": "Единая коллекция Smart Credit, Postman Collection v2.1. Запустите docker compose up -d --build, затем всю коллекцию сверху вниз в Collection Runner. baseUrl по умолчанию http://localhost:8080; demoOtpCode по умолчанию 1234. Все профили, companyId, OTP challenges и JWT передаются автоматически; первый запрос очищает результаты предыдущего запуска. Сохранены сценарии OTP/JWT обеих ролей. Новые сценарии проверяют собственную и чужую компанию, каталог и карточки продуктов, подбор финансирования, точные финансовые расчёты, границы и ошибки. Для проверки чужой компании автоматически авторизуется второй обнаруженный CLIENT. Расчёты проверяются независимой аннуитетной формулой JavaScript на синтетических значениях; точная арифметика и границы округления дополнительно проверяются Go-тестами. Рекомендация не является кредитным решением; scoring не вызывается. Не экспортируйте коллекцию с заполненными токенами и не используйте реальные персональные данные. Этап 4: пустой и частичный черновик, редактирование, null/отсутствующие поля, сохранение и обновление applicationId/version, история, SQL-пагинация и фильтры, конфликт версий, изоляция другого CLIENT, ограничения ролей и валидация. Два новых черновика создаются на каждой итерации; тесты не требуют пустой БД. submit, документы и scoring не вызываются.",
+    "name": "Smart Credit — Backend Stages 2–5 (OTP, drafts, documents)",
+    "description": "Единая коллекция Smart Credit, Postman Collection v2.1. Запустите docker compose up -d --build, затем всю коллекцию сверху вниз в Collection Runner. baseUrl по умолчанию http://localhost:8080; demoOtpCode по умолчанию 1234. Все профили, companyId, OTP challenges и JWT передаются автоматически; первый запрос очищает результаты предыдущего запуска. Сохранены сценарии OTP/JWT обеих ролей. Новые сценарии проверяют собственную и чужую компанию, каталог и карточки продуктов, подбор финансирования, точные финансовые расчёты, границы и ошибки. Для проверки чужой компании автоматически авторизуется второй обнаруженный CLIENT. Расчёты проверяются независимой аннуитетной формулой JavaScript на синтетических значениях; точная арифметика и границы округления дополнительно проверяются Go-тестами. Рекомендация не является кредитным решением; scoring не вызывается. Не экспортируйте коллекцию с заполненными токенами и не используйте реальные персональные данные. Этап 4: пустой и частичный черновик, редактирование, null/отсутствующие поля, сохранение и обновление applicationId/version, история, SQL-пагинация и фильтры, конфликт версий, изоляция другого CLIENT, ограничения ролей и валидация. Два новых черновика создаются на каждой итерации; тесты не требуют пустой БД. submit, документы и scoring не вызываются. Этап 5: документы загружаются к новому черновику, UUID и JWT передаются автоматически. Маленькие синтетические файлы находятся в fixtures/ рядом с коллекцией. Для Newman укажите --working-dir api/postman из корня backend; в Postman настройте Working directory на api/postman и разрешите чтение тестовых файлов. Превышение размера и опасные имена проверяются динамическим multipart без большого файла в репозитории. Все файлы синтетические, без банковских данных.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -149,6 +149,51 @@
       "key": "applicationListTotal",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "documentApplicationId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "pdfDocumentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "pdfMetadataJSON",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "pngDocumentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "pngMetadataJSON",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "jpegDocumentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "jpegMetadataJSON",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "repeatedDocumentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "repeatedMetadataJSON",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -180,7 +225,7 @@
             "type": "text/javascript",
             "exec": [
               "// Run on every Collection Runner iteration, preserving baseUrl and demoOtpCode.",
-              "const resetKeys = [\"clientProfileId\", \"bankProfileId\", \"otpRequestId\", \"accessToken\", \"clientOtpRequestId\", \"bankOtpRequestId\", \"clientAccessToken\", \"bankAccessToken\", \"clientCompanyId\", \"clientName\", \"clientPhone\", \"bankName\", \"bankPhone\", \"previousClientOtpRequestId\", \"otherClientProfileId\", \"otherClientOtpRequestId\", \"otherClientAccessToken\", \"otherCompanyId\", \"ownCompanyJSON\", \"creditProductsJSON\", \"applicationId\", \"applicationVersion\", \"previousApplicationVersion\", \"secondApplicationId\", \"applicationCreatedAt\", \"applicationUpdatedAt\", \"applicationListTotal\"];",
+              "const resetKeys = [\"clientProfileId\", \"bankProfileId\", \"otpRequestId\", \"accessToken\", \"clientOtpRequestId\", \"bankOtpRequestId\", \"clientAccessToken\", \"bankAccessToken\", \"clientCompanyId\", \"clientName\", \"clientPhone\", \"bankName\", \"bankPhone\", \"previousClientOtpRequestId\", \"otherClientProfileId\", \"otherClientOtpRequestId\", \"otherClientAccessToken\", \"otherCompanyId\", \"ownCompanyJSON\", \"creditProductsJSON\", \"applicationId\", \"applicationVersion\", \"previousApplicationVersion\", \"secondApplicationId\", \"applicationCreatedAt\", \"applicationUpdatedAt\", \"applicationListTotal\", \"documentApplicationId\", \"pdfDocumentId\", \"pdfMetadataJSON\", \"pngDocumentId\", \"pngMetadataJSON\", \"jpegDocumentId\", \"jpegMetadataJSON\", \"repeatedDocumentId\", \"repeatedMetadataJSON\"];",
               "resetKeys.forEach(key => { pm.collectionVariables.set(key, \"\"); pm.variables.set(key, \"\"); });"
             ]
           }
@@ -6303,6 +6348,2378 @@
           }
         }
       ]
+    },
+    {
+      "name": "121 · Documents — create a dedicated own draft, preserve previous stages",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "const r = pm.response.json();",
+              "pm.test(\"Own partial draft for document flow\", () => { pm.expect(r.status).to.eql(\"draft\"); pm.expect(r.userId).to.eql(pm.collectionVariables.get(\"clientProfileId\")); pm.expect(r.companyId).to.eql(pm.collectionVariables.get(\"clientCompanyId\")); pm.expect(r.version).to.eql(1); });",
+              "if(pm.response.code === 201) pm.collectionVariables.set(\"documentApplicationId\", r.applicationId);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "122 · Documents — new draft initially has no documents",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Empty non-null array\", () => pm.expect(pm.response.json()).to.deep.eql({items: []}));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "123 · Documents — upload pdf with untrusted octet-stream part type",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents"
+          ]
+        },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "fixtures/sample.pdf",
+              "contentType": "application/octet-stream"
+            },
+            {
+              "key": "documentType",
+              "value": "BANK_STATEMENT",
+              "type": "text"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "const r = pm.response.json();",
+              "pm.test(\"Safe document metadata describes the actual fixture\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"documentId\", \"applicationId\", \"documentType\", \"fileName\", \"contentType\", \"sizeBytes\", \"uploadedAt\");",
+              "  pm.expect(r.documentId).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
+              "  pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"documentApplicationId\"));",
+              "  pm.expect(r.documentType).to.eql(\"BANK_STATEMENT\"); pm.expect(r.fileName).to.eql(\"sample.pdf\"); pm.expect(r.contentType).to.eql(\"application/pdf\");",
+              "  pm.expect(r.sizeBytes).to.eql(608); pm.expect(Number.isFinite(Date.parse(r.uploadedAt))).to.eql(true);",
+              "});",
+              "if(pm.response.code===201) { pm.collectionVariables.set(\"pdfDocumentId\",r.documentId); pm.collectionVariables.set(\"pdfMetadataJSON\",JSON.stringify(r)); }",
+              "pm.test(\"Location identifies the private download API\", () => pm.expect(pm.response.headers.get(\"Location\")).to.eql(\"/api/v1/applications/\"+r.applicationId+\"/documents/\"+r.documentId));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "124 · Documents — upload png with untrusted octet-stream part type",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents"
+          ]
+        },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "fixtures/sample.png",
+              "contentType": "application/octet-stream"
+            },
+            {
+              "key": "documentType",
+              "value": "BANK_STATEMENT",
+              "type": "text"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "const r = pm.response.json();",
+              "pm.test(\"Safe document metadata describes the actual fixture\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"documentId\", \"applicationId\", \"documentType\", \"fileName\", \"contentType\", \"sizeBytes\", \"uploadedAt\");",
+              "  pm.expect(r.documentId).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
+              "  pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"documentApplicationId\"));",
+              "  pm.expect(r.documentType).to.eql(\"BANK_STATEMENT\"); pm.expect(r.fileName).to.eql(\"sample.png\"); pm.expect(r.contentType).to.eql(\"image/png\");",
+              "  pm.expect(r.sizeBytes).to.eql(79); pm.expect(Number.isFinite(Date.parse(r.uploadedAt))).to.eql(true);",
+              "});",
+              "if(pm.response.code===201) { pm.collectionVariables.set(\"pngDocumentId\",r.documentId); pm.collectionVariables.set(\"pngMetadataJSON\",JSON.stringify(r)); }",
+              "pm.test(\"Location identifies the private download API\", () => pm.expect(pm.response.headers.get(\"Location\")).to.eql(\"/api/v1/applications/\"+r.applicationId+\"/documents/\"+r.documentId));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "125 · Documents — upload jpeg with untrusted octet-stream part type",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents"
+          ]
+        },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "fixtures/sample.jpg",
+              "contentType": "application/octet-stream"
+            },
+            {
+              "key": "documentType",
+              "value": "EQUIPMENT_INVOICE",
+              "type": "text"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "const r = pm.response.json();",
+              "pm.test(\"Safe document metadata describes the actual fixture\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"documentId\", \"applicationId\", \"documentType\", \"fileName\", \"contentType\", \"sizeBytes\", \"uploadedAt\");",
+              "  pm.expect(r.documentId).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
+              "  pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"documentApplicationId\"));",
+              "  pm.expect(r.documentType).to.eql(\"EQUIPMENT_INVOICE\"); pm.expect(r.fileName).to.eql(\"sample.jpg\"); pm.expect(r.contentType).to.eql(\"image/jpeg\");",
+              "  pm.expect(r.sizeBytes).to.eql(632); pm.expect(Number.isFinite(Date.parse(r.uploadedAt))).to.eql(true);",
+              "});",
+              "if(pm.response.code===201) { pm.collectionVariables.set(\"jpegDocumentId\",r.documentId); pm.collectionVariables.set(\"jpegMetadataJSON\",JSON.stringify(r)); }",
+              "pm.test(\"Location identifies the private download API\", () => pm.expect(pm.response.headers.get(\"Location\")).to.eql(\"/api/v1/applications/\"+r.applicationId+\"/documents/\"+r.documentId));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "126 · Documents — upload repeated with untrusted octet-stream part type",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents"
+          ]
+        },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "fixtures/sample.pdf",
+              "contentType": "application/octet-stream"
+            },
+            {
+              "key": "documentType",
+              "value": "BANK_STATEMENT",
+              "type": "text"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "const r = pm.response.json();",
+              "pm.test(\"Safe document metadata describes the actual fixture\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"documentId\", \"applicationId\", \"documentType\", \"fileName\", \"contentType\", \"sizeBytes\", \"uploadedAt\");",
+              "  pm.expect(r.documentId).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
+              "  pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"documentApplicationId\"));",
+              "  pm.expect(r.documentType).to.eql(\"BANK_STATEMENT\"); pm.expect(r.fileName).to.eql(\"sample.pdf\"); pm.expect(r.contentType).to.eql(\"application/pdf\");",
+              "  pm.expect(r.sizeBytes).to.eql(608); pm.expect(Number.isFinite(Date.parse(r.uploadedAt))).to.eql(true);",
+              "});",
+              "if(pm.response.code===201) { pm.collectionVariables.set(\"repeatedDocumentId\",r.documentId); pm.collectionVariables.set(\"repeatedMetadataJSON\",JSON.stringify(r)); }",
+              "pm.test(\"Repeated type creates a separate document\", () => pm.expect(r.documentId).not.to.eql(pm.collectionVariables.get(\"pdfDocumentId\")));",
+              "pm.test(\"Location identifies the private download API\", () => pm.expect(pm.response.headers.get(\"Location\")).to.eql(\"/api/v1/applications/\"+r.applicationId+\"/documents/\"+r.documentId));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "127 · Documents — client lists every repeated and distinct document",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "pm.test(\"All four immutable metadata records, no storage paths\", () => {",
+              " pm.expect(r).to.have.all.keys(\"items\"); pm.expect(r.items).to.be.an(\"array\").with.length(4); const ids=new Set();",
+              " r.items.forEach(item => { pm.expect(item).to.have.all.keys(\"documentId\", \"applicationId\", \"documentType\", \"fileName\", \"contentType\", \"sizeBytes\", \"uploadedAt\"); ids.add(item.documentId); });",
+              " [\"pdf\", \"png\", \"jpeg\", \"repeated\"].forEach(kind => { const expected=JSON.parse(pm.collectionVariables.get(kind+\"MetadataJSON\")); pm.expect(r.items.find(item=>item.documentId===expected.documentId)).to.deep.eql(expected); });",
+              " pm.expect(ids.size).to.eql(4);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "128 · Documents — employee can read the same document metadata",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "pm.test(\"All four immutable metadata records, no storage paths\", () => {",
+              " pm.expect(r).to.have.all.keys(\"items\"); pm.expect(r.items).to.be.an(\"array\").with.length(4); const ids=new Set();",
+              " r.items.forEach(item => { pm.expect(item).to.have.all.keys(\"documentId\", \"applicationId\", \"documentType\", \"fileName\", \"contentType\", \"sizeBytes\", \"uploadedAt\"); ids.add(item.documentId); });",
+              " [\"pdf\", \"png\", \"jpeg\", \"repeated\"].forEach(kind => { const expected=JSON.parse(pm.collectionVariables.get(kind+\"MetadataJSON\")); pm.expect(r.items.find(item=>item.documentId===expected.documentId)).to.deep.eql(expected); });",
+              " pm.expect(ids.size).to.eql(4);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "129 · Documents — client downloads pdf with byte integrity check",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents/{{pdfDocumentId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents",
+            "{{pdfDocumentId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Correct MIME, length and private attachment headers\", () => { pm.expect(pm.response.headers.get(\"Content-Type\")).to.eql(\"application/pdf\"); pm.expect(Number(pm.response.headers.get(\"Content-Length\"))).to.eql(608); pm.expect(pm.response.headers.get(\"Content-Disposition\")).to.match(/^attachment(?:;|$)/); pm.expect(pm.response.headers.get(\"Content-Disposition\")).to.include(\"sample.pdf\"); pm.expect(pm.response.headers.get(\"X-Content-Type-Options\")).to.eql(\"nosniff\"); });",
+              "pm.test(\"Downloaded bytes exactly match the synthetic fixture SHA-256\", () => {",
+              " const CryptoJS=require(\"crypto-js\"); const bytes=pm.response.stream; const words=[];",
+              " for(let i=0;i<bytes.length;i++) words[i>>>2]=(words[i>>>2]||0) | (bytes[i] << (24-(i%4)*8));",
+              " const digest=CryptoJS.SHA256(CryptoJS.lib.WordArray.create(words,bytes.length)).toString();",
+              " pm.expect(digest).to.eql(\"07a654c060ac047559af7abd2c8023b5f42b3a7ec41848bca74a791424eb9fd4\");",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "130 · Documents — employee downloads pdf with byte integrity check",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents/{{pdfDocumentId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents",
+            "{{pdfDocumentId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Correct MIME, length and private attachment headers\", () => { pm.expect(pm.response.headers.get(\"Content-Type\")).to.eql(\"application/pdf\"); pm.expect(Number(pm.response.headers.get(\"Content-Length\"))).to.eql(608); pm.expect(pm.response.headers.get(\"Content-Disposition\")).to.match(/^attachment(?:;|$)/); pm.expect(pm.response.headers.get(\"Content-Disposition\")).to.include(\"sample.pdf\"); pm.expect(pm.response.headers.get(\"X-Content-Type-Options\")).to.eql(\"nosniff\"); });",
+              "pm.test(\"Downloaded bytes exactly match the synthetic fixture SHA-256\", () => {",
+              " const CryptoJS=require(\"crypto-js\"); const bytes=pm.response.stream; const words=[];",
+              " for(let i=0;i<bytes.length;i++) words[i>>>2]=(words[i>>>2]||0) | (bytes[i] << (24-(i%4)*8));",
+              " const digest=CryptoJS.SHA256(CryptoJS.lib.WordArray.create(words,bytes.length)).toString();",
+              " pm.expect(digest).to.eql(\"07a654c060ac047559af7abd2c8023b5f42b3a7ec41848bca74a791424eb9fd4\");",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "131 · Documents — client downloads png with byte integrity check",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents/{{pngDocumentId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents",
+            "{{pngDocumentId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Correct MIME, length and private attachment headers\", () => { pm.expect(pm.response.headers.get(\"Content-Type\")).to.eql(\"image/png\"); pm.expect(Number(pm.response.headers.get(\"Content-Length\"))).to.eql(79); pm.expect(pm.response.headers.get(\"Content-Disposition\")).to.match(/^attachment(?:;|$)/); pm.expect(pm.response.headers.get(\"Content-Disposition\")).to.include(\"sample.png\"); pm.expect(pm.response.headers.get(\"X-Content-Type-Options\")).to.eql(\"nosniff\"); });",
+              "pm.test(\"Downloaded bytes exactly match the synthetic fixture SHA-256\", () => {",
+              " const CryptoJS=require(\"crypto-js\"); const bytes=pm.response.stream; const words=[];",
+              " for(let i=0;i<bytes.length;i++) words[i>>>2]=(words[i>>>2]||0) | (bytes[i] << (24-(i%4)*8));",
+              " const digest=CryptoJS.SHA256(CryptoJS.lib.WordArray.create(words,bytes.length)).toString();",
+              " pm.expect(digest).to.eql(\"4982ca04723f09298992b8cd0c0f893b3da15b06bd46872ede0adb6354b349c4\");",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "132 · Documents — client downloads jpeg with byte integrity check",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents/{{jpegDocumentId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents",
+            "{{jpegDocumentId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Correct MIME, length and private attachment headers\", () => { pm.expect(pm.response.headers.get(\"Content-Type\")).to.eql(\"image/jpeg\"); pm.expect(Number(pm.response.headers.get(\"Content-Length\"))).to.eql(632); pm.expect(pm.response.headers.get(\"Content-Disposition\")).to.match(/^attachment(?:;|$)/); pm.expect(pm.response.headers.get(\"Content-Disposition\")).to.include(\"sample.jpg\"); pm.expect(pm.response.headers.get(\"X-Content-Type-Options\")).to.eql(\"nosniff\"); });",
+              "pm.test(\"Downloaded bytes exactly match the synthetic fixture SHA-256\", () => {",
+              " const CryptoJS=require(\"crypto-js\"); const bytes=pm.response.stream; const words=[];",
+              " for(let i=0;i<bytes.length;i++) words[i>>>2]=(words[i>>>2]||0) | (bytes[i] << (24-(i%4)*8));",
+              " const digest=CryptoJS.SHA256(CryptoJS.lib.WordArray.create(words,bytes.length)).toString();",
+              " pm.expect(digest).to.eql(\"b7863d7fc86ba6bb0ec9b804861a75142fc87dbeae29e6bed4300ab52ace0188\");",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "133 · Documents — JWT required for POST",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents"
+          ]
+        },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "fixtures/sample.pdf",
+              "contentType": "application/octet-stream"
+            },
+            {
+              "key": "documentType",
+              "value": "BANK_STATEMENT",
+              "type": "text"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));",
+              "const r = pm.response.json();",
+              "pm.test(\"Uniform error, no metadata or credentials\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"unauthorized\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "134 · Documents — JWT required for GET",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));",
+              "const r = pm.response.json();",
+              "pm.test(\"Uniform error, no metadata or credentials\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"unauthorized\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "135 · Documents — JWT required for GET/{{pdfDocumentId}}",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents/{{pdfDocumentId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents",
+            "{{pdfDocumentId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));",
+              "const r = pm.response.json();",
+              "pm.test(\"Uniform error, no metadata or credentials\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"unauthorized\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "136 · Documents — employee cannot upload on behalf of a client",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents"
+          ]
+        },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "fixtures/sample.pdf",
+              "contentType": "application/octet-stream"
+            },
+            {
+              "key": "documentType",
+              "value": "BANK_STATEMENT",
+              "type": "text"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+              "const r = pm.response.json();",
+              "pm.test(\"Uniform error, no metadata or credentials\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"forbidden\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "137 · Documents — another client cannot POST",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{otherClientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents"
+          ]
+        },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "fixtures/sample.pdf",
+              "contentType": "application/octet-stream"
+            },
+            {
+              "key": "documentType",
+              "value": "BANK_STATEMENT",
+              "type": "text"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+              "const r = pm.response.json();",
+              "pm.test(\"Uniform error, no metadata or credentials\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"application_not_found\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "138 · Documents — another client cannot GET",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{otherClientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+              "const r = pm.response.json();",
+              "pm.test(\"Uniform error, no metadata or credentials\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"application_not_found\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "139 · Documents — another client cannot GET/{{pdfDocumentId}}",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{otherClientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents/{{pdfDocumentId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents",
+            "{{pdfDocumentId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+              "const r = pm.response.json();",
+              "pm.test(\"Uniform error, no metadata or credentials\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"application_not_found\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "140 · Documents — malformed application UUID in POST",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/not-a-uuid/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "not-a-uuid",
+            "documents"
+          ]
+        },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "fixtures/sample.pdf",
+              "contentType": "application/octet-stream"
+            },
+            {
+              "key": "documentType",
+              "value": "BANK_STATEMENT",
+              "type": "text"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Uniform error, no metadata or credentials\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "141 · Documents — malformed application UUID in GET",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/not-a-uuid/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "not-a-uuid",
+            "documents"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Uniform error, no metadata or credentials\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "142 · Documents — malformed application UUID in GET/{{pdfDocumentId}}",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/not-a-uuid/documents/{{pdfDocumentId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "not-a-uuid",
+            "documents",
+            "{{pdfDocumentId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Uniform error, no metadata or credentials\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "143 · Documents — malformed document UUID",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents/not-a-uuid",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents",
+            "not-a-uuid"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Uniform error, no metadata or credentials\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "144 · Documents — missing document follows 404 policy",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents/90000000-0000-4000-8000-000000000099",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents",
+            "90000000-0000-4000-8000-000000000099"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+              "const r = pm.response.json();",
+              "pm.test(\"Uniform error, no metadata or credentials\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"document_not_found\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "145 · Documents — document cannot be substituted into another own application",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{secondApplicationId}}/documents/{{pdfDocumentId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{secondApplicationId}}",
+            "documents",
+            "{{pdfDocumentId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+              "const r = pm.response.json();",
+              "pm.test(\"Uniform error, no metadata or credentials\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"document_not_found\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "146 · Documents — missing application follows 404 policy",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/90000000-0000-4000-8000-000000000099/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "90000000-0000-4000-8000-000000000099",
+            "documents"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+              "const r = pm.response.json();",
+              "pm.test(\"Uniform error, no metadata or credentials\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"application_not_found\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "147 · Documents — unknown document type is rejected",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents"
+          ]
+        },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "fixtures/sample.pdf",
+              "contentType": "application/octet-stream"
+            },
+            {
+              "key": "documentType",
+              "value": "UNKNOWN",
+              "type": "text"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Uniform error, no metadata or credentials\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "148 · Documents — lowercase document type is rejected",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents"
+          ]
+        },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "fixtures/sample.pdf",
+              "contentType": "application/octet-stream"
+            },
+            {
+              "key": "documentType",
+              "value": "bank_statement",
+              "type": "text"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Uniform error, no metadata or credentials\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "149 · Documents — text file is rejected",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents"
+          ]
+        },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "fixtures/unsupported.txt",
+              "contentType": "application/octet-stream"
+            },
+            {
+              "key": "documentType",
+              "value": "BANK_STATEMENT",
+              "type": "text"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 415\", () => pm.response.to.have.status(415));",
+              "const r = pm.response.json();",
+              "pm.test(\"Uniform error, no metadata or credentials\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"unsupported_file_type\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "150 · Documents — extension cannot disguise actual PDF as PNG",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents"
+          ]
+        },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "fixtures/mismatch.png",
+              "contentType": "application/octet-stream"
+            },
+            {
+              "key": "documentType",
+              "value": "BANK_STATEMENT",
+              "type": "text"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 415\", () => pm.response.to.have.status(415));",
+              "const r = pm.response.json();",
+              "pm.test(\"Uniform error, no metadata or credentials\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"unsupported_file_type\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "151 · Documents — empty file is rejected",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents"
+          ]
+        },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "fixtures/empty.pdf",
+              "contentType": "application/octet-stream"
+            },
+            {
+              "key": "documentType",
+              "value": "BANK_STATEMENT",
+              "type": "text"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Uniform error, no metadata or credentials\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "152 · Documents — missing file is rejected",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents"
+          ]
+        },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "documentType",
+              "value": "BANK_STATEMENT",
+              "type": "text"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Uniform error, no metadata or credentials\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "153 · Documents — missing document type is rejected",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents"
+          ]
+        },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "fixtures/sample.pdf"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Uniform error, no metadata or credentials\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "154 · Documents — duplicate type is rejected",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents"
+          ]
+        },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "fixtures/sample.pdf",
+              "contentType": "application/octet-stream"
+            },
+            {
+              "key": "documentType",
+              "value": "BANK_STATEMENT",
+              "type": "text"
+            },
+            {
+              "key": "documentType",
+              "type": "text",
+              "value": "EQUIPMENT_INVOICE"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Uniform error, no metadata or credentials\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "155 · Documents — duplicate file is rejected",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents"
+          ]
+        },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "fixtures/sample.pdf",
+              "contentType": "application/octet-stream"
+            },
+            {
+              "key": "documentType",
+              "value": "BANK_STATEMENT",
+              "type": "text"
+            },
+            {
+              "key": "file",
+              "type": "file",
+              "src": "fixtures/sample.png"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Uniform error, no metadata or credentials\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "156 · Documents — client cannot specify a storage key",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents"
+          ]
+        },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "fixtures/sample.pdf",
+              "contentType": "application/octet-stream"
+            },
+            {
+              "key": "documentType",
+              "value": "BANK_STATEMENT",
+              "type": "text"
+            },
+            {
+              "key": "storageKey",
+              "type": "text",
+              "value": "chosen-by-client.pdf"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Uniform error, no metadata or credentials\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "157 · Documents — JSON cannot replace multipart",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 415\", () => pm.response.to.have.status(415));",
+              "const r = pm.response.json();",
+              "pm.test(\"Uniform error, no metadata or credentials\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"unsupported_media_type\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "158 · Documents — file larger than 5 MiB is rejected without a large fixture",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "multipart/form-data; boundary=stage5-boundary"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": ""
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.request.body.update({mode:\"raw\",raw:\"--stage5-boundary\\r\\nContent-Disposition: form-data; name=\\\"documentType\\\"\\r\\n\\r\\nBANK_STATEMENT\\r\\n--stage5-boundary\\r\\nContent-Disposition: form-data; name=\\\"file\\\"; filename=\\\"sample.pdf\\\"\\r\\nContent-Type: application/pdf\\r\\n\\r\\n\" + (\"%PDF-1.4\\n\" + \"a\".repeat(5*1024*1024+1-9)) + \"\\r\\n--stage5-boundary--\\r\\n\"});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 413\", () => pm.response.to.have.status(413));",
+              "const r = pm.response.json();",
+              "pm.test(\"Uniform error, no metadata or credentials\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"request_too_large\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "159 · Documents — complete request larger than file limit plus 64 KiB is rejected",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "multipart/form-data; boundary=stage5-boundary"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": ""
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.request.body.update({mode:\"raw\",raw:\"--stage5-boundary\\r\\nContent-Disposition: form-data; name=\\\"documentType\\\"\\r\\n\\r\\nBANK_STATEMENT\\r\\n--stage5-boundary\\r\\nContent-Disposition: form-data; name=\\\"file\\\"; filename=\\\"sample.pdf\\\"\\r\\nContent-Type: application/pdf\\r\\n\\r\\n\" + (\"%PDF-1.4\\n\" + \"a\".repeat(5*1024*1024+64*1024)) + \"\\r\\n--stage5-boundary--\\r\\n\"});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 413\", () => pm.response.to.have.status(413));",
+              "const r = pm.response.json();",
+              "pm.test(\"Uniform error, no metadata or credentials\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"request_too_large\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "160 · Documents — unsafe original filename ../escape.pdf",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "multipart/form-data; boundary=stage5-boundary"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": ""
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.request.body.update({mode:\"raw\",raw:\"--stage5-boundary\\r\\nContent-Disposition: form-data; name=\\\"documentType\\\"\\r\\n\\r\\nBANK_STATEMENT\\r\\n--stage5-boundary\\r\\nContent-Disposition: form-data; name=\\\"file\\\"; filename=\\\"../escape.pdf\\\"\\r\\nContent-Type: application/pdf\\r\\n\\r\\n\" + (\"%PDF-1.4\\n1 0 obj\\n<< /Type /Catalog /Pages 2 0 R >>\\nendobj\\n2 0 obj\\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\\nendobj\\n3 0 obj\\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 100] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>\\nendobj\\n4 0 obj\\n<< /Length 68 >>\\nstream\\nBT /F1 10 Tf 10 50 Td (Synthetic fixture: no banking data) Tj ET\\nendstream\\nendobj\\n5 0 obj\\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\\nendobj\\nxref\\n0 6\\n0000000000 65535 f \\n0000000009 00000 n \\n0000000058 00000 n \\n0000000115 00000 n \\n0000000241 00000 n \\n0000000355 00000 n \\ntrailer\\n<< /Size 6 /Root 1 0 R >>\\nstartxref\\n425\\n%%EOF\\n\") + \"\\r\\n--stage5-boundary--\\r\\n\"});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Uniform error, no metadata or credentials\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "161 · Documents — unsafe original filename /absolute.pdf",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "multipart/form-data; boundary=stage5-boundary"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": ""
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.request.body.update({mode:\"raw\",raw:\"--stage5-boundary\\r\\nContent-Disposition: form-data; name=\\\"documentType\\\"\\r\\n\\r\\nBANK_STATEMENT\\r\\n--stage5-boundary\\r\\nContent-Disposition: form-data; name=\\\"file\\\"; filename=\\\"/absolute.pdf\\\"\\r\\nContent-Type: application/pdf\\r\\n\\r\\n\" + (\"%PDF-1.4\\n1 0 obj\\n<< /Type /Catalog /Pages 2 0 R >>\\nendobj\\n2 0 obj\\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\\nendobj\\n3 0 obj\\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 100] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>\\nendobj\\n4 0 obj\\n<< /Length 68 >>\\nstream\\nBT /F1 10 Tf 10 50 Td (Synthetic fixture: no banking data) Tj ET\\nendstream\\nendobj\\n5 0 obj\\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\\nendobj\\nxref\\n0 6\\n0000000000 65535 f \\n0000000009 00000 n \\n0000000058 00000 n \\n0000000115 00000 n \\n0000000241 00000 n \\n0000000355 00000 n \\ntrailer\\n<< /Size 6 /Root 1 0 R >>\\nstartxref\\n425\\n%%EOF\\n\") + \"\\r\\n--stage5-boundary--\\r\\n\"});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Uniform error, no metadata or credentials\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "162 · Documents — unsafe original filename ..\\escape.pdf",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "multipart/form-data; boundary=stage5-boundary"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": ""
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.request.body.update({mode:\"raw\",raw:\"--stage5-boundary\\r\\nContent-Disposition: form-data; name=\\\"documentType\\\"\\r\\n\\r\\nBANK_STATEMENT\\r\\n--stage5-boundary\\r\\nContent-Disposition: form-data; name=\\\"file\\\"; filename=\\\"..\\\\\\\\escape.pdf\\\"\\r\\nContent-Type: application/pdf\\r\\n\\r\\n\" + (\"%PDF-1.4\\n1 0 obj\\n<< /Type /Catalog /Pages 2 0 R >>\\nendobj\\n2 0 obj\\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\\nendobj\\n3 0 obj\\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 100] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>\\nendobj\\n4 0 obj\\n<< /Length 68 >>\\nstream\\nBT /F1 10 Tf 10 50 Td (Synthetic fixture: no banking data) Tj ET\\nendstream\\nendobj\\n5 0 obj\\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\\nendobj\\nxref\\n0 6\\n0000000000 65535 f \\n0000000009 00000 n \\n0000000058 00000 n \\n0000000115 00000 n \\n0000000241 00000 n \\n0000000355 00000 n \\ntrailer\\n<< /Size 6 /Root 1 0 R >>\\nstartxref\\n425\\n%%EOF\\n\") + \"\\r\\n--stage5-boundary--\\r\\n\"});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Uniform error, no metadata or credentials\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "163 · Documents — multipart without boundary parameter is rejected",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "multipart/form-data"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": ""
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.request.body.update({mode:\"raw\",raw:\"not a multipart body\"});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Uniform error, no metadata or credentials\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "164 · Documents — truncated multipart is rejected",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "multipart/form-data; boundary=stage5-boundary"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": ""
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.request.body.update({mode:\"raw\",raw:\"--stage5-boundary\\r\\nContent-Disposition: form-data; name=\\\"file\\\"; filename=\\\"sample.pdf\\\"\\r\\n\\r\\n%PDF-1.4\"});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Uniform error, no metadata or credentials\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "165 · Documents — failed uploads do not create visible documents",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "pm.test(\"All four immutable metadata records, no storage paths\", () => {",
+              " pm.expect(r).to.have.all.keys(\"items\"); pm.expect(r.items).to.be.an(\"array\").with.length(4); const ids=new Set();",
+              " r.items.forEach(item => { pm.expect(item).to.have.all.keys(\"documentId\", \"applicationId\", \"documentType\", \"fileName\", \"contentType\", \"sizeBytes\", \"uploadedAt\"); ids.add(item.documentId); });",
+              " [\"pdf\", \"png\", \"jpeg\", \"repeated\"].forEach(kind => { const expected=JSON.parse(pm.collectionVariables.get(kind+\"MetadataJSON\")); pm.expect(r.items.find(item=>item.documentId===expected.documentId)).to.deep.eql(expected); });",
+              " pm.expect(ids.size).to.eql(4);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "166 · Documents — uploads preserve the draft state and optimistic version",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "pm.test(\"Only attachments changed\", () => { pm.expect(r.status).to.eql(\"draft\"); pm.expect(r.version).to.eql(1); pm.expect(r.submittedAt).to.eql(null); pm.expect(r.availableActions).to.deep.eql([\"edit\"]); });"
+            ]
+          }
+        }
+      ]
     }
   ],
   "event": [
@@ -6312,7 +8729,7 @@
         "type": "text/javascript",
         "exec": [
           "// Local values prevent stale environment/global variables from shadowing run results.",
-          "const transientKeys = [\"clientProfileId\", \"bankProfileId\", \"otpRequestId\", \"accessToken\", \"clientOtpRequestId\", \"bankOtpRequestId\", \"clientAccessToken\", \"bankAccessToken\", \"clientCompanyId\", \"clientName\", \"clientPhone\", \"bankName\", \"bankPhone\", \"previousClientOtpRequestId\", \"otherClientProfileId\", \"otherClientOtpRequestId\", \"otherClientAccessToken\", \"otherCompanyId\", \"ownCompanyJSON\", \"creditProductsJSON\", \"applicationId\", \"applicationVersion\", \"previousApplicationVersion\", \"secondApplicationId\", \"applicationCreatedAt\", \"applicationUpdatedAt\", \"applicationListTotal\"];",
+          "const transientKeys = [\"clientProfileId\", \"bankProfileId\", \"otpRequestId\", \"accessToken\", \"clientOtpRequestId\", \"bankOtpRequestId\", \"clientAccessToken\", \"bankAccessToken\", \"clientCompanyId\", \"clientName\", \"clientPhone\", \"bankName\", \"bankPhone\", \"previousClientOtpRequestId\", \"otherClientProfileId\", \"otherClientOtpRequestId\", \"otherClientAccessToken\", \"otherCompanyId\", \"ownCompanyJSON\", \"creditProductsJSON\", \"applicationId\", \"applicationVersion\", \"previousApplicationVersion\", \"secondApplicationId\", \"applicationCreatedAt\", \"applicationUpdatedAt\", \"applicationListTotal\", \"documentApplicationId\", \"pdfDocumentId\", \"pdfMetadataJSON\", \"pngDocumentId\", \"pngMetadataJSON\", \"jpegDocumentId\", \"jpegMetadataJSON\", \"repeatedDocumentId\", \"repeatedMetadataJSON\"];",
           "transientKeys.forEach(key => pm.variables.set(key, pm.collectionVariables.get(key) || \"\"));",
           "const configuredCode = String(pm.variables.get(\"demoOtpCode\") || \"1234\");",
           "pm.variables.set(\"demoOtpCode\", configuredCode);",
@@ -6325,7 +8742,9 @@
       "script": {
         "type": "text/javascript",
         "exec": [
-          "pm.test(\"JSON response\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\"));",
+          "const binaryDownload = pm.request.method === \"GET\" && /\\/documents\\/[^/?]+(?:\\?|$)/.test(pm.request.url.toString()) && pm.response.code === 200;",
+          "if (binaryDownload) pm.test(\"Supported binary response\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.be.oneOf([\"application/pdf\", \"image/png\", \"image/jpeg\"]));",
+          "else pm.test(\"JSON response\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\"));",
           "pm.test(\"Responses are not cached\", () => pm.expect(pm.response.headers.get(\"Cache-Control\")).to.eql(\"no-store\"));",
           "// Independently check whole-ruble results for every successful recommendation request.",
           "if (pm.request.url.toString().includes(\"/api/v1/recommendations\") && pm.response.code === 200) {",

@@ -1,14 +1,15 @@
 openapi: 3.0.3
 info:
   title: Smart Credit Go backend
-  version: 0.4.0
+  version: 0.5.0
   description: 'Demonstration authentication, own-company data, synthetic credit products and preliminary
     financing selection for a hackathon. DEMO_OTP_CODE defaults to 1234; no SMS is sent. Public profile
     selection includes a bank employee and must not be used for production access. Product conditions
     and company data are synthetic and are not actual Alfa-Bank offers. Recommendations neither create
     applications nor constitute or guarantee credit decisions; Python scoring is not called. All responses
     use Cache-Control: no-store. CLIENT users can persist partial credit drafts and inspect their history;
-    draft APIs do not submit applications, call scoring or enqueue processing.'
+    draft APIs do not submit applications, call scoring or enqueue processing. Private application documents
+    can be uploaded by their CLIENT owner and read by their owner or BANK_EMPLOYEE.'
 servers:
 - url: http://localhost:8080
 paths:
@@ -627,6 +628,225 @@ paths:
           $ref: '#/components/responses/ServiceUnavailable'
         '500':
           $ref: '#/components/responses/InternalError'
+  /api/v1/applications/{applicationId}/documents:
+    parameters:
+    - $ref: '#/components/parameters/DocumentApplicationId'
+    post:
+      operationId: uploadApplicationDocument
+      summary: Upload a private document to the current client's draft
+      description: >-
+        CLIENT owner in the authenticated company only. Authorization and draft status
+        are checked before reading the body and checked again before activation.
+        Exactly one file and one documentType multipart part are required; unknown or
+        duplicate parts are rejected. PDF, PNG and JPEG are detected from actual bytes,
+        independently of the claimed part MIME type. The original filename must be a
+        safe basename with a matching .pdf, .png, .jpg or .jpeg extension; path separators,
+        traversal and control characters are rejected. File size is 1..5242880 bytes
+        (5 MiB); the entire request, including fields and boundaries, is limited to
+        5308416 bytes (5 MiB + 64 KiB). Multiple documents of the same type are allowed.
+        Storage keys, checksums and filesystem paths are never returned. The application
+        remains a draft and its optimistic version does not change. Required-document
+        checks are reserved for the later submit operation; no OCR is performed.
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - file
+              - documentType
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Synthetic PDF, PNG or JPEG, nonempty and no larger than 5 MiB
+                documentType:
+                  $ref: '#/components/schemas/DocumentType'
+            encoding:
+              file:
+                contentType: application/pdf, image/png, image/jpeg
+            example:
+              documentType: BANK_STATEMENT
+              file: '(binary contents of sample.pdf)'
+      responses:
+        '201':
+          description: Document is durably readable and its metadata is active in PostgreSQL
+          headers:
+            Location:
+              description: Authenticated API endpoint for downloading this document
+              schema:
+                type: string
+                example: /api/v1/applications/40000000-0000-4000-8000-000000000001/documents/50000000-0000-4000-8000-000000000001
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentMetadata'
+              example:
+                documentId: 50000000-0000-4000-8000-000000000001
+                applicationId: 40000000-0000-4000-8000-000000000001
+                documentType: BANK_STATEMENT
+                fileName: sample.pdf
+                contentType: application/pdf
+                sizeBytes: 500
+                uploadedAt: '2026-10-23T12:00:00Z'
+        '400':
+          description: Invalid UUID, documentType, filename, empty file or malformed multipart (invalid_request)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/DocumentApplicationNotFound'
+        '409':
+          description: Application is not a draft (invalid_status)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          description: File exceeds 5 MiB or complete body exceeds 5 MiB + 64 KiB (request_too_large)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: >-
+            Content-Type is not multipart/form-data (unsupported_media_type), or actual
+            content is unsupported or does not match the filename extension (unsupported_file_type)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                wrongMediaType:
+                  value:
+                    error: unsupported_media_type
+                    message: Используйте multipart/form-data с полями file и documentType.
+                unsupportedFile:
+                  value:
+                    error: unsupported_file_type
+                    message: Допустимы PDF, PNG и JPEG; расширение должно соответствовать содержимому.
+        '503':
+          $ref: '#/components/responses/DocumentStorageUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    get:
+      operationId: listApplicationDocuments
+      summary: List readable documents of an accessible application
+      description: >-
+        CLIENT can read only their own application in their company. BANK_EMPLOYEE can
+        read application documents across the MVP's single bank; there is no branch
+        or bank organization model. Employees cannot upload documents. Missing and
+        foreign applications return the same 404 application_not_found. Only ready,
+        readable documents are returned; pending or failed uploads are excluded.
+        No pagination is exposed in this MVP. Documents remain readable after a
+        future application status change; no deletion or replacement API is available.
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Readable document metadata, including multiple documents of the same type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentList'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/DocumentApplicationNotFound'
+        '503':
+          $ref: '#/components/responses/DocumentStorageUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/applications/{applicationId}/documents/{documentId}:
+    parameters:
+    - $ref: '#/components/parameters/DocumentApplicationId'
+    - name: documentId
+      in: path
+      required: true
+      description: Nonzero document UUID belonging to this exact application
+      schema:
+        type: string
+        format: uuid
+    get:
+      operationId: downloadApplicationDocument
+      summary: Download a private document as an attachment
+      description: >-
+        CLIENT owner in their company or BANK_EMPLOYEE read access. The application
+        scope is checked before the document lookup; a document ID from another
+        application cannot be substituted. A missing or foreign application returns
+        application_not_found; a missing, unreadable or wrong-application document
+        returns document_not_found. The private volume is never exposed as static
+        files. No absolute path or storage key is returned. Binary content uses its
+        detected MIME type and a safe attachment filename, with no-store and nosniff.
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Exact stored bytes; not a JSON document or public file URL
+          headers:
+            Content-Disposition:
+              description: Attachment with the validated original filename (RFC 6266)
+              schema:
+                type: string
+                example: attachment; filename=sample.pdf
+            Content-Length:
+              description: Length of the stored document in bytes
+              schema:
+                type: integer
+                minimum: 1
+                maximum: 5242880
+            X-Content-Type-Options:
+              schema:
+                type: string
+                enum:
+                - nosniff
+            Cache-Control:
+              schema:
+                type: string
+                enum:
+                - no-store
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Missing or inaccessible application (application_not_found), or missing/unreadable/wrong-application document (document_not_found)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          $ref: '#/components/responses/DocumentStorageUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
 components:
   securitySchemes:
     BearerAuth:
@@ -634,6 +854,15 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: HS256 access token issued by OTP verification; expires in eight hours
+  parameters:
+    DocumentApplicationId:
+      name: applicationId
+      in: path
+      required: true
+      description: Nonzero application UUID; CLIENT access requires both owner and company match
+      schema:
+        type: string
+        format: uuid
   schemas:
     Role:
       type: string
@@ -1531,6 +1760,63 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ApplicationEvent'
+    DocumentType:
+      type: string
+      description: >-
+        BANK_STATEMENT is reserved for company turnover evidence; EQUIPMENT_INVOICE
+        is reserved for an investment loan invoice or purchase contract. Required
+        types will be enforced on submit in the next stage, not on draft upload.
+      enum:
+      - BANK_STATEMENT
+      - EQUIPMENT_INVOICE
+    DocumentMetadata:
+      type: object
+      additionalProperties: false
+      required:
+      - documentId
+      - applicationId
+      - documentType
+      - fileName
+      - contentType
+      - sizeBytes
+      - uploadedAt
+      properties:
+        documentId:
+          type: string
+          format: uuid
+        applicationId:
+          type: string
+          format: uuid
+        documentType:
+          $ref: '#/components/schemas/DocumentType'
+        fileName:
+          type: string
+          description: Validated original basename; not the internal storage filename
+          example: sample.pdf
+        contentType:
+          type: string
+          enum:
+          - application/pdf
+          - image/png
+          - image/jpeg
+        sizeBytes:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 5242880
+        uploadedAt:
+          type: string
+          format: date-time
+    DocumentList:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentMetadata'
   responses:
     InvalidRequest:
       description: Invalid fields, UUID or JSON (invalid_request); unknown fields and trailing JSON values
@@ -1571,6 +1857,18 @@ components:
             $ref: '#/components/schemas/Error'
     Forbidden:
       description: Role is not permitted or the company does not belong to the authenticated CLIENT (forbidden).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    DocumentApplicationNotFound:
+      description: Missing application or application inaccessible to this CLIENT (application_not_found)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    DocumentStorageUnavailable:
+      description: PostgreSQL or private filesystem is unavailable, or an operation timed out (service_unavailable)
       content:
         application/json:
           schema:
