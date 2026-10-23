@@ -1,14 +1,15 @@
 openapi: 3.0.3
 info:
   title: Smart Credit Go backend
-  version: 0.2.0
-  description: |
-    Demonstration authentication for a hackathon, using synthetic profiles and a fixed
-    OTP configured by DEMO_OTP_CODE (1234 by default). No SMS is sent. Public profile
-    selection includes a bank employee and must not be used for production access.
-    Credit APIs are not implemented. All application responses use Cache-Control: no-store.
+  version: 0.3.0
+  description: 'Demonstration authentication, own-company data, synthetic credit products and preliminary
+    financing selection for a hackathon. DEMO_OTP_CODE defaults to 1234; no SMS is sent. Public profile
+    selection includes a bank employee and must not be used for production access. Product conditions
+    and company data are synthetic and are not actual Alfa-Bank offers. Recommendations neither create
+    applications nor constitute or guarantee credit decisions; Python scoring is not called. All responses
+    use Cache-Control: no-store.'
 servers:
-  - url: http://localhost:8080
+- url: http://localhost:8080
 paths:
   /health:
     get:
@@ -21,14 +22,18 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [status, service]
+                required:
+                - status
+                - service
                 properties:
                   status:
                     type: string
-                    enum: [ok]
+                    enum:
+                    - ok
                   service:
                     type: string
-                    enum: [backend]
+                    enum:
+                    - backend
   /ready:
     get:
       operationId: readiness
@@ -40,25 +45,31 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [status]
+                required:
+                - status
                 properties:
                   status:
                     type: string
-                    enum: [ready]
+                    enum:
+                    - ready
         '503':
           description: PostgreSQL is unavailable or the check timed out
           content:
             application/json:
               schema:
                 type: object
-                required: [status, error]
+                required:
+                - status
+                - error
                 properties:
                   status:
                     type: string
-                    enum: [not_ready]
+                    enum:
+                    - not_ready
                   error:
                     type: string
-                    enum: [database_unavailable]
+                    enum:
+                    - database_unavailable
   /api/v1/demo/profiles:
     get:
       operationId: listDemoProfiles
@@ -79,11 +90,15 @@ paths:
     post:
       operationId: requestDemoOTP
       summary: Create an OTP challenge and simulate sending an SMS
-      description: |
-        Uses the selected user's stored phone number. The challenge expires after five
+      description: 'Uses the selected user''s stored phone number. The challenge expires after five
+
         minutes and allows at most five verification attempts. Creating a new challenge
-        invalidates that user's previous active challenges atomically. The code is never
+
+        invalidates that user''s previous active challenges atomically. The code is never
+
         returned or logged; no real SMS is sent.
+
+        '
       requestBody:
         required: true
         content:
@@ -117,11 +132,15 @@ paths:
     post:
       operationId: verifyDemoOTP
       summary: Consume a valid OTP and issue an eight-hour access token
-      description: |
-        Code comparison, attempt limits and single use are enforced atomically in
+      description: 'Code comparison, attempt limits and single use are enforced atomically in
+
         PostgreSQL. A valid code on the fifth attempt succeeds; after five incorrect
+
         attempts the challenge is blocked. A consumed, expired, superseded or blocked
+
         challenge cannot issue a token. Role and company come from the stored user.
+
+        '
       requestBody:
         required: true
         content:
@@ -164,7 +183,8 @@ paths:
         '415':
           $ref: '#/components/responses/UnsupportedMediaType'
         '429':
-          description: Five failed verification attempts exhausted the challenge (otp_attempts_exceeded); request a new OTP
+          description: Five failed verification attempts exhausted the challenge (otp_attempts_exceeded);
+            request a new OTP
           content:
             application/json:
               schema:
@@ -177,12 +197,15 @@ paths:
     get:
       operationId: getCurrentUser
       summary: Return the authenticated user from PostgreSQL
-      description: |
-        Requires an HS256 JWT with a valid signature, expiration, issuer and audience.
+      description: 'Requires an HS256 JWT with a valid signature, expiration, issuer and audience.
+
         Its subject identifies the user; role and company are loaded from PostgreSQL
+
         on each authenticated request instead of trusting client input or JWT role claims.
+
+        '
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       responses:
         '200':
           description: Current user
@@ -200,6 +223,145 @@ paths:
           $ref: '#/components/responses/ServiceUnavailable'
         '500':
           $ref: '#/components/responses/InternalError'
+  /api/v1/companies/{companyId}:
+    get:
+      operationId: getOwnCompany
+      summary: Get the authenticated client’s own company
+      description: CLIENT only. Company ownership is checked before reading details. BANK_EMPLOYEE and
+        access to another company return 403; no foreign company existence is disclosed. All legal and
+        contact details are synthetic.
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '404':
+          description: Own company was not found (company_not_found).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: companyId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Nonzero UUID matching the authenticated user’s companyId.
+  /api/v1/credit-products:
+    get:
+      operationId: listCreditProducts
+      summary: List active synthetic credit products
+      description: CLIENT and BANK_EMPLOYEE. Products and conditions are read from PostgreSQL. No product
+        is created by this request.
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditProductsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/credit-products/{productId}:
+    get:
+      operationId: getCreditProduct
+      summary: Get an active product by public code
+      description: CLIENT and BANK_EMPLOYEE. The path uses turnover/investment codes, not UUIDs. Conditions
+        are synthetic, not actual bank offers.
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditProduct'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '404':
+          description: Unknown or inactive product (product_not_found).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: productId
+        in: path
+        required: true
+        schema:
+          type: string
+        example: turnover
+  /api/v1/recommendations:
+    post:
+      operationId: recommendFinancing
+      summary: Calculate an explainable preliminary financing selection
+      description: CLIENT only. The company and existing monthly debt payments come from PostgreSQL. Request
+        revenue/expenses override the company figures for this calculation only and are not persisted.
+        Uses exact rational arithmetic; monthly payments are rounded up, budgets and available amounts
+        down to whole rubles. A valid request without eligible products returns 200 with recommendedProductId=null
+        and explanations. Suggested amount/term corrections must be explicitly resubmitted to become the
+        selected request. This endpoint does not call Python scoring, create a credit decision, application
+        or background job, or modify any status.
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '413':
+          $ref: '#/components/responses/RequestTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecommendationInput'
 components:
   securitySchemes:
     BearerAuth:
@@ -210,10 +372,17 @@ components:
   schemas:
     Role:
       type: string
-      enum: [CLIENT, BANK_EMPLOYEE]
+      enum:
+      - CLIENT
+      - BANK_EMPLOYEE
     DemoProfile:
       type: object
-      required: [id, name, phone, role, companyName]
+      required:
+      - id
+      - name
+      - phone
+      - role
+      - companyName
       properties:
         id:
           type: string
@@ -234,7 +403,8 @@ components:
           example: ИП «Лавка у дома»
     DemoProfilesResponse:
       type: object
-      required: [items]
+      required:
+      - items
       properties:
         items:
           type: array
@@ -243,7 +413,8 @@ components:
     OTPRequestInput:
       type: object
       additionalProperties: false
-      required: [profileId]
+      required:
+      - profileId
       properties:
         profileId:
           type: string
@@ -252,7 +423,10 @@ components:
           example: 20000000-0000-4000-8000-000000000001
     OTPRequestResponse:
       type: object
-      required: [otpRequestId, expiresAt, maskedPhone]
+      required:
+      - otpRequestId
+      - expiresAt
+      - maskedPhone
       properties:
         otpRequestId:
           type: string
@@ -263,11 +437,13 @@ components:
           description: UTC expiry, five minutes after challenge creation
         maskedPhone:
           type: string
-          example: '+7*** *** 0001'
+          example: +7*** *** 0001
     OTPVerifyInput:
       type: object
       additionalProperties: false
-      required: [otpRequestId, code]
+      required:
+      - otpRequestId
+      - code
       properties:
         otpRequestId:
           type: string
@@ -281,14 +457,21 @@ components:
           example: '1234'
     OTPVerifyResponse:
       type: object
-      required: [accessToken, tokenType, expiresAt, userId, role, companyId]
+      required:
+      - accessToken
+      - tokenType
+      - expiresAt
+      - userId
+      - role
+      - companyId
       properties:
         accessToken:
           type: string
           description: Signed JWT; do not log it
         tokenType:
           type: string
-          enum: [Bearer]
+          enum:
+          - Bearer
         expiresAt:
           type: string
           format: date-time
@@ -305,7 +488,12 @@ components:
           description: Null for BANK_EMPLOYEE
     CurrentUser:
       type: object
-      required: [id, name, phone, role, companyId]
+      required:
+      - id
+      - name
+      - phone
+      - role
+      - companyId
       properties:
         id:
           type: string
@@ -324,20 +512,374 @@ components:
           description: Null for BANK_EMPLOYEE
     Error:
       type: object
-      required: [error, message]
+      required:
+      - error
+      - message
       properties:
         error:
           type: string
-          description: Stable machine-readable error code; role middleware returns forbidden with HTTP 403
+          description: Stable machine-readable error code; role middleware returns forbidden with HTTP
+            403
         message:
           type: string
           description: Safe human-readable explanation without database or credential details
       example:
         error: invalid_request
         message: Некорректный запрос
+    CompanyContact:
+      type: object
+      required:
+      - phone
+      - email
+      - address
+      properties:
+        phone:
+          type: string
+        email:
+          type: string
+          format: email
+        address:
+          type: string
+    CompanyFinancials:
+      type: object
+      required:
+      - monthlyRevenueRub
+      - monthlyExpensesRub
+      - existingDebtRub
+      - existingMonthlyPaymentsRub
+      - overdueCount
+      properties:
+        monthlyRevenueRub:
+          type: integer
+          format: int64
+          minimum: 0
+        monthlyExpensesRub:
+          type: integer
+          format: int64
+          minimum: 0
+        existingDebtRub:
+          type: integer
+          format: int64
+          minimum: 0
+        existingMonthlyPaymentsRub:
+          type: integer
+          format: int64
+          minimum: 0
+        overdueCount:
+          type: integer
+          format: int64
+          minimum: 0
+    Company:
+      type: object
+      required:
+      - id
+      - name
+      - organizationType
+      - inn
+      - registrationNumber
+      - registrationDate
+      - okved
+      - directorName
+      - contact
+      - financials
+      - simulation
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        organizationType:
+          type: string
+          enum:
+          - ИП
+          - ООО
+          description: Synthetic organization legal form.
+        inn:
+          type: string
+          description: Synthetic demonstration tax identifier; not a registry lookup.
+        registrationNumber:
+          type: string
+          description: Synthetic OGRN/OGRNIP, represented as a string.
+        registrationDate:
+          type: string
+          format: date
+        okved:
+          type: string
+        directorName:
+          type: string
+        contact:
+          $ref: '#/components/schemas/CompanyContact'
+        financials:
+          $ref: '#/components/schemas/CompanyFinancials'
+        simulation:
+          type: boolean
+          enum:
+          - true
+    CreditProduct:
+      type: object
+      required:
+      - id
+      - name
+      - purposes
+      - minAmountRub
+      - maxAmountRub
+      - minTermMonths
+      - maxTermMonths
+      - annualRatePercent
+      - minBusinessAgeMonths
+      - version
+      - illustrative
+      properties:
+        id:
+          type: string
+          description: Stable public code; internal PostgreSQL UUID is not exposed.
+          enum:
+          - turnover
+          - investment
+        name:
+          type: string
+        purposes:
+          type: array
+          items:
+            type: string
+            enum:
+            - stock
+            - expenses
+            - seasonal
+            - equipment
+            - upgrade
+        minAmountRub:
+          type: integer
+          format: int64
+          minimum: 1
+        maxAmountRub:
+          type: integer
+          format: int64
+          minimum: 1
+        minTermMonths:
+          type: integer
+          format: int64
+          minimum: 1
+        maxTermMonths:
+          type: integer
+          format: int64
+          minimum: 1
+        annualRatePercent:
+          type: number
+          minimum: 0
+          description: Annual percent, e.g. 22; serialized as a JSON number, not a string.
+        minBusinessAgeMonths:
+          type: integer
+          format: int64
+          minimum: 0
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        illustrative:
+          type: boolean
+          enum:
+          - true
+    CreditProductsResponse:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CreditProduct'
+    RecommendationInput:
+      type: object
+      required:
+      - purpose
+      - requestedAmountRub
+      - termMonths
+      - monthlyRevenueRub
+      - monthlyExpensesRub
+      properties:
+        purpose:
+          type: string
+          enum:
+          - stock
+          - expenses
+          - seasonal
+          - equipment
+          - upgrade
+          - other
+          description: Other is a valid goal; currently neither product matches it.
+        requestedAmountRub:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 1000000000000
+        termMonths:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 120
+        monthlyRevenueRub:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 1000000000000
+        monthlyExpensesRub:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 1000000000000
+      additionalProperties: false
+      description: All five fields are required, non-null. Amounts are integer rubles. companyId is forbidden;
+        the company comes from the authenticated user.
+      example:
+        purpose: stock
+        requestedAmountRub: 1500000
+        termMonths: 12
+        monthlyRevenueRub: 2400000
+        monthlyExpensesRub: 1500000
+    ProductMatches:
+      type: object
+      required:
+      - purpose
+      - amount
+      - term
+      - businessAge
+      - affordability
+      properties:
+        purpose:
+          type: boolean
+        amount:
+          type: boolean
+        term:
+          type: boolean
+        businessAge:
+          type: boolean
+        affordability:
+          type: boolean
+          description: True when the term is allowed and the requested rounded monthly payment does not
+            exceed the budget; independent of purpose, amount bounds and business age.
+    FinancingAdjustment:
+      type: object
+      required:
+      - amountRub
+      - termMonths
+      - monthlyPaymentRub
+      - explanation
+      properties:
+        amountRub:
+          type: integer
+          format: int64
+          minimum: 1
+        termMonths:
+          type: integer
+          format: int64
+          minimum: 1
+        monthlyPaymentRub:
+          type: integer
+          format: int64
+          minimum: 0
+        explanation:
+          type: string
+    ProductRecommendation:
+      type: object
+      required:
+      - product
+      - matches
+      - eligible
+      - preliminaryAvailableAmountRub
+      - monthlyPaymentRub
+      - reasons
+      - limitations
+      - adjustments
+      properties:
+        product:
+          $ref: '#/components/schemas/CreditProduct'
+        matches:
+          $ref: '#/components/schemas/ProductMatches'
+        eligible:
+          type: boolean
+          description: All five matches are true for the original request. An adjustment does not make
+            the original request eligible.
+        preliminaryAvailableAmountRub:
+          type: integer
+          format: int64
+          minimum: 0
+          description: floor(paymentBudget / annuityCoefficient), capped at product maximum; zero if requested
+            term is outside the product limits. Does not itself indicate eligibility.
+        monthlyPaymentRub:
+          type: integer
+          format: int64
+          minimum: 0
+          nullable: true
+          description: Annuity payment rounded up to the next whole ruble; null if requested term is outside
+            the product limits.
+        reasons:
+          type: array
+          items:
+            type: string
+        limitations:
+          type: array
+          items:
+            type: string
+        adjustments:
+          type: array
+          items:
+            $ref: '#/components/schemas/FinancingAdjustment'
+    RecommendationResponse:
+      type: object
+      required:
+      - companyId
+      - businessAgeMonths
+      - surplusRub
+      - existingMonthlyPaymentsRub
+      - paymentBudgetRub
+      - products
+      - recommendedProductId
+      - disclaimer
+      - simulation
+      properties:
+        companyId:
+          type: string
+          format: uuid
+        businessAgeMonths:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Completed UTC calendar months since registration, with end-of-month day clamping.
+        surplusRub:
+          type: integer
+          format: int64
+          description: Requested monthly revenue minus requested monthly expenses; may be negative.
+        existingMonthlyPaymentsRub:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Existing monthly debt payments loaded from the company in PostgreSQL.
+        paymentBudgetRub:
+          type: integer
+          format: int64
+          minimum: 0
+          description: floor(max(0, 0.5 * surplusRub - existingMonthlyPaymentsRub)).
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductRecommendation'
+        recommendedProductId:
+          type: string
+          nullable: true
+          description: Eligible product with the lowest monthly payment, then lexicographic product ID;
+            null when none is eligible. Suggested adjustments are not automatically selected.
+        disclaimer:
+          type: string
+        simulation:
+          type: boolean
+          enum:
+          - true
   responses:
     InvalidRequest:
-      description: Invalid fields, UUID or JSON (invalid_request); unknown fields and trailing JSON values are rejected
+      description: Invalid fields, UUID or JSON (invalid_request); unknown fields and trailing JSON values
+        are rejected
       content:
         application/json:
           schema:
@@ -362,6 +904,18 @@ components:
             $ref: '#/components/schemas/Error'
     InternalError:
       description: Unexpected internal error (internal_error); internal details are not returned
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Missing, invalid or expired JWT (unauthorized).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Role is not permitted or the company does not belong to the authenticated CLIENT (forbidden).
       content:
         application/json:
           schema:

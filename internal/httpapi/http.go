@@ -18,7 +18,7 @@ type Pinger interface {
 	Ping(context.Context) error
 }
 
-func NewHandler(db Pinger, logger *slog.Logger, pingTimeout time.Duration, authHandler *AuthHandler) http.Handler {
+func NewHandler(db Pinger, logger *slog.Logger, pingTimeout time.Duration, authHandler *AuthHandler, registerRoutes ...func(chi.Router)) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(func(next http.Handler) http.Handler {
@@ -54,6 +54,9 @@ func NewHandler(db Pinger, logger *slog.Logger, pingTimeout time.Duration, authH
 	})
 	if authHandler != nil {
 		authHandler.Register(r)
+	}
+	for _, register := range registerRoutes {
+		register(r)
 	}
 	r.NotFound(func(w http.ResponseWriter, req *http.Request) {
 		writeAPIError(w, http.StatusNotFound, "not_found", "Маршрут не найден.")

@@ -58,7 +58,7 @@ func (h *AuthHandler) requestOTP(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		ProfileID string `json:"profileId"`
 	}
-	if !readAuthJSON(w, r, &input) {
+	if !readJSON(w, r, &input) {
 		return
 	}
 	profileID, ok := parseID(input.ProfileID)
@@ -85,7 +85,7 @@ func (h *AuthHandler) verifyOTP(w http.ResponseWriter, r *http.Request) {
 		RequestID string `json:"otpRequestId"`
 		Code      string `json:"code"`
 	}
-	if !readAuthJSON(w, r, &input) {
+	if !readJSON(w, r, &input) {
 		return
 	}
 	requestID, ok := parseID(input.RequestID)
@@ -163,7 +163,7 @@ func maskPhone(phone string) string {
 	return phone[:2] + "*** *** " + phone[len(phone)-4:]
 }
 
-func readAuthJSON(w http.ResponseWriter, r *http.Request, target any) bool {
+func readJSON(w http.ResponseWriter, r *http.Request, target any) bool {
 	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil || !strings.EqualFold(mediaType, "application/json") {
 		writeAPIError(w, http.StatusUnsupportedMediaType, "unsupported_media_type", "Используйте Content-Type: application/json.")

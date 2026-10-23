@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "Smart Credit — Backend Stage 2 (OTP + JWT)",
-    "description": "Единая коллекция проверок Smart Credit, Postman Collection v2.1. Запустите docker compose up -d --build, затем всю коллекцию сверху вниз в Collection Runner. baseUrl по умолчанию http://localhost:8080; demoOtpCode по умолчанию 1234 (измените при переопределении DEMO_OTP_CODE). Идентификаторы, OTP challenges и JWT передаются автоматически через collection variables; первый запрос очищает результаты предыдущего запуска. Обе роли и принадлежность компании проверяются по ответам /me; передача роли в JSON запрещена. Отдельных банковских API на этом этапе нет: RequireRole проверяется Go-тестами. Проверка JWT claims в коллекции не заменяет проверку подписи backend; успешный /me подтверждает принятие токена сервером. После запуска токены доступны локально для ручных запросов. Не экспортируйте коллекцию с заполненными токенами и не используйте реальные персональные данные. При добавлении API обновляйте эту коллекцию: позитивные и негативные сценарии, автоматическая передача ID, точные статусы и поля ответов.",
+    "name": "Smart Credit — Backend API (OTP, Companies, Products, Recommendations)",
+    "description": "Единая коллекция Smart Credit, Postman Collection v2.1. Запустите docker compose up -d --build, затем всю коллекцию сверху вниз в Collection Runner. baseUrl по умолчанию http://localhost:8080; demoOtpCode по умолчанию 1234. Все профили, companyId, OTP challenges и JWT передаются автоматически; первый запрос очищает результаты предыдущего запуска. Сохранены сценарии OTP/JWT обеих ролей. Новые сценарии проверяют собственную и чужую компанию, каталог и карточки продуктов, подбор финансирования, точные финансовые расчёты, границы и ошибки. Для проверки чужой компании автоматически авторизуется второй обнаруженный CLIENT. Расчёты проверяются независимой аннуитетной формулой JavaScript на синтетических значениях; точная арифметика и границы округления дополнительно проверяются Go-тестами. Рекомендация не является кредитным решением; scoring не вызывается. Не экспортируйте коллекцию с заполненными токенами и не используйте реальные персональные данные.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -84,6 +84,36 @@
       "key": "previousClientOtpRequestId",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "otherClientProfileId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "otherClientOtpRequestId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "otherClientAccessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "otherCompanyId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "ownCompanyJSON",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "creditProductsJSON",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -115,7 +145,7 @@
             "type": "text/javascript",
             "exec": [
               "// Run on every Collection Runner iteration, preserving baseUrl and demoOtpCode.",
-              "const resetKeys = [\"clientProfileId\", \"bankProfileId\", \"otpRequestId\", \"accessToken\", \"clientOtpRequestId\", \"bankOtpRequestId\", \"clientAccessToken\", \"bankAccessToken\", \"clientCompanyId\", \"clientName\", \"clientPhone\", \"bankName\", \"bankPhone\", \"previousClientOtpRequestId\"];",
+              "const resetKeys = [\"clientProfileId\", \"bankProfileId\", \"otpRequestId\", \"accessToken\", \"clientOtpRequestId\", \"bankOtpRequestId\", \"clientAccessToken\", \"bankAccessToken\", \"clientCompanyId\", \"clientName\", \"clientPhone\", \"bankName\", \"bankPhone\", \"previousClientOtpRequestId\", \"otherClientProfileId\", \"otherClientOtpRequestId\", \"otherClientAccessToken\", \"otherCompanyId\", \"ownCompanyJSON\", \"creditProductsJSON\"];",
               "resetKeys.forEach(key => { pm.collectionVariables.set(key, \"\"); pm.variables.set(key, \"\"); });"
             ]
           }
@@ -154,7 +184,8 @@
               "    pm.collectionVariables.set(scope + \"Name\", p.name);",
               "    pm.collectionVariables.set(scope + \"Phone\", p.phone);",
               "  });",
-              "}"
+              "}",
+              "if (pm.response.code === 200 && clients[1]) pm.collectionVariables.set(\"otherClientProfileId\", clients[1].id);"
             ]
           }
         }
@@ -1148,6 +1179,1684 @@
           }
         }
       ]
+    },
+    {
+      "name": "19 · Second client — request OTP to discover foreign company",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/otp/request",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "otp",
+            "request"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"profileId\": \"{{otherClientProfileId}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "const r = pm.response.json();",
+              "pm.test(\"New challenge ID\", () => pm.expect(r.otpRequestId).to.match(/^[0-9a-f-]{36}$/i));",
+              "if (pm.response.code === 201) pm.collectionVariables.set(\"otherClientOtpRequestId\", r.otpRequestId);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "20 · Second client — verify OTP and save foreign company automatically",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/otp/verify",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "otp",
+            "verify"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"otpRequestId\": \"{{otherClientOtpRequestId}}\",\n  \"code\": \"{{demoOtpCode}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Different client and company from database\", () => { pm.expect(r.userId).to.eql(pm.collectionVariables.get(\"otherClientProfileId\")); pm.expect(r.role).to.eql(\"CLIENT\"); pm.expect(r.companyId).to.be.a(\"string\").and.not.eql(pm.collectionVariables.get(\"clientCompanyId\")); });",
+              "if (pm.response.code === 200) { pm.collectionVariables.set(\"otherCompanyId\", r.companyId); pm.collectionVariables.set(\"otherClientAccessToken\", r.accessToken); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "21 · Company — own synthetic details and financials",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/companies/{{clientCompanyId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "companies",
+            "{{clientCompanyId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Company DTO, ownership and synthetic fields\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"id\", \"name\", \"organizationType\", \"inn\", \"registrationNumber\", \"registrationDate\", \"okved\", \"directorName\", \"contact\", \"financials\", \"simulation\");",
+              "  pm.expect(r.id).to.eql(pm.collectionVariables.get(\"clientCompanyId\")); pm.expect(r.organizationType).to.be.oneOf([\"ИП\", \"ООО\"]);",
+              "  [r.name, r.inn, r.registrationNumber, r.okved, r.directorName].forEach(value => pm.expect(value).to.be.a(\"string\").and.not.empty);",
+              "  pm.expect(r.registrationDate).to.match(/^\\d{4}-\\d{2}-\\d{2}$/); pm.expect(Number.isFinite(Date.parse(r.registrationDate))).to.eql(true);",
+              "  pm.expect(r.contact).to.have.all.keys(\"phone\", \"email\", \"address\"); Object.values(r.contact).forEach(value => pm.expect(value).to.be.a(\"string\").and.not.empty);",
+              "  pm.expect(r.financials).to.have.all.keys(\"monthlyRevenueRub\", \"monthlyExpensesRub\", \"existingDebtRub\", \"existingMonthlyPaymentsRub\", \"overdueCount\"); Object.values(r.financials).forEach(value => { pm.expect(Number.isSafeInteger(value)).to.eql(true); pm.expect(value).to.be.at.least(0); });",
+              "  pm.expect(r.simulation).to.eql(true);",
+              "});",
+              "if (pm.response.code === 200) pm.collectionVariables.set(\"ownCompanyJSON\", JSON.stringify(r));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "22 · Company — foreign company is forbidden",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/companies/{{otherCompanyId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "companies",
+            "{{otherCompanyId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error forbidden\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"forbidden\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; pm.expect(r).not.to.have.property(\"accessToken\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "23 · Company — employee role is forbidden",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/companies/{{clientCompanyId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "companies",
+            "{{clientCompanyId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error forbidden\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"forbidden\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; pm.expect(r).not.to.have.property(\"accessToken\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "24 · Company — malformed UUID is invalid",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/companies/not-a-uuid",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "companies",
+            "not-a-uuid"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; pm.expect(r).not.to.have.property(\"accessToken\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "25 · Company — JWT required",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/companies/{{clientCompanyId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "companies",
+            "{{clientCompanyId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error unauthorized\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"unauthorized\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; pm.expect(r).not.to.have.property(\"accessToken\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "26 · Products — client reads both seeded products",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/credit-products",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "credit-products"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Exactly the two seeded products with agreed synthetic conditions\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"items\"); pm.expect(r.items).to.be.an(\"array\").with.length(2);",
+              "  pm.expect(r.items.map(p => p.id).sort()).to.deep.eql([\"investment\", \"turnover\"]);",
+              "  const expected = {turnover: {purposes:[\"stock\", \"expenses\", \"seasonal\"], minAmountRub:100000, maxAmountRub:3000000, minTermMonths:6, maxTermMonths:24, annualRatePercent:22, minBusinessAgeMonths:6}, investment: {purposes:[\"equipment\", \"upgrade\"], minAmountRub:300000, maxAmountRub:10000000, minTermMonths:12, maxTermMonths:60, annualRatePercent:20, minBusinessAgeMonths:12}};",
+              "  r.items.forEach(product => {",
+              "    pm.expect(product).to.have.all.keys(\"id\", \"name\", \"purposes\", \"minAmountRub\", \"maxAmountRub\", \"minTermMonths\", \"maxTermMonths\", \"annualRatePercent\", \"minBusinessAgeMonths\", \"version\", \"illustrative\");",
+              "    pm.expect(product.name).to.be.a(\"string\").and.not.empty; pm.expect(product.illustrative).to.eql(true); pm.expect(product.version).to.be.at.least(1);",
+              "    Object.entries(expected[product.id]).forEach(([key, value]) => pm.expect(product[key]).to.deep.eql(value));",
+              "  });",
+              "});",
+              "if (pm.response.code === 200) pm.collectionVariables.set(\"creditProductsJSON\", JSON.stringify(r.items));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "27 · Products — employee reads the same catalog",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/credit-products",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "credit-products"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Catalog agrees across roles\", () => pm.expect(r.items).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"creditProductsJSON\"))));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "28 · Products — JWT required",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/credit-products",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "credit-products"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error unauthorized\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"unauthorized\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; pm.expect(r).not.to.have.property(\"accessToken\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "29 · Product — turnover public code",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/credit-products/turnover",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "credit-products",
+            "turnover"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Product matches catalog\", () => pm.expect(r).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"creditProductsJSON\")).find(p => p.id === \"turnover\")));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "30 · Product — investment public code",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/credit-products/investment",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "credit-products",
+            "investment"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Product matches catalog\", () => pm.expect(r).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"creditProductsJSON\")).find(p => p.id === \"investment\")));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "31 · Product — unknown code returns 404",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/credit-products/missing-product",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "credit-products",
+            "missing-product"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error product_not_found\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"product_not_found\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; pm.expect(r).not.to.have.property(\"accessToken\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "32 · Product — JWT required",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/credit-products/turnover",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "credit-products",
+            "turnover"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error unauthorized\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"unauthorized\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; pm.expect(r).not.to.have.property(\"accessToken\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "33 · Recommendations — turnover is eligible",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/recommendations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "recommendations"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"purpose\": \"stock\",\n  \"requestedAmountRub\": 1500000,\n  \"termMonths\": 12,\n  \"monthlyRevenueRub\": 2400000,\n  \"monthlyExpensesRub\": 1500000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected recommended product\", () => pm.expect(r.recommendedProductId).to.eql(\"turnover\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "34 · Recommendations — investment is eligible",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/recommendations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "recommendations"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"purpose\": \"equipment\",\n  \"requestedAmountRub\": 3000000,\n  \"termMonths\": 36,\n  \"monthlyRevenueRub\": 4200000,\n  \"monthlyExpensesRub\": 2800000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected recommended product\", () => pm.expect(r.recommendedProductId).to.eql(\"investment\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "35 · Recommendations — amount outside product bounds is explained",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/recommendations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "recommendations"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"purpose\": \"stock\",\n  \"requestedAmountRub\": 50000,\n  \"termMonths\": 12,\n  \"monthlyRevenueRub\": 2400000,\n  \"monthlyExpensesRub\": 1500000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected recommended product\", () => pm.expect(r.recommendedProductId).to.eql(null));",
+              "pm.test(\"Amount mismatch and possible correction\", () => { const p = r.products.find(x => x.product.id === \"turnover\"); pm.expect(p.matches.amount).to.eql(false); pm.expect(p.adjustments.length).to.be.above(0); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "36 · Recommendations — term outside product bounds is explained",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/recommendations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "recommendations"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"purpose\": \"stock\",\n  \"requestedAmountRub\": 1500000,\n  \"termMonths\": 3,\n  \"monthlyRevenueRub\": 2400000,\n  \"monthlyExpensesRub\": 1500000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected recommended product\", () => pm.expect(r.recommendedProductId).to.eql(null));",
+              "pm.test(\"Invalid product term has no requested payment\", () => r.products.forEach(p => { pm.expect(p.matches.term).to.eql(false); pm.expect(p.monthlyPaymentRub).to.eql(null); pm.expect(p.preliminaryAvailableAmountRub).to.eql(0); }));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "37 · Recommendations — insufficient budget returns 200 and no recommendation",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/recommendations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "recommendations"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"purpose\": \"stock\",\n  \"requestedAmountRub\": 1500000,\n  \"termMonths\": 12,\n  \"monthlyRevenueRub\": 1690000,\n  \"monthlyExpensesRub\": 1500000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected recommended product\", () => pm.expect(r.recommendedProductId).to.eql(null));",
+              "pm.test(\"Available amount below product minimum\", () => r.products.forEach(p => pm.expect(p.preliminaryAvailableAmountRub).to.be.below(p.product.minAmountRub)));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "38 · Recommendations — zero revenue is valid and yields zero budget",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/recommendations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "recommendations"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"purpose\": \"stock\",\n  \"requestedAmountRub\": 1500000,\n  \"termMonths\": 12,\n  \"monthlyRevenueRub\": 0,\n  \"monthlyExpensesRub\": 0\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected recommended product\", () => pm.expect(r.recommendedProductId).to.eql(null));",
+              "pm.test(\"Zero budget\", () => pm.expect(r.paymentBudgetRub).to.eql(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "39 · Recommendations — negative operating result yields zero budget",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/recommendations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "recommendations"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"purpose\": \"stock\",\n  \"requestedAmountRub\": 1500000,\n  \"termMonths\": 12,\n  \"monthlyRevenueRub\": 100000,\n  \"monthlyExpensesRub\": 500000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected recommended product\", () => pm.expect(r.recommendedProductId).to.eql(null));",
+              "pm.test(\"Negative surplus, zero budget\", () => { pm.expect(r.surplusRub).to.eql(-400000); pm.expect(r.paymentBudgetRub).to.eql(0); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "40 · Recommendations — other purpose has no suitable product",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/recommendations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "recommendations"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"purpose\": \"other\",\n  \"requestedAmountRub\": 1500000,\n  \"termMonths\": 12,\n  \"monthlyRevenueRub\": 2400000,\n  \"monthlyExpensesRub\": 1500000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected recommended product\", () => pm.expect(r.recommendedProductId).to.eql(null));",
+              "pm.test(\"Purpose mismatch\", () => r.products.forEach(p => pm.expect(p.matches.purpose).to.eql(false)));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "41 · Recommendations — longer term or smaller amount is suggested",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/recommendations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "recommendations"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"purpose\": \"stock\",\n  \"requestedAmountRub\": 3000000,\n  \"termMonths\": 6,\n  \"monthlyRevenueRub\": 500000,\n  \"monthlyExpensesRub\": 0\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected recommended product\", () => pm.expect(r.recommendedProductId).to.eql(null));",
+              "pm.test(\"Affordable alternative supplied without automatic selection\", () => { const p = r.products.find(x => x.product.id === \"turnover\"); pm.expect(p.matches.affordability).to.eql(false); pm.expect(p.adjustments.length).to.be.above(0); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "42 · Recommendations — turnover minimum amount and term are inclusive",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/recommendations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "recommendations"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"purpose\": \"stock\",\n  \"requestedAmountRub\": 100000,\n  \"termMonths\": 6,\n  \"monthlyRevenueRub\": 2400000,\n  \"monthlyExpensesRub\": 1500000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected recommended product\", () => pm.expect(r.recommendedProductId).to.eql(\"turnover\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "43 · Recommendations — investment maximum amount and term are inclusive",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/recommendations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "recommendations"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"purpose\": \"equipment\",\n  \"requestedAmountRub\": 10000000,\n  \"termMonths\": 60,\n  \"monthlyRevenueRub\": 4200000,\n  \"monthlyExpensesRub\": 2800000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected recommended product\", () => pm.expect(r.recommendedProductId).to.eql(\"investment\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "44 · Recommendations — odd-ruble surplus is rounded down",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/recommendations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "recommendations"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"purpose\": \"stock\",\n  \"requestedAmountRub\": 1500000,\n  \"termMonths\": 12,\n  \"monthlyRevenueRub\": 2400001,\n  \"monthlyExpensesRub\": 1500000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected recommended product\", () => pm.expect(r.recommendedProductId).to.eql(\"turnover\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "45 · Recommendations — unknown purpose",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/recommendations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "recommendations"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"purpose\": \"unknown\",\n  \"requestedAmountRub\": 1500000,\n  \"termMonths\": 12,\n  \"monthlyRevenueRub\": 2400000,\n  \"monthlyExpensesRub\": 1500000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; pm.expect(r).not.to.have.property(\"accessToken\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "46 · Recommendations — negative revenue",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/recommendations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "recommendations"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"purpose\": \"stock\",\n  \"requestedAmountRub\": 1500000,\n  \"termMonths\": 12,\n  \"monthlyRevenueRub\": -1,\n  \"monthlyExpensesRub\": 1500000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; pm.expect(r).not.to.have.property(\"accessToken\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "47 · Recommendations — fractional rubles",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/recommendations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "recommendations"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"purpose\": \"stock\",\n  \"requestedAmountRub\": 100000.5,\n  \"termMonths\": 12,\n  \"monthlyRevenueRub\": 2400000,\n  \"monthlyExpensesRub\": 1500000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; pm.expect(r).not.to.have.property(\"accessToken\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "48 · Recommendations — required revenue cannot be omitted",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/recommendations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "recommendations"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"purpose\": \"stock\",\n  \"requestedAmountRub\": 1500000,\n  \"termMonths\": 12,\n  \"monthlyExpensesRub\": 1500000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; pm.expect(r).not.to.have.property(\"accessToken\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "49 · Recommendations — required revenue cannot be null",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/recommendations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "recommendations"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"purpose\": \"stock\",\n  \"requestedAmountRub\": 1500000,\n  \"termMonths\": 12,\n  \"monthlyRevenueRub\": null,\n  \"monthlyExpensesRub\": 1500000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; pm.expect(r).not.to.have.property(\"accessToken\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "50 · Recommendations — caller cannot inject companyId",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/recommendations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "recommendations"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"purpose\": \"stock\",\n  \"requestedAmountRub\": 1500000,\n  \"termMonths\": 12,\n  \"monthlyRevenueRub\": 2400000,\n  \"monthlyExpensesRub\": 1500000,\n  \"companyId\": \"{{otherCompanyId}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; pm.expect(r).not.to.have.property(\"accessToken\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "51 · Recommendations — JWT required",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/recommendations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "recommendations"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"purpose\": \"stock\",\n  \"requestedAmountRub\": 1500000,\n  \"termMonths\": 12,\n  \"monthlyRevenueRub\": 2400000,\n  \"monthlyExpensesRub\": 1500000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error unauthorized\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"unauthorized\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; pm.expect(r).not.to.have.property(\"accessToken\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "52 · Recommendations — employee role forbidden",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/recommendations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "recommendations"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"purpose\": \"stock\",\n  \"requestedAmountRub\": 1500000,\n  \"termMonths\": 12,\n  \"monthlyRevenueRub\": 2400000,\n  \"monthlyExpensesRub\": 1500000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error forbidden\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"forbidden\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; pm.expect(r).not.to.have.property(\"accessToken\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "53 · Recommendations — JSON media type required",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "text/plain"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/recommendations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "recommendations"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"purpose\": \"stock\",\n  \"requestedAmountRub\": 1500000,\n  \"termMonths\": 12,\n  \"monthlyRevenueRub\": 2400000,\n  \"monthlyExpensesRub\": 1500000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 415\", () => pm.response.to.have.status(415));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error unsupported_media_type\", () => { pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"unsupported_media_type\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty; pm.expect(r).not.to.have.property(\"accessToken\"); });"
+            ]
+          }
+        }
+      ]
     }
   ],
   "event": [
@@ -1157,7 +2866,7 @@
         "type": "text/javascript",
         "exec": [
           "// Local values prevent stale environment/global variables from shadowing run results.",
-          "const transientKeys = [\"clientProfileId\", \"bankProfileId\", \"otpRequestId\", \"accessToken\", \"clientOtpRequestId\", \"bankOtpRequestId\", \"clientAccessToken\", \"bankAccessToken\", \"clientCompanyId\", \"clientName\", \"clientPhone\", \"bankName\", \"bankPhone\", \"previousClientOtpRequestId\"];",
+          "const transientKeys = [\"clientProfileId\", \"bankProfileId\", \"otpRequestId\", \"accessToken\", \"clientOtpRequestId\", \"bankOtpRequestId\", \"clientAccessToken\", \"bankAccessToken\", \"clientCompanyId\", \"clientName\", \"clientPhone\", \"bankName\", \"bankPhone\", \"previousClientOtpRequestId\", \"otherClientProfileId\", \"otherClientOtpRequestId\", \"otherClientAccessToken\", \"otherCompanyId\", \"ownCompanyJSON\", \"creditProductsJSON\"];",
           "transientKeys.forEach(key => pm.variables.set(key, pm.collectionVariables.get(key) || \"\"));",
           "const configuredCode = String(pm.variables.get(\"demoOtpCode\") || \"1234\");",
           "pm.variables.set(\"demoOtpCode\", configuredCode);",
@@ -1171,7 +2880,71 @@
         "type": "text/javascript",
         "exec": [
           "pm.test(\"JSON response\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\"));",
-          "pm.test(\"Responses are not cached\", () => pm.expect(pm.response.headers.get(\"Cache-Control\")).to.eql(\"no-store\"));"
+          "pm.test(\"Responses are not cached\", () => pm.expect(pm.response.headers.get(\"Cache-Control\")).to.eql(\"no-store\"));",
+          "// Independently check whole-ruble results for every successful recommendation request.",
+          "if (pm.request.url.toString().includes(\"/api/v1/recommendations\") && pm.response.code === 200) {",
+          "  const result = pm.response.json();",
+          "  const input = JSON.parse(pm.variables.replaceIn(pm.request.body.raw));",
+          "  const company = JSON.parse(pm.collectionVariables.get(\"ownCompanyJSON\"));",
+          "  const catalog = JSON.parse(pm.collectionVariables.get(\"creditProductsJSON\"));",
+          "  const budget = Math.floor(Math.max(0, 0.5 * (input.monthlyRevenueRub - input.monthlyExpensesRub) - company.financials.existingMonthlyPaymentsRub));",
+          "  function coefficient(ratePercent, months) { const rate = ratePercent / 1200; return rate === 0 ? 1 / months : rate / (1 - Math.pow(1 + rate, -months)); }",
+          "  const registered = new Date(company.registrationDate + \"T00:00:00Z\"), today = new Date();",
+          "  let age = (today.getUTCFullYear() - registered.getUTCFullYear()) * 12 + today.getUTCMonth() - registered.getUTCMonth();",
+          "  const monthEnd = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0)).getUTCDate();",
+          "  if (today.getUTCDate() < Math.min(registered.getUTCDate(), monthEnd)) age--;",
+          "  age = Math.max(0, age);",
+          "  pm.test(\"Recommendation DTO, authenticated company and exact integer budget\", () => {",
+          "    pm.expect(result).to.have.all.keys(\"companyId\", \"businessAgeMonths\", \"surplusRub\", \"existingMonthlyPaymentsRub\", \"paymentBudgetRub\", \"products\", \"recommendedProductId\", \"disclaimer\", \"simulation\");",
+          "    pm.expect(result.companyId).to.eql(pm.collectionVariables.get(\"clientCompanyId\"));",
+          "    pm.expect(result.businessAgeMonths).to.eql(age);",
+          "    pm.expect(result.surplusRub).to.eql(input.monthlyRevenueRub - input.monthlyExpensesRub);",
+          "    pm.expect(result.existingMonthlyPaymentsRub).to.eql(company.financials.existingMonthlyPaymentsRub);",
+          "    pm.expect(result.paymentBudgetRub).to.eql(budget);",
+          "    pm.expect(result.products).to.be.an(\"array\").with.length(catalog.length);",
+          "    pm.expect(result.simulation).to.eql(true);",
+          "    pm.expect(result.disclaimer).to.include(\"не гарантирует одобрение\");",
+          "  });",
+          "  result.products.forEach(item => {",
+          "    pm.test(\"Financial result and explanations for \" + item.product.id, () => {",
+          "      const product = catalog.find(p => p.id === item.product.id);",
+          "      pm.expect(product).to.be.an(\"object\");",
+          "      pm.expect(item.product).to.deep.eql(product);",
+          "      pm.expect(item).to.have.all.keys(\"product\", \"matches\", \"eligible\", \"preliminaryAvailableAmountRub\", \"monthlyPaymentRub\", \"reasons\", \"limitations\", \"adjustments\");",
+          "      const termOK = input.termMonths >= product.minTermMonths && input.termMonths <= product.maxTermMonths;",
+          "      const k = coefficient(product.annualRatePercent, input.termMonths);",
+          "      const payment = termOK ? Math.ceil(input.requestedAmountRub * k) : null;",
+          "      const available = termOK ? Math.min(product.maxAmountRub, Math.floor(budget / k)) : 0;",
+          "      const matches = {",
+          "        purpose: product.purposes.includes(input.purpose),",
+          "        amount: input.requestedAmountRub >= product.minAmountRub && input.requestedAmountRub <= product.maxAmountRub,",
+          "        term: termOK,",
+          "        businessAge: age >= product.minBusinessAgeMonths,",
+          "        affordability: termOK && payment <= budget",
+          "      };",
+          "      pm.expect(item.matches).to.deep.eql(matches);",
+          "      pm.expect(item.monthlyPaymentRub).to.eql(payment);",
+          "      pm.expect(item.preliminaryAvailableAmountRub).to.eql(available);",
+          "      pm.expect(item.eligible).to.eql(Object.values(matches).every(Boolean));",
+          "      pm.expect(item.reasons).to.be.an(\"array\"); pm.expect(item.limitations).to.be.an(\"array\"); pm.expect(item.adjustments).to.be.an(\"array\");",
+          "      [...item.reasons, ...item.limitations].forEach(text => pm.expect(text).to.be.a(\"string\").and.not.empty);",
+          "      if (!item.eligible) pm.expect(item.limitations.length).to.be.above(0);",
+          "      item.adjustments.forEach(adjustment => {",
+          "        pm.expect(adjustment).to.have.all.keys(\"amountRub\", \"termMonths\", \"monthlyPaymentRub\", \"explanation\");",
+          "        pm.expect(adjustment.amountRub).to.be.within(product.minAmountRub, product.maxAmountRub);",
+          "        pm.expect(adjustment.termMonths).to.be.within(product.minTermMonths, product.maxTermMonths);",
+          "        const adjustedPayment = Math.ceil(adjustment.amountRub * coefficient(product.annualRatePercent, adjustment.termMonths));",
+          "        pm.expect(adjustment.monthlyPaymentRub).to.eql(adjustedPayment);",
+          "        pm.expect(adjustment.monthlyPaymentRub).to.be.at.most(budget);",
+          "        pm.expect(adjustment.explanation).to.be.a(\"string\").and.not.empty;",
+          "      });",
+          "    });",
+          "  });",
+          "  pm.test(\"Recommended product is eligible; alternatives do not silently change the request\", () => {",
+          "    const eligible = result.products.filter(item => item.eligible).sort((a, b) => a.monthlyPaymentRub - b.monthlyPaymentRub || a.product.id.localeCompare(b.product.id));",
+          "    pm.expect(result.recommendedProductId).to.eql(eligible.length ? eligible[0].product.id : null);",
+          "  });",
+          "}"
         ]
       }
     }

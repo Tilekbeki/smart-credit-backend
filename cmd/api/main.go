@@ -12,7 +12,9 @@ import (
 	"syscall"
 
 	"smart-credit-backend/internal/auth"
+	"smart-credit-backend/internal/company"
 	"smart-credit-backend/internal/config"
+	"smart-credit-backend/internal/credit"
 	"smart-credit-backend/internal/httpapi"
 	"smart-credit-backend/internal/postgres"
 )
@@ -46,7 +48,9 @@ func run() error {
 	defer pool.Close()
 	authRepo := postgres.NewAuthRepository(pool, cfg.AuthDBTimeout)
 	authHandler := httpapi.NewAuthHandler(authRepo, tokens, cfg.DemoOTPCode, cfg.AuthDBTimeout, logger)
-	server := httpapi.NewServer(cfg.HTTP, httpapi.NewHandler(pool, logger, cfg.Database.PingTimeout, authHandler), logger)
+	catalogRepo := postgres.NewCompanyCreditRepository(pool, cfg.AuthDBTimeout)
+	creditHandler := httpapi.NewCreditHandler(company.NewService(catalogRepo), credit.NewService(catalogRepo, catalogRepo), auth.NewMiddleware(tokens, authRepo, cfg.AuthDBTimeout))
+	server := httpapi.NewServer(cfg.HTTP, httpapi.NewHandler(pool, logger, cfg.Database.PingTimeout, authHandler, creditHandler.Register), logger)
 	listener, err := net.Listen("tcp", server.Addr)
 	if err != nil {
 		return fmt.Errorf("listen HTTP: %w", err)
