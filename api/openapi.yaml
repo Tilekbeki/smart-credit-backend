@@ -1,13 +1,14 @@
 openapi: 3.0.3
 info:
   title: Smart Credit Go backend
-  version: 0.3.0
+  version: 0.4.0
   description: 'Demonstration authentication, own-company data, synthetic credit products and preliminary
     financing selection for a hackathon. DEMO_OTP_CODE defaults to 1234; no SMS is sent. Public profile
     selection includes a bank employee and must not be used for production access. Product conditions
     and company data are synthetic and are not actual Alfa-Bank offers. Recommendations neither create
     applications nor constitute or guarantee credit decisions; Python scoring is not called. All responses
-    use Cache-Control: no-store.'
+    use Cache-Control: no-store. CLIENT users can persist partial credit drafts and inspect their history;
+    draft APIs do not submit applications, call scoring or enqueue processing.'
 servers:
 - url: http://localhost:8080
 paths:
@@ -362,6 +363,270 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/RecommendationInput'
+  /api/v1/applications:
+    post:
+      operationId: createApplicationDraft
+      summary: Create a partial client-owned credit draft
+      description: CLIENT only. Owner and company come from the current PostgreSQL user;
+        they must not be supplied in JSON. An empty object or nullable editable fields
+        are accepted. Provided values must be valid; when productId is selected, any
+        present purpose, amount and term must satisfy that active product. Creation
+        and draft_created event are committed atomically. No scoring, decision or background
+        job is created.
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplicationDraftInput'
+            examples:
+              empty:
+                summary: Save an empty draft
+                value: {}
+              partial:
+                summary: Persist selected product and parameters
+                value:
+                  productId: turnover
+                  purpose: stock
+                  requestedAmountRub: 1500000
+                  termMonths: 12
+      responses:
+        '201':
+          description: Draft and first timeline event created atomically
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+              example:
+                applicationId: 40000000-0000-4000-8000-000000000001
+                userId: 20000000-0000-4000-8000-000000000001
+                companyId: 10000000-0000-4000-8000-000000000001
+                productId: turnover
+                purpose: stock
+                purposeDescription: null
+                requestedAmountRub: 1500000
+                termMonths: 12
+                monthlyRevenueRub: 2400000
+                monthlyExpensesRub: 1500000
+                productName: Оборотный кредит
+                status: draft
+                version: 1
+                createdAt: '2026-10-23T12:00:00Z'
+                updatedAt: '2026-10-23T12:00:00Z'
+                submittedAt: null
+                availableActions:
+                - edit
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '404':
+          description: Unknown or inactive product (product_not_found).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          $ref: '#/components/responses/RequestTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    get:
+      operationId: listOwnApplications
+      summary: List applications owned by the current client in their company
+      description: CLIENT only. SQL pagination and status filtering apply to both owner
+        and company scope; other owners are never included. Ordered by createdAt descending,
+        then applicationId descending. total counts all matching rows before pagination.
+        Unknown/repeated query parameters and malformed limits, offsets or statuses
+        are rejected. Existing non-draft states may be read, but Stage 4 only creates
+        draft.
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: offset
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 2147483647
+          default: 0
+      - name: status
+        in: query
+        schema:
+          $ref: '#/components/schemas/ApplicationStatus'
+      responses:
+        '200':
+          description: Matching applications and pagination metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationPage'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/applications/{applicationId}:
+    parameters:
+    - name: applicationId
+      in: path
+      required: true
+      description: Nonzero application UUID. Ownership is checked using both authenticated
+        user ID and company ID.
+      schema:
+        type: string
+        format: uuid
+    get:
+      operationId: getOwnApplication
+      summary: Open the current client’s saved application
+      description: CLIENT only, owner and company must match the current user. Missing
+        and foreign UUIDs both return 404 application_not_found without disclosing existence.
+        Includes permitted company details and the selected product summary. Draft availableActions
+        is [edit]; submit is not available in Stage 4.
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Saved application with company and product
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationDetail'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '404':
+          description: Missing or foreign application (application_not_found).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      operationId: patchApplicationDraft
+      summary: Edit a draft using optimistic locking
+      description: CLIENT owner only. Positive non-null version and at least one editable
+        field are required. An absent field is unchanged; an explicit null clears that
+        editable field. Immutable/unknown fields are rejected. Validation uses the merged
+        draft and the selected active product. A successful PATCH, including assignment
+        of an existing value, increments version exactly once and appends draft_updated
+        in the same transaction. Stale/concurrent versions return 409 version_conflict;
+        a non-draft application returns 409 invalid_status. Neither error changes the
+        draft or timeline.
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplicationPatchInput'
+            example:
+              version: 1
+              requestedAmountRub: 1800000
+              purposeDescription: null
+      responses:
+        '200':
+          description: Updated draft with incremented version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '404':
+          description: Unknown/inactive product (product_not_found); for an application
+            path, a missing or foreign application (application_not_found).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          $ref: '#/components/responses/RequestTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '409':
+          description: Stale version (version_conflict) or an application whose status
+            is not draft (invalid_status).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/applications/{applicationId}/timeline:
+    get:
+      operationId: getApplicationTimeline
+      summary: Read the ordered history of the current client’s application
+      description: CLIENT owner only. Missing and foreign applications both return 404
+        application_not_found. Events are ordered by increasing sequence. Stage 4 records
+        draft_created and draft_updated with generic titles; timeline never contains
+        OTP, JWT or editable financial values.
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: applicationId
+        in: path
+        required: true
+        description: Nonzero application UUID. Ownership is checked using both authenticated
+          user ID and company ID.
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Ordered application events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationTimeline'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '404':
+          description: Missing or foreign application (application_not_found).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
 components:
   securitySchemes:
     BearerAuth:
@@ -876,6 +1141,396 @@ components:
           type: boolean
           enum:
           - true
+    ApplicationStatus:
+      type: string
+      enum:
+      - draft
+      - submitted
+      - processing
+      - manual_review
+      - approved
+      - rejected
+      - counter_offer
+      - signed
+      - closed
+      description: Stage 4 creates and edits only draft. The remaining statuses are reserved
+        for later stages; technical processing errors are stored separately.
+    ApplicationDraftInput:
+      type: object
+      additionalProperties: false
+      description: All seven editable fields are optional and nullable. Empty object is
+        a valid draft. Caller-supplied owner, company, status and service fields are forbidden.
+      properties:
+        productId:
+          type: string
+          nullable: true
+          pattern: ^[a-z][a-z0-9_-]{0,31}$
+          description: Public active product code, currently turnover or investment; internal
+            product UUID is never accepted.
+        purpose:
+          type: string
+          nullable: true
+          enum:
+          - stock
+          - expenses
+          - seasonal
+          - equipment
+          - upgrade
+          - other
+          - null
+          description: With a selected product the purpose must be listed in its purposes.
+            other may be saved without a product; its description is not required for
+            a draft.
+        purposeDescription:
+          type: string
+          nullable: true
+          maxLength: 300
+          description: Trimmed nonblank text, at most 300 Unicode characters, no NUL.
+            null clears the description.
+        requestedAmountRub:
+          type: integer
+          nullable: true
+          format: int64
+          minimum: 1
+          maximum: 1000000000000
+          description: Integer rubles; selected product limits also apply.
+        termMonths:
+          type: integer
+          nullable: true
+          minimum: 1
+          maximum: 120
+          description: Selected product limits also apply.
+        monthlyRevenueRub:
+          type: integer
+          nullable: true
+          format: int64
+          minimum: 0
+          maximum: 1000000000000
+        monthlyExpensesRub:
+          type: integer
+          nullable: true
+          format: int64
+          minimum: 0
+          maximum: 1000000000000
+    ApplicationPatchInput:
+      type: object
+      additionalProperties: false
+      required:
+      - version
+      minProperties: 2
+      description: A positive current version and at least one editable field. Missing
+        editable fields stay unchanged; explicit null clears. Updated combined values
+        must meet the selected product constraints.
+      properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        productId:
+          type: string
+          nullable: true
+          pattern: ^[a-z][a-z0-9_-]{0,31}$
+          description: Public active product code, currently turnover or investment; internal
+            product UUID is never accepted.
+        purpose:
+          type: string
+          nullable: true
+          enum:
+          - stock
+          - expenses
+          - seasonal
+          - equipment
+          - upgrade
+          - other
+          - null
+          description: With a selected product the purpose must be listed in its purposes.
+            other may be saved without a product; its description is not required for
+            a draft.
+        purposeDescription:
+          type: string
+          nullable: true
+          maxLength: 300
+          description: Trimmed nonblank text, at most 300 Unicode characters, no NUL.
+            null clears the description.
+        requestedAmountRub:
+          type: integer
+          nullable: true
+          format: int64
+          minimum: 1
+          maximum: 1000000000000
+          description: Integer rubles; selected product limits also apply.
+        termMonths:
+          type: integer
+          nullable: true
+          minimum: 1
+          maximum: 120
+          description: Selected product limits also apply.
+        monthlyRevenueRub:
+          type: integer
+          nullable: true
+          format: int64
+          minimum: 0
+          maximum: 1000000000000
+        monthlyExpensesRub:
+          type: integer
+          nullable: true
+          format: int64
+          minimum: 0
+          maximum: 1000000000000
+    Application:
+      type: object
+      required:
+      - applicationId
+      - userId
+      - companyId
+      - productId
+      - purpose
+      - purposeDescription
+      - requestedAmountRub
+      - termMonths
+      - monthlyRevenueRub
+      - monthlyExpensesRub
+      - productName
+      - status
+      - version
+      - createdAt
+      - updatedAt
+      - submittedAt
+      - availableActions
+      properties:
+        applicationId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+          description: Owner derived by backend from authentication.
+        companyId:
+          type: string
+          format: uuid
+        productId:
+          type: string
+          nullable: true
+          pattern: ^[a-z][a-z0-9_-]{0,31}$
+          description: Public selected product code, currently turnover or investment.
+            An existing application can retain a subsequently inactive product; writes
+            require an active product.
+        purpose:
+          type: string
+          nullable: true
+          enum:
+          - stock
+          - expenses
+          - seasonal
+          - equipment
+          - upgrade
+          - other
+          - null
+          description: With a selected product the purpose must be listed in its purposes.
+            other may be saved without a product; its description is not required for
+            a draft.
+        purposeDescription:
+          type: string
+          nullable: true
+          maxLength: 300
+          description: Trimmed nonblank text, at most 300 Unicode characters, no NUL.
+            null clears the description.
+        requestedAmountRub:
+          type: integer
+          nullable: true
+          format: int64
+          minimum: 1
+          maximum: 1000000000000
+          description: Integer rubles; selected product limits also apply.
+        termMonths:
+          type: integer
+          nullable: true
+          minimum: 1
+          maximum: 120
+          description: Selected product limits also apply.
+        monthlyRevenueRub:
+          type: integer
+          nullable: true
+          format: int64
+          minimum: 0
+          maximum: 1000000000000
+        monthlyExpensesRub:
+          type: integer
+          nullable: true
+          format: int64
+          minimum: 0
+          maximum: 1000000000000
+        productName:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/ApplicationStatus'
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Optimistic locking revision, initially 1.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        submittedAt:
+          type: string
+          nullable: true
+          format: date-time
+          description: null for a draft; submit is not implemented.
+        availableActions:
+          type: array
+          items:
+            type: string
+            enum:
+            - edit
+          description: '[edit] for draft; [] otherwise. submit is not exposed yet.'
+    ApplicationProductSummary:
+      type: object
+      nullable: true
+      required:
+      - id
+      - name
+      properties:
+        id:
+          type: string
+          description: Public product code.
+        name:
+          type: string
+      description: Selected product code and display name, or null when no product is
+        selected.
+    ApplicationDetail:
+      allOf:
+      - $ref: '#/components/schemas/Application'
+      - type: object
+        required:
+        - company
+        - product
+        properties:
+          company:
+            $ref: '#/components/schemas/Company'
+          product:
+            $ref: '#/components/schemas/ApplicationProductSummary'
+    ApplicationSummary:
+      type: object
+      required:
+      - applicationId
+      - productId
+      - productName
+      - requestedAmountRub
+      - termMonths
+      - status
+      - version
+      - createdAt
+      - updatedAt
+      properties:
+        applicationId:
+          type: string
+          format: uuid
+        productId:
+          type: string
+          nullable: true
+          pattern: ^[a-z][a-z0-9_-]{0,31}$
+          description: Public selected product code; a saved application can retain an
+            inactive product.
+        productName:
+          type: string
+          nullable: true
+        requestedAmountRub:
+          type: integer
+          nullable: true
+          format: int64
+          minimum: 1
+          maximum: 1000000000000
+          description: Integer rubles; selected product limits also apply.
+        termMonths:
+          type: integer
+          nullable: true
+          minimum: 1
+          maximum: 120
+          description: Selected product limits also apply.
+        status:
+          $ref: '#/components/schemas/ApplicationStatus'
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Optimistic locking revision, initially 1.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    ApplicationPage:
+      type: object
+      required:
+      - items
+      - total
+      - limit
+      - offset
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApplicationSummary'
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+        offset:
+          type: integer
+          minimum: 0
+          maximum: 2147483647
+    ApplicationEvent:
+      type: object
+      required:
+      - eventId
+      - eventType
+      - sequence
+      - status
+      - createdAt
+      - actorId
+      - title
+      properties:
+        eventId:
+          type: string
+          format: uuid
+        eventType:
+          type: string
+          description: Stage 4 produces draft_created or draft_updated.
+        sequence:
+          type: integer
+          format: int64
+          minimum: 1
+        status:
+          $ref: '#/components/schemas/ApplicationStatus'
+        createdAt:
+          type: string
+          format: date-time
+        actorId:
+          type: string
+          nullable: true
+          format: uuid
+        title:
+          type: string
+          example: Черновик создан
+    ApplicationTimeline:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApplicationEvent'
   responses:
     InvalidRequest:
       description: Invalid fields, UUID or JSON (invalid_request); unknown fields and trailing JSON values

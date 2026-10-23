@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "Smart Credit — Backend API (OTP, Companies, Products, Recommendations)",
-    "description": "Единая коллекция Smart Credit, Postman Collection v2.1. Запустите docker compose up -d --build, затем всю коллекцию сверху вниз в Collection Runner. baseUrl по умолчанию http://localhost:8080; demoOtpCode по умолчанию 1234. Все профили, companyId, OTP challenges и JWT передаются автоматически; первый запрос очищает результаты предыдущего запуска. Сохранены сценарии OTP/JWT обеих ролей. Новые сценарии проверяют собственную и чужую компанию, каталог и карточки продуктов, подбор финансирования, точные финансовые расчёты, границы и ошибки. Для проверки чужой компании автоматически авторизуется второй обнаруженный CLIENT. Расчёты проверяются независимой аннуитетной формулой JavaScript на синтетических значениях; точная арифметика и границы округления дополнительно проверяются Go-тестами. Рекомендация не является кредитным решением; scoring не вызывается. Не экспортируйте коллекцию с заполненными токенами и не используйте реальные персональные данные.",
+    "name": "Smart Credit — Backend API (OTP, Companies, Products, Recommendations, Drafts)",
+    "description": "Единая коллекция Smart Credit, Postman Collection v2.1. Запустите docker compose up -d --build, затем всю коллекцию сверху вниз в Collection Runner. baseUrl по умолчанию http://localhost:8080; demoOtpCode по умолчанию 1234. Все профили, companyId, OTP challenges и JWT передаются автоматически; первый запрос очищает результаты предыдущего запуска. Сохранены сценарии OTP/JWT обеих ролей. Новые сценарии проверяют собственную и чужую компанию, каталог и карточки продуктов, подбор финансирования, точные финансовые расчёты, границы и ошибки. Для проверки чужой компании автоматически авторизуется второй обнаруженный CLIENT. Расчёты проверяются независимой аннуитетной формулой JavaScript на синтетических значениях; точная арифметика и границы округления дополнительно проверяются Go-тестами. Рекомендация не является кредитным решением; scoring не вызывается. Не экспортируйте коллекцию с заполненными токенами и не используйте реальные персональные данные. Этап 4: пустой и частичный черновик, редактирование, null/отсутствующие поля, сохранение и обновление applicationId/version, история, SQL-пагинация и фильтры, конфликт версий, изоляция другого CLIENT, ограничения ролей и валидация. Два новых черновика создаются на каждой итерации; тесты не требуют пустой БД. submit, документы и scoring не вызываются.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -114,6 +114,41 @@
       "key": "creditProductsJSON",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "applicationId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "applicationVersion",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "previousApplicationVersion",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "secondApplicationId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "applicationCreatedAt",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "applicationUpdatedAt",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "applicationListTotal",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -145,7 +180,7 @@
             "type": "text/javascript",
             "exec": [
               "// Run on every Collection Runner iteration, preserving baseUrl and demoOtpCode.",
-              "const resetKeys = [\"clientProfileId\", \"bankProfileId\", \"otpRequestId\", \"accessToken\", \"clientOtpRequestId\", \"bankOtpRequestId\", \"clientAccessToken\", \"bankAccessToken\", \"clientCompanyId\", \"clientName\", \"clientPhone\", \"bankName\", \"bankPhone\", \"previousClientOtpRequestId\", \"otherClientProfileId\", \"otherClientOtpRequestId\", \"otherClientAccessToken\", \"otherCompanyId\", \"ownCompanyJSON\", \"creditProductsJSON\"];",
+              "const resetKeys = [\"clientProfileId\", \"bankProfileId\", \"otpRequestId\", \"accessToken\", \"clientOtpRequestId\", \"bankOtpRequestId\", \"clientAccessToken\", \"bankAccessToken\", \"clientCompanyId\", \"clientName\", \"clientPhone\", \"bankName\", \"bankPhone\", \"previousClientOtpRequestId\", \"otherClientProfileId\", \"otherClientOtpRequestId\", \"otherClientAccessToken\", \"otherCompanyId\", \"ownCompanyJSON\", \"creditProductsJSON\", \"applicationId\", \"applicationVersion\", \"previousApplicationVersion\", \"secondApplicationId\", \"applicationCreatedAt\", \"applicationUpdatedAt\", \"applicationListTotal\"];",
               "resetKeys.forEach(key => { pm.collectionVariables.set(key, \"\"); pm.variables.set(key, \"\"); });"
             ]
           }
@@ -2857,6 +2892,3417 @@
           }
         }
       ]
+    },
+    {
+      "name": "54 · Drafts — create empty partial draft",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "const r = pm.response.json();",
+              "pm.test(\"Draft DTO and backend-derived ownership\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"applicationId\", \"userId\", \"companyId\", \"productId\", \"productName\", \"purpose\", \"purposeDescription\", \"requestedAmountRub\", \"termMonths\", \"monthlyRevenueRub\", \"monthlyExpensesRub\", \"status\", \"version\", \"createdAt\", \"updatedAt\", \"submittedAt\", \"availableActions\");",
+              "  pm.expect(r.applicationId).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
+              "  pm.expect(r.userId).to.eql(pm.collectionVariables.get(\"clientProfileId\")); pm.expect(r.companyId).to.eql(pm.collectionVariables.get(\"clientCompanyId\"));",
+              "  pm.expect(r.status).to.eql(\"draft\"); pm.expect(r.availableActions).to.deep.eql([\"edit\"]); pm.expect(r.submittedAt).to.eql(null);",
+              "  pm.expect(Number.isSafeInteger(r.version)).to.eql(true); pm.expect(r.version).to.be.at.least(1);",
+              "  pm.expect(Number.isFinite(Date.parse(r.createdAt))).to.eql(true); pm.expect(Number.isFinite(Date.parse(r.updatedAt))).to.eql(true);",
+              "});",
+              "pm.test(\"Missing editable fields are nullable and version starts at one\", () => {",
+              " [\"productId\", \"productName\", \"purpose\", \"purposeDescription\", \"requestedAmountRub\", \"termMonths\", \"monthlyRevenueRub\", \"monthlyExpensesRub\"].forEach(key => pm.expect(r[key]).to.eql(null));",
+              " pm.expect(r.version).to.eql(1); pm.expect(r.createdAt).to.eql(r.updatedAt);",
+              "});",
+              "if (pm.response.code >= 200 && pm.response.code < 300) {",
+              "  pm.collectionVariables.set(\"applicationId\", r.applicationId); pm.collectionVariables.set(\"applicationVersion\", r.version);",
+              "  pm.collectionVariables.set(\"applicationCreatedAt\", r.createdAt); pm.collectionVariables.set(\"applicationUpdatedAt\", r.updatedAt);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "55 · Drafts — open empty saved draft",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{applicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{applicationId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Own saved draft includes permitted company and public product summary\", () => {",
+              " pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"applicationId\")); pm.expect(r.version).to.eql(Number(pm.collectionVariables.get(\"applicationVersion\")));",
+              " pm.expect(r.userId).to.eql(pm.collectionVariables.get(\"clientProfileId\")); pm.expect(r.companyId).to.eql(pm.collectionVariables.get(\"clientCompanyId\"));",
+              " pm.expect(r.company).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"ownCompanyJSON\"))); pm.expect(r.availableActions).to.deep.eql([\"edit\"]);",
+              " pm.expect(r.createdAt).to.eql(pm.collectionVariables.get(\"applicationCreatedAt\")); pm.expect(r.updatedAt).to.eql(pm.collectionVariables.get(\"applicationUpdatedAt\"));",
+              " if (r.productId === null) pm.expect(r.product).to.eql(null);",
+              " else { pm.expect(r.product).to.have.all.keys(\"id\", \"name\"); pm.expect(r.product.id).to.eql(r.productId); pm.expect(r.product.name).to.eql(r.productName); }",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "56 · Drafts — populate fields with current version",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{applicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{applicationId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n \"version\": {{applicationVersion}}, \"productId\":\"turnover\", \"purpose\":\"stock\", \"purposeDescription\":\"  Закупка товара  \", \"requestedAmountRub\":1500000, \"termMonths\":12, \"monthlyRevenueRub\":2400000, \"monthlyExpensesRub\":1500000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Draft DTO and backend-derived ownership\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"applicationId\", \"userId\", \"companyId\", \"productId\", \"productName\", \"purpose\", \"purposeDescription\", \"requestedAmountRub\", \"termMonths\", \"monthlyRevenueRub\", \"monthlyExpensesRub\", \"status\", \"version\", \"createdAt\", \"updatedAt\", \"submittedAt\", \"availableActions\");",
+              "  pm.expect(r.applicationId).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
+              "  pm.expect(r.userId).to.eql(pm.collectionVariables.get(\"clientProfileId\")); pm.expect(r.companyId).to.eql(pm.collectionVariables.get(\"clientCompanyId\"));",
+              "  pm.expect(r.status).to.eql(\"draft\"); pm.expect(r.availableActions).to.deep.eql([\"edit\"]); pm.expect(r.submittedAt).to.eql(null);",
+              "  pm.expect(Number.isSafeInteger(r.version)).to.eql(true); pm.expect(r.version).to.be.at.least(1);",
+              "  pm.expect(Number.isFinite(Date.parse(r.createdAt))).to.eql(true); pm.expect(Number.isFinite(Date.parse(r.updatedAt))).to.eql(true);",
+              "});",
+              "pm.test(\"Values normalized, version incremented exactly once\", () => {",
+              " pm.expect(r.version).to.eql(Number(pm.collectionVariables.get(\"applicationVersion\"))+1); pm.expect(r.purposeDescription).to.eql(\"Закупка товара\");",
+              " pm.expect(r.productId).to.eql(\"turnover\"); pm.expect(r.purpose).to.eql(\"stock\"); pm.expect(r.requestedAmountRub).to.eql(1500000); pm.expect(r.termMonths).to.eql(12);",
+              " pm.expect(r.monthlyRevenueRub).to.eql(2400000); pm.expect(r.monthlyExpensesRub).to.eql(1500000); pm.expect(r.productName).to.be.a(\"string\").and.not.empty;",
+              " pm.expect(r.createdAt).to.eql(pm.collectionVariables.get(\"applicationCreatedAt\")); pm.expect(Date.parse(r.updatedAt)).to.be.at.least(Date.parse(pm.collectionVariables.get(\"applicationUpdatedAt\")));",
+              "});",
+              "pm.collectionVariables.set(\"previousApplicationVersion\", pm.collectionVariables.get(\"applicationVersion\"));",
+              "if (pm.response.code >= 200 && pm.response.code < 300) {",
+              "  pm.collectionVariables.set(\"applicationId\", r.applicationId); pm.collectionVariables.set(\"applicationVersion\", r.version);",
+              "  pm.collectionVariables.set(\"applicationCreatedAt\", r.createdAt); pm.collectionVariables.set(\"applicationUpdatedAt\", r.updatedAt);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "57 · Drafts — reopen populated draft",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{applicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{applicationId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Own saved draft includes permitted company and public product summary\", () => {",
+              " pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"applicationId\")); pm.expect(r.version).to.eql(Number(pm.collectionVariables.get(\"applicationVersion\")));",
+              " pm.expect(r.userId).to.eql(pm.collectionVariables.get(\"clientProfileId\")); pm.expect(r.companyId).to.eql(pm.collectionVariables.get(\"clientCompanyId\"));",
+              " pm.expect(r.company).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"ownCompanyJSON\"))); pm.expect(r.availableActions).to.deep.eql([\"edit\"]);",
+              " pm.expect(r.createdAt).to.eql(pm.collectionVariables.get(\"applicationCreatedAt\")); pm.expect(r.updatedAt).to.eql(pm.collectionVariables.get(\"applicationUpdatedAt\"));",
+              " if (r.productId === null) pm.expect(r.product).to.eql(null);",
+              " else { pm.expect(r.product).to.have.all.keys(\"id\", \"name\"); pm.expect(r.product.id).to.eql(r.productId); pm.expect(r.product.name).to.eql(r.productName); }",
+              "});",
+              "pm.test(\"Financial fields persisted\", () => { pm.expect(r.requestedAmountRub).to.eql(1500000); pm.expect(r.monthlyRevenueRub).to.eql(2400000); pm.expect(r.monthlyExpensesRub).to.eql(1500000); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "58 · Drafts — explicit null clears; absent fields remain unchanged",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{applicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{applicationId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"version\":{{applicationVersion}}, \"purposeDescription\":null, \"monthlyRevenueRub\":null}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Draft DTO and backend-derived ownership\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"applicationId\", \"userId\", \"companyId\", \"productId\", \"productName\", \"purpose\", \"purposeDescription\", \"requestedAmountRub\", \"termMonths\", \"monthlyRevenueRub\", \"monthlyExpensesRub\", \"status\", \"version\", \"createdAt\", \"updatedAt\", \"submittedAt\", \"availableActions\");",
+              "  pm.expect(r.applicationId).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
+              "  pm.expect(r.userId).to.eql(pm.collectionVariables.get(\"clientProfileId\")); pm.expect(r.companyId).to.eql(pm.collectionVariables.get(\"clientCompanyId\"));",
+              "  pm.expect(r.status).to.eql(\"draft\"); pm.expect(r.availableActions).to.deep.eql([\"edit\"]); pm.expect(r.submittedAt).to.eql(null);",
+              "  pm.expect(Number.isSafeInteger(r.version)).to.eql(true); pm.expect(r.version).to.be.at.least(1);",
+              "  pm.expect(Number.isFinite(Date.parse(r.createdAt))).to.eql(true); pm.expect(Number.isFinite(Date.parse(r.updatedAt))).to.eql(true);",
+              "});",
+              "pm.test(\"Null clears only supplied fields and increments version\", () => {",
+              " pm.expect(r.version).to.eql(Number(pm.collectionVariables.get(\"applicationVersion\"))+1); pm.expect(r.purposeDescription).to.eql(null); pm.expect(r.monthlyRevenueRub).to.eql(null);",
+              " pm.expect(r.productId).to.eql(\"turnover\"); pm.expect(r.purpose).to.eql(\"stock\"); pm.expect(r.requestedAmountRub).to.eql(1500000); pm.expect(r.termMonths).to.eql(12); pm.expect(r.monthlyExpensesRub).to.eql(1500000);",
+              "});",
+              "pm.collectionVariables.set(\"previousApplicationVersion\", pm.collectionVariables.get(\"applicationVersion\"));",
+              "if (pm.response.code >= 200 && pm.response.code < 300) {",
+              "  pm.collectionVariables.set(\"applicationId\", r.applicationId); pm.collectionVariables.set(\"applicationVersion\", r.version);",
+              "  pm.collectionVariables.set(\"applicationCreatedAt\", r.createdAt); pm.collectionVariables.set(\"applicationUpdatedAt\", r.updatedAt);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "59 · Drafts — stale version cannot overwrite newer fields",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{applicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{applicationId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"version\":{{previousApplicationVersion}}, \"requestedAmountRub\":1700000}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error version_conflict; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"version_conflict\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "60 · Drafts — timeline has one ordered event per successful write",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{applicationId}}/timeline",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{applicationId}}",
+            "timeline"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Atomic creation/update events, sequence and actor\", () => {",
+              " pm.expect(r).to.have.all.keys(\"items\"); pm.expect(r.items).to.be.an(\"array\").with.length(3);",
+              " const ids = new Set(); r.items.forEach((event,index) => {",
+              "  pm.expect(event).to.have.all.keys(\"eventId\", \"eventType\", \"sequence\", \"status\", \"createdAt\", \"actorId\", \"title\");",
+              "  pm.expect(event.eventId).to.match(/^[0-9a-f-]{36}$/i); ids.add(event.eventId); pm.expect(event.sequence).to.eql(index+1); pm.expect(event.status).to.eql(\"draft\");",
+              "  pm.expect(event.actorId).to.eql(pm.collectionVariables.get(\"clientProfileId\")); pm.expect(Number.isFinite(Date.parse(event.createdAt))).to.eql(true);",
+              "  pm.expect(event.eventType).to.eql(index === 0 ? \"draft_created\" : \"draft_updated\"); pm.expect(event.title).to.eql(index === 0 ? \"Черновик создан\" : \"Черновик обновлён\");",
+              "  if(index) pm.expect(Date.parse(event.createdAt)).to.be.at.least(Date.parse(r.items[index-1].createdAt));",
+              " }); pm.expect(ids.size).to.eql(3);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "61 · Drafts — create another incomplete draft with zero finances",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"purpose\": \"other\",\n  \"monthlyRevenueRub\": 0,\n  \"monthlyExpensesRub\": 0\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "const r = pm.response.json();",
+              "pm.test(\"Draft DTO and backend-derived ownership\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"applicationId\", \"userId\", \"companyId\", \"productId\", \"productName\", \"purpose\", \"purposeDescription\", \"requestedAmountRub\", \"termMonths\", \"monthlyRevenueRub\", \"monthlyExpensesRub\", \"status\", \"version\", \"createdAt\", \"updatedAt\", \"submittedAt\", \"availableActions\");",
+              "  pm.expect(r.applicationId).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
+              "  pm.expect(r.userId).to.eql(pm.collectionVariables.get(\"clientProfileId\")); pm.expect(r.companyId).to.eql(pm.collectionVariables.get(\"clientCompanyId\"));",
+              "  pm.expect(r.status).to.eql(\"draft\"); pm.expect(r.availableActions).to.deep.eql([\"edit\"]); pm.expect(r.submittedAt).to.eql(null);",
+              "  pm.expect(Number.isSafeInteger(r.version)).to.eql(true); pm.expect(r.version).to.be.at.least(1);",
+              "  pm.expect(Number.isFinite(Date.parse(r.createdAt))).to.eql(true); pm.expect(Number.isFinite(Date.parse(r.updatedAt))).to.eql(true);",
+              "});",
+              "pm.test(\"Other purpose can be saved without product or description\", () => { pm.expect(r.productId).to.eql(null); pm.expect(r.purpose).to.eql(\"other\"); pm.expect(r.purposeDescription).to.eql(null); pm.expect(r.monthlyRevenueRub).to.eql(0); pm.expect(r.monthlyExpensesRub).to.eql(0); pm.expect(r.version).to.eql(1); pm.expect(r.applicationId).not.to.eql(pm.collectionVariables.get(\"applicationId\")); });",
+              "if(pm.response.code===201) pm.collectionVariables.set(\"secondApplicationId\", r.applicationId);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "62 · Drafts — SQL page one with draft filter",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications?limit=1&offset=0&status=draft",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "1"
+            },
+            {
+              "key": "offset",
+              "value": "0"
+            },
+            {
+              "key": "status",
+              "value": "draft"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Page DTO, count and own application summaries\", () => {",
+              " pm.expect(r).to.have.all.keys(\"items\", \"total\", \"limit\", \"offset\"); pm.expect(r.items).to.be.an(\"array\"); pm.expect(Number.isSafeInteger(r.total)).to.eql(true); pm.expect(r.total).to.be.at.least(r.items.length);",
+              " r.items.forEach(item => { pm.expect(item).to.have.all.keys(\"applicationId\", \"productId\", \"productName\", \"requestedAmountRub\", \"termMonths\", \"status\", \"version\", \"createdAt\", \"updatedAt\"); pm.expect(item.applicationId).to.match(/^[0-9a-f-]{36}$/i); });",
+              "});",
+              "pm.test(\"Newest draft is first; total counts beyond limit\", () => { pm.expect(r.limit).to.eql(1); pm.expect(r.offset).to.eql(0); pm.expect(r.total).to.be.at.least(2); pm.expect(r.items).to.have.length(1); pm.expect(r.items[0].applicationId).to.eql(pm.collectionVariables.get(\"secondApplicationId\")); pm.expect(r.items[0].status).to.eql(\"draft\"); });",
+              "if(pm.response.code===200) pm.collectionVariables.set(\"applicationListTotal\", r.total);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "63 · Drafts — SQL offset reaches earlier draft",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications?limit=1&offset=1&status=draft",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "1"
+            },
+            {
+              "key": "offset",
+              "value": "1"
+            },
+            {
+              "key": "status",
+              "value": "draft"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Page DTO, count and own application summaries\", () => {",
+              " pm.expect(r).to.have.all.keys(\"items\", \"total\", \"limit\", \"offset\"); pm.expect(r.items).to.be.an(\"array\"); pm.expect(Number.isSafeInteger(r.total)).to.eql(true); pm.expect(r.total).to.be.at.least(r.items.length);",
+              " r.items.forEach(item => { pm.expect(item).to.have.all.keys(\"applicationId\", \"productId\", \"productName\", \"requestedAmountRub\", \"termMonths\", \"status\", \"version\", \"createdAt\", \"updatedAt\"); pm.expect(item.applicationId).to.match(/^[0-9a-f-]{36}$/i); });",
+              "});",
+              "pm.test(\"Second page preserves count and returns earlier saved draft\", () => { pm.expect(r.limit).to.eql(1); pm.expect(r.offset).to.eql(1); pm.expect(r.total).to.eql(Number(pm.collectionVariables.get(\"applicationListTotal\"))); pm.expect(r.items).to.have.length(1); pm.expect(r.items[0].applicationId).to.eql(pm.collectionVariables.get(\"applicationId\")); pm.expect(r.items[0].version).to.eql(Number(pm.collectionVariables.get(\"applicationVersion\"))); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "64 · Drafts — default page is repeatable in a nonempty database",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Page DTO, count and own application summaries\", () => {",
+              " pm.expect(r).to.have.all.keys(\"items\", \"total\", \"limit\", \"offset\"); pm.expect(r.items).to.be.an(\"array\"); pm.expect(Number.isSafeInteger(r.total)).to.eql(true); pm.expect(r.total).to.be.at.least(r.items.length);",
+              " r.items.forEach(item => { pm.expect(item).to.have.all.keys(\"applicationId\", \"productId\", \"productName\", \"requestedAmountRub\", \"termMonths\", \"status\", \"version\", \"createdAt\", \"updatedAt\"); pm.expect(item.applicationId).to.match(/^[0-9a-f-]{36}$/i); });",
+              "});",
+              "pm.test(\"Default pagination and both new drafts present\", () => { pm.expect(r.limit).to.eql(20); pm.expect(r.offset).to.eql(0); const ids=r.items.map(x=>x.applicationId); pm.expect(ids).to.include(pm.collectionVariables.get(\"applicationId\")); pm.expect(ids).to.include(pm.collectionVariables.get(\"secondApplicationId\")); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "65 · Drafts — future valid status filter excludes draft",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications?status=approved",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ],
+          "query": [
+            {
+              "key": "status",
+              "value": "approved"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Page DTO, count and own application summaries\", () => {",
+              " pm.expect(r).to.have.all.keys(\"items\", \"total\", \"limit\", \"offset\"); pm.expect(r.items).to.be.an(\"array\"); pm.expect(Number.isSafeInteger(r.total)).to.eql(true); pm.expect(r.total).to.be.at.least(r.items.length);",
+              " r.items.forEach(item => { pm.expect(item).to.have.all.keys(\"applicationId\", \"productId\", \"productName\", \"requestedAmountRub\", \"termMonths\", \"status\", \"version\", \"createdAt\", \"updatedAt\"); pm.expect(item.applicationId).to.match(/^[0-9a-f-]{36}$/i); });",
+              "});",
+              "pm.test(\"Every result matches approved filter\", () => { r.items.forEach(item => pm.expect(item.status).to.eql(\"approved\")); pm.expect(r.items.map(x=>x.applicationId)).not.to.include(pm.collectionVariables.get(\"applicationId\")); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "66 · Drafts — offset past data preserves total",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications?offset=2147483647&status=draft",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ],
+          "query": [
+            {
+              "key": "offset",
+              "value": "2147483647"
+            },
+            {
+              "key": "status",
+              "value": "draft"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Page DTO, count and own application summaries\", () => {",
+              " pm.expect(r).to.have.all.keys(\"items\", \"total\", \"limit\", \"offset\"); pm.expect(r.items).to.be.an(\"array\"); pm.expect(Number.isSafeInteger(r.total)).to.eql(true); pm.expect(r.total).to.be.at.least(r.items.length);",
+              " r.items.forEach(item => { pm.expect(item).to.have.all.keys(\"applicationId\", \"productId\", \"productName\", \"requestedAmountRub\", \"termMonths\", \"status\", \"version\", \"createdAt\", \"updatedAt\"); pm.expect(item.applicationId).to.match(/^[0-9a-f-]{36}$/i); });",
+              "});",
+              "pm.test(\"No rows at far offset; total still counts matching drafts\", () => { pm.expect(r.items).to.have.length(0); pm.expect(r.offset).to.eql(2147483647); pm.expect(r.total).to.eql(Number(pm.collectionVariables.get(\"applicationListTotal\"))); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "67 · Drafts — another client cannot get the draft",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{otherClientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{applicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{applicationId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error application_not_found; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"application_not_found\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "68 · Drafts — another client cannot patch the draft",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{otherClientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{applicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{applicationId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"version\":{{applicationVersion}}, \"purposeDescription\":\"Чужое изменение\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error application_not_found; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"application_not_found\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "69 · Drafts — another client cannot timeline the draft",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{otherClientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{applicationId}}/timeline",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{applicationId}}",
+            "timeline"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error application_not_found; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"application_not_found\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "70 · Drafts — another client list excludes the first client drafts",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{otherClientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Page DTO, count and own application summaries\", () => {",
+              " pm.expect(r).to.have.all.keys(\"items\", \"total\", \"limit\", \"offset\"); pm.expect(r.items).to.be.an(\"array\"); pm.expect(Number.isSafeInteger(r.total)).to.eql(true); pm.expect(r.total).to.be.at.least(r.items.length);",
+              " r.items.forEach(item => { pm.expect(item).to.have.all.keys(\"applicationId\", \"productId\", \"productName\", \"requestedAmountRub\", \"termMonths\", \"status\", \"version\", \"createdAt\", \"updatedAt\"); pm.expect(item.applicationId).to.match(/^[0-9a-f-]{36}$/i); });",
+              "});",
+              "pm.test(\"Foreign draft IDs never appear\", () => { const ids=r.items.map(x=>x.applicationId); pm.expect(ids).not.to.include(pm.collectionVariables.get(\"applicationId\")); pm.expect(ids).not.to.include(pm.collectionVariables.get(\"secondApplicationId\")); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "71 · Drafts — missing JWT forbids create",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error unauthorized; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"unauthorized\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "72 · Drafts — missing JWT forbids list",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error unauthorized; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"unauthorized\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "73 · Drafts — missing JWT forbids read",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{applicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{applicationId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error unauthorized; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"unauthorized\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "74 · Drafts — missing JWT forbids patch",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{applicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{applicationId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"version\":{{applicationVersion}},\"purposeDescription\":null}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error unauthorized; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"unauthorized\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "75 · Drafts — missing JWT forbids timeline",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{applicationId}}/timeline",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{applicationId}}",
+            "timeline"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error unauthorized; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"unauthorized\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "76 · Drafts — employee role forbids create",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error forbidden; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"forbidden\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "77 · Drafts — employee role forbids list",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error forbidden; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"forbidden\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "78 · Drafts — employee role forbids read",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{applicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{applicationId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error forbidden; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"forbidden\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "79 · Drafts — employee role forbids patch",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{applicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{applicationId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"version\":{{applicationVersion}},\"purposeDescription\":null}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error forbidden; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"forbidden\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "80 · Drafts — employee role forbids timeline",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{applicationId}}/timeline",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{applicationId}}",
+            "timeline"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error forbidden; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"forbidden\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "81 · Drafts — malformed application UUID rejected (GET)",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/not-a-uuid",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "not-a-uuid"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "82 · Drafts — malformed application UUID rejected (PATCH)",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/not-a-uuid",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "not-a-uuid"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"version\":{{applicationVersion}}, \"purposeDescription\":null}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "83 · Drafts — malformed application UUID rejected (GET/timeline)",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/not-a-uuid/timeline",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "not-a-uuid",
+            "timeline"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "84 · Drafts — missing UUID indistinguishable from foreign (GET)",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/ffffffff-ffff-4fff-8fff-ffffffffffff",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "ffffffff-ffff-4fff-8fff-ffffffffffff"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error application_not_found; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"application_not_found\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "85 · Drafts — missing UUID indistinguishable from foreign (PATCH)",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/ffffffff-ffff-4fff-8fff-ffffffffffff",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "ffffffff-ffff-4fff-8fff-ffffffffffff"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"version\":1,\"purposeDescription\":null}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error application_not_found; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"application_not_found\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "86 · Drafts — missing UUID indistinguishable from foreign (GET/timeline)",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/ffffffff-ffff-4fff-8fff-ffffffffffff/timeline",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "ffffffff-ffff-4fff-8fff-ffffffffffff",
+            "timeline"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error application_not_found; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"application_not_found\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "87 · Drafts — owner cannot be supplied",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": \"{{clientProfileId}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "88 · Drafts — company cannot be supplied",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"companyId\": \"{{clientCompanyId}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "89 · Drafts — status cannot be supplied",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"submitted\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "90 · Drafts — unknown purpose",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"purpose\": \"unknown\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "91 · Drafts — negative revenue",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"monthlyRevenueRub\": -1\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "92 · Drafts — negative expenses",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"monthlyExpensesRub\": -1\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "93 · Drafts — fractional rubles",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"requestedAmountRub\": 1.5\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "94 · Drafts — zero amount",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"requestedAmountRub\": 0\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "95 · Drafts — term exceeds global limit",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"termMonths\": 121\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "96 · Drafts — blank description",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"purposeDescription\": \"   \"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "97 · Drafts — description over 300 characters",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"purposeDescription\": \"ЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯЯ\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "98 · Drafts — product amount mismatch",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"productId\": \"turnover\",\n  \"requestedAmountRub\": 99999\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "99 · Drafts — product term mismatch",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"productId\": \"turnover\",\n  \"termMonths\": 25\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "100 · Drafts — product purpose mismatch",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"productId\": \"turnover\",\n  \"purpose\": \"equipment\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "101 · Drafts — product UUID is not a public code",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"productId\": \"10000000-0000-4000-8000-000000000001\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "102 · Drafts — unknown product code",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"productId\": \"missing-product\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error product_not_found; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"product_not_found\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "103 · Drafts — version required",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{applicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{applicationId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"purposeDescription\":null}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "104 · Drafts — version cannot be null",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{applicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{applicationId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"version\":null,\"purposeDescription\":null}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "105 · Drafts — version must be positive",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{applicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{applicationId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"version\":0,\"purposeDescription\":null}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "106 · Drafts — version alone is not a patch",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{applicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{applicationId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"version\":{{applicationVersion}}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "107 · Drafts — status is immutable",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{applicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{applicationId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"version\":{{applicationVersion}},\"status\":\"submitted\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "108 · Drafts — owner is immutable",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{applicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{applicationId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"version\":{{applicationVersion}},\"userId\":\"{{otherClientProfileId}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "109 · Drafts — company is immutable",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{applicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{applicationId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"version\":{{applicationVersion}},\"companyId\":\"{{otherCompanyId}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "110 · Drafts — merged product mismatch is rejected",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{applicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{applicationId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"version\":{{applicationVersion}},\"purpose\":\"equipment\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "111 · Drafts — list rejects zero limit",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications?limit=0",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "0"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "112 · Drafts — list rejects excessive limit",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications?limit=101",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "101"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "113 · Drafts — list rejects negative offset",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications?offset=-1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ],
+          "query": [
+            {
+              "key": "offset",
+              "value": "-1"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "114 · Drafts — list rejects offset overflow",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications?offset=2147483648",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ],
+          "query": [
+            {
+              "key": "offset",
+              "value": "2147483648"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "115 · Drafts — list rejects legacy confirmed status",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications?status=confirmed",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ],
+          "query": [
+            {
+              "key": "status",
+              "value": "confirmed"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "116 · Drafts — list rejects technical error status",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications?status=processing_failed",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ],
+          "query": [
+            {
+              "key": "status",
+              "value": "processing_failed"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "117 · Drafts — list rejects duplicate query field",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications?limit=1&limit=2",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "2"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "118 · Drafts — list rejects scope injection query",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications?companyId={{otherCompanyId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ],
+          "query": [
+            {
+              "key": "companyId",
+              "value": "{{otherCompanyId}}"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error invalid_request; no financial data or credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\"); pm.expect(r.error).to.eql(\"invalid_request\"); pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "119 · Drafts — failed writes preserve version and persisted values",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{applicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{applicationId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Own saved draft includes permitted company and public product summary\", () => {",
+              " pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"applicationId\")); pm.expect(r.version).to.eql(Number(pm.collectionVariables.get(\"applicationVersion\")));",
+              " pm.expect(r.userId).to.eql(pm.collectionVariables.get(\"clientProfileId\")); pm.expect(r.companyId).to.eql(pm.collectionVariables.get(\"clientCompanyId\"));",
+              " pm.expect(r.company).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"ownCompanyJSON\"))); pm.expect(r.availableActions).to.deep.eql([\"edit\"]);",
+              " pm.expect(r.createdAt).to.eql(pm.collectionVariables.get(\"applicationCreatedAt\")); pm.expect(r.updatedAt).to.eql(pm.collectionVariables.get(\"applicationUpdatedAt\"));",
+              " if (r.productId === null) pm.expect(r.product).to.eql(null);",
+              " else { pm.expect(r.product).to.have.all.keys(\"id\", \"name\"); pm.expect(r.product.id).to.eql(r.productId); pm.expect(r.product.name).to.eql(r.productName); }",
+              "});",
+              "pm.test(\"No failed write changed data\", () => { pm.expect(r.version).to.eql(3); pm.expect(r.requestedAmountRub).to.eql(1500000); pm.expect(r.monthlyRevenueRub).to.eql(null); pm.expect(r.purposeDescription).to.eql(null); pm.expect(r.purpose).to.eql(\"stock\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "120 · Drafts — failed writes do not append timeline events",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{applicationId}}/timeline",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{applicationId}}",
+            "timeline"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Exactly the three committed changes remain\", () => { pm.expect(r).to.have.all.keys(\"items\"); pm.expect(r.items).to.have.length(3); pm.expect(r.items.map(x=>x.sequence)).to.deep.eql([1,2,3]); });"
+            ]
+          }
+        }
+      ]
     }
   ],
   "event": [
@@ -2866,7 +6312,7 @@
         "type": "text/javascript",
         "exec": [
           "// Local values prevent stale environment/global variables from shadowing run results.",
-          "const transientKeys = [\"clientProfileId\", \"bankProfileId\", \"otpRequestId\", \"accessToken\", \"clientOtpRequestId\", \"bankOtpRequestId\", \"clientAccessToken\", \"bankAccessToken\", \"clientCompanyId\", \"clientName\", \"clientPhone\", \"bankName\", \"bankPhone\", \"previousClientOtpRequestId\", \"otherClientProfileId\", \"otherClientOtpRequestId\", \"otherClientAccessToken\", \"otherCompanyId\", \"ownCompanyJSON\", \"creditProductsJSON\"];",
+          "const transientKeys = [\"clientProfileId\", \"bankProfileId\", \"otpRequestId\", \"accessToken\", \"clientOtpRequestId\", \"bankOtpRequestId\", \"clientAccessToken\", \"bankAccessToken\", \"clientCompanyId\", \"clientName\", \"clientPhone\", \"bankName\", \"bankPhone\", \"previousClientOtpRequestId\", \"otherClientProfileId\", \"otherClientOtpRequestId\", \"otherClientAccessToken\", \"otherCompanyId\", \"ownCompanyJSON\", \"creditProductsJSON\", \"applicationId\", \"applicationVersion\", \"previousApplicationVersion\", \"secondApplicationId\", \"applicationCreatedAt\", \"applicationUpdatedAt\", \"applicationListTotal\"];",
           "transientKeys.forEach(key => pm.variables.set(key, pm.collectionVariables.get(key) || \"\"));",
           "const configuredCode = String(pm.variables.get(\"demoOtpCode\") || \"1234\");",
           "pm.variables.set(\"demoOtpCode\", configuredCode);",
