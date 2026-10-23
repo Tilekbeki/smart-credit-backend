@@ -12,7 +12,9 @@ FROM alpine:3.24.3
 RUN addgroup -g 10001 app \
     && adduser -D -u 10001 -G app app \
     && mkdir -p /var/lib/smart-credit/documents \
-    && chown app:app /var/lib/smart-credit/documents
+    && mkdir -p /var/lib/smart-credit/secrets \
+    && chown app:app /var/lib/smart-credit/documents /var/lib/smart-credit/secrets \
+    && chmod 0700 /var/lib/smart-credit/secrets
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=builder /out/api /app/api
 

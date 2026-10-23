@@ -1,0 +1,1179 @@
+{
+  "info": {
+    "name": "Smart Credit — Backend Stage 2 (OTP + JWT)",
+    "description": "Единая коллекция проверок Smart Credit, Postman Collection v2.1. Запустите docker compose up -d --build, затем всю коллекцию сверху вниз в Collection Runner. baseUrl по умолчанию http://localhost:8080; demoOtpCode по умолчанию 1234 (измените при переопределении DEMO_OTP_CODE). Идентификаторы, OTP challenges и JWT передаются автоматически через collection variables; первый запрос очищает результаты предыдущего запуска. Обе роли и принадлежность компании проверяются по ответам /me; передача роли в JSON запрещена. Отдельных банковских API на этом этапе нет: RequireRole проверяется Go-тестами. Проверка JWT claims в коллекции не заменяет проверку подписи backend; успешный /me подтверждает принятие токена сервером. После запуска токены доступны локально для ручных запросов. Не экспортируйте коллекцию с заполненными токенами и не используйте реальные персональные данные. При добавлении API обновляйте эту коллекцию: позитивные и негативные сценарии, автоматическая передача ID, точные статусы и поля ответов.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "demoOtpCode",
+      "value": "1234",
+      "type": "string"
+    },
+    {
+      "key": "clientProfileId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "bankProfileId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "otpRequestId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "clientOtpRequestId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "bankOtpRequestId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "clientAccessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "bankAccessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "clientCompanyId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "clientName",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "clientPhone",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "bankName",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "bankPhone",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "previousClientOtpRequestId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 · Profiles — reset run, discover 3 clients and 1 employee",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/demo/profiles",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "demo",
+            "profiles"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Run on every Collection Runner iteration, preserving baseUrl and demoOtpCode.",
+              "const resetKeys = [\"clientProfileId\", \"bankProfileId\", \"otpRequestId\", \"accessToken\", \"clientOtpRequestId\", \"bankOtpRequestId\", \"clientAccessToken\", \"bankAccessToken\", \"clientCompanyId\", \"clientName\", \"clientPhone\", \"bankName\", \"bankPhone\", \"previousClientOtpRequestId\"];",
+              "resetKeys.forEach(key => { pm.collectionVariables.set(key, \"\"); pm.variables.set(key, \"\"); });"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;",
+              "pm.test(\"Four valid demonstration profiles\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"items\");",
+              "  pm.expect(r.items).to.be.an(\"array\").with.length(4);",
+              "  const ids = new Set();",
+              "  r.items.forEach(p => {",
+              "    pm.expect(p).to.have.all.keys(\"id\", \"name\", \"role\", \"companyName\", \"phone\");",
+              "    pm.expect(p.id).to.match(uuid); ids.add(p.id);",
+              "    pm.expect(p.name).to.be.a(\"string\").and.not.empty;",
+              "    pm.expect(p.phone).to.be.a(\"string\").and.not.empty;",
+              "    pm.expect(p.role).to.be.oneOf([\"CLIENT\", \"BANK_EMPLOYEE\"]);",
+              "    if (p.role === \"CLIENT\") pm.expect(p.companyName).to.be.a(\"string\").and.not.empty;",
+              "    else pm.expect(p.companyName).to.eql(null);",
+              "  });",
+              "  pm.expect(ids.size).to.eql(4);",
+              "});",
+              "const profiles = Array.isArray(r.items) ? r.items : [];",
+              "const clients = profiles.filter(p => p.role === \"CLIENT\");",
+              "const employees = profiles.filter(p => p.role === \"BANK_EMPLOYEE\");",
+              "pm.test(\"Three clients and one bank employee\", () => { pm.expect(clients).to.have.length(3); pm.expect(employees).to.have.length(1); });",
+              "if (pm.response.code === 200) {",
+              "  [[\"client\", clients[0]], [\"bank\", employees[0]]].forEach(([scope, p]) => {",
+              "    if (!p) return;",
+              "    pm.collectionVariables.set(scope + \"ProfileId\", p.id);",
+              "    pm.collectionVariables.set(scope + \"Name\", p.name);",
+              "    pm.collectionVariables.set(scope + \"Phone\", p.phone);",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 · Client — request simulated OTP",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/otp/request",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "otp",
+            "request"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"profileId\": \"{{clientProfileId}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "const r = pm.response.json();",
+              "const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;",
+              "pm.test(\"OTP challenge DTO and five-minute expiry\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"otpRequestId\", \"expiresAt\", \"maskedPhone\");",
+              "  pm.expect(r.otpRequestId).to.match(uuid);",
+              "  pm.expect(r.expiresAt).to.be.a(\"string\");",
+              "  const expires = Date.parse(r.expiresAt);",
+              "  pm.expect(Number.isFinite(expires)).to.eql(true);",
+              "  pm.expect(expires - Date.now()).to.be.within(1, 301000);",
+              "  pm.expect(r.maskedPhone).to.be.a(\"string\").and.include(\"*\");",
+              "  const phone = pm.collectionVariables.get(\"clientPhone\");",
+              "  pm.expect(r.maskedPhone).to.eql(phone.slice(0, 2) + \"*** *** \" + phone.slice(-4));",
+              "  pm.expect(r).not.to.have.property(\"code\");",
+              "});",
+              "if (pm.response.code === 201 && uuid.test(r.otpRequestId)) { pm.collectionVariables.set(\"clientOtpRequestId\", r.otpRequestId); pm.collectionVariables.set(\"otpRequestId\", r.otpRequestId); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 · Client — wrong OTP returns invalid_otp",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/otp/verify",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "otp",
+            "verify"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"otpRequestId\": \"{{otpRequestId}}\",\n  \"code\": \"{{wrongOtpCode}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error and message, no credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\");",
+              "  pm.expect(r.error).to.eql(\"invalid_otp\");",
+              "  pm.expect(r.message).to.eql(\"Неверный код подтверждения.\");",
+              "  pm.expect(r).not.to.have.property(\"accessToken\");",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 · Role injection — verify cannot choose BANK_EMPLOYEE",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/otp/verify",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "otp",
+            "verify"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"otpRequestId\": \"{{clientOtpRequestId}}\",\n  \"code\": \"{{demoOtpCode}}\",\n  \"role\": \"BANK_EMPLOYEE\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error and message, no credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\");",
+              "  pm.expect(r.error).to.eql(\"invalid_request\");",
+              "  pm.expect(r.message).to.eql(\"Некорректный JSON или недопустимые поля запроса.\");",
+              "  pm.expect(r).not.to.have.property(\"accessToken\");",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 · Client — correct OTP returns JWT",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/otp/verify",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "otp",
+            "verify"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"otpRequestId\": \"{{clientOtpRequestId}}\",\n  \"code\": \"{{demoOtpCode}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;",
+              "pm.test(\"Access token DTO and database identity\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"accessToken\", \"tokenType\", \"expiresAt\", \"userId\", \"role\", \"companyId\");",
+              "  pm.expect(r.accessToken).to.be.a(\"string\").and.match(/^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$/);",
+              "  pm.expect(r.tokenType).to.eql(\"Bearer\");",
+              "  pm.expect(r.userId).to.match(uuid);",
+              "  pm.expect(r.userId).to.eql(pm.collectionVariables.get(\"clientProfileId\"));",
+              "  pm.expect(r.role).to.eql(\"CLIENT\");",
+              "  pm.expect(r.expiresAt).to.be.a(\"string\");",
+              "  pm.expect(r.companyId).to.match(uuid);",
+              "});",
+              "// Decode public JWT claims only. Signing keys are never known to the collection.",
+              "function decodeJWTPart(value) {",
+              "  const alphabet = \"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/\";",
+              "  let bits = 0, count = 0, text = \"\";",
+              "  for (const char of value.replace(/-/g, \"+\").replace(/_/g, \"/\")) {",
+              "    const digit = alphabet.indexOf(char); if (digit < 0) continue;",
+              "    bits = (bits << 6) | digit; count += 6;",
+              "    if (count >= 8) { count -= 8; text += String.fromCharCode((bits >> count) & 255); }",
+              "  }",
+              "  return JSON.parse(text);",
+              "}",
+              "pm.test(\"HS256 JWT identity and eight-hour lifetime\", () => {",
+              "  const parts = r.accessToken.split(\".\");",
+              "  const header = decodeJWTPart(parts[0]); const claims = decodeJWTPart(parts[1]);",
+              "  pm.expect(header.alg).to.eql(\"HS256\"); pm.expect(header.typ).to.eql(\"JWT\");",
+              "  pm.expect(claims.sub).to.eql(r.userId);",
+              "  pm.expect(claims.iss).to.be.a(\"string\").and.not.empty;",
+              "  pm.expect(Array.isArray(claims.aud) ? claims.aud.length > 0 && claims.aud.every(a => typeof a === \"string\" && a.length > 0) : typeof claims.aud === \"string\" && claims.aud.length > 0).to.eql(true);",
+              "  pm.expect(claims.iat).to.be.a(\"number\"); pm.expect(claims.exp).to.be.a(\"number\");",
+              "  pm.expect(claims.exp - claims.iat).to.eql(8 * 60 * 60);",
+              "  pm.expect(Math.abs(claims.iat * 1000 - Date.now())).to.be.below(30000);",
+              "  pm.expect(Date.parse(r.expiresAt)).to.eql(claims.exp * 1000);",
+              "  pm.expect(claims.exp * 1000).to.be.above(Date.now());",
+              "});",
+              "if (pm.response.code === 200 && typeof r.accessToken === \"string\") { pm.collectionVariables.set(\"clientAccessToken\", r.accessToken); pm.collectionVariables.set(\"accessToken\", r.accessToken); }",
+              "if (pm.response.code === 200 && uuid.test(r.companyId)) pm.collectionVariables.set(\"clientCompanyId\", r.companyId);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 · Client — used challenge returns otp_used",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/otp/verify",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "otp",
+            "verify"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"otpRequestId\": \"{{clientOtpRequestId}}\",\n  \"code\": \"{{demoOtpCode}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error and message, no credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\");",
+              "  pm.expect(r.error).to.eql(\"otp_used\");",
+              "  pm.expect(r.message).to.eql(\"Подтверждение уже использовано.\");",
+              "  pm.expect(r).not.to.have.property(\"accessToken\");",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 · Client — authenticated /me and company identity",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "me"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;",
+              "pm.test(\"Current user DTO matches selected database profile\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"id\", \"name\", \"phone\", \"role\", \"companyId\");",
+              "  pm.expect(r.id).to.match(uuid);",
+              "  pm.expect(r.id).to.eql(pm.collectionVariables.get(\"clientProfileId\"));",
+              "  pm.expect(r.name).to.eql(pm.collectionVariables.get(\"clientName\"));",
+              "  pm.expect(r.phone).to.eql(pm.collectionVariables.get(\"clientPhone\"));",
+              "  pm.expect(r.role).to.eql(\"CLIENT\");",
+              "  pm.expect(r.companyId).to.eql(pm.collectionVariables.get(\"clientCompanyId\"));",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 · No JWT — /me returns unauthorized",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "me"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error and message, no credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\");",
+              "  pm.expect(r.error).to.eql(\"unauthorized\");",
+              "  pm.expect(r.message).to.eql(\"Требуется авторизация\");",
+              "  pm.expect(r).not.to.have.property(\"accessToken\");",
+              "});",
+              "pm.test(\"Bearer challenge\", () => pm.expect(pm.response.headers.get(\"WWW-Authenticate\")).to.eql(\"Bearer\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 · Tampered JWT signature — /me returns unauthorized",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{invalidAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "me"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Change the signature of a real issued JWT without knowing its secret.",
+              "const parts = String(pm.collectionVariables.get(\"clientAccessToken\") || \"\").split(\".\");",
+              "if (parts.length === 3 && parts[2].length > 0) {",
+              "  parts[2] = (parts[2][0] === \"A\" ? \"B\" : \"A\") + parts[2].slice(1);",
+              "  pm.variables.set(\"invalidAccessToken\", parts.join(\".\"));",
+              "} else pm.variables.set(\"invalidAccessToken\", \"invalid.jwt.token\");"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error and message, no credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\");",
+              "  pm.expect(r.error).to.eql(\"unauthorized\");",
+              "  pm.expect(r.message).to.eql(\"Требуется авторизация\");",
+              "  pm.expect(r).not.to.have.property(\"accessToken\");",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 · Bank — request simulated OTP",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/otp/request",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "otp",
+            "request"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"profileId\": \"{{bankProfileId}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "const r = pm.response.json();",
+              "const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;",
+              "pm.test(\"OTP challenge DTO and five-minute expiry\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"otpRequestId\", \"expiresAt\", \"maskedPhone\");",
+              "  pm.expect(r.otpRequestId).to.match(uuid);",
+              "  pm.expect(r.expiresAt).to.be.a(\"string\");",
+              "  const expires = Date.parse(r.expiresAt);",
+              "  pm.expect(Number.isFinite(expires)).to.eql(true);",
+              "  pm.expect(expires - Date.now()).to.be.within(1, 301000);",
+              "  pm.expect(r.maskedPhone).to.be.a(\"string\").and.include(\"*\");",
+              "  const phone = pm.collectionVariables.get(\"bankPhone\");",
+              "  pm.expect(r.maskedPhone).to.eql(phone.slice(0, 2) + \"*** *** \" + phone.slice(-4));",
+              "  pm.expect(r).not.to.have.property(\"code\");",
+              "});",
+              "if (pm.response.code === 201 && uuid.test(r.otpRequestId)) { pm.collectionVariables.set(\"bankOtpRequestId\", r.otpRequestId); pm.collectionVariables.set(\"otpRequestId\", r.otpRequestId); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 · Bank — correct OTP returns employee JWT",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/otp/verify",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "otp",
+            "verify"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"otpRequestId\": \"{{otpRequestId}}\",\n  \"code\": \"{{demoOtpCode}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;",
+              "pm.test(\"Access token DTO and database identity\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"accessToken\", \"tokenType\", \"expiresAt\", \"userId\", \"role\", \"companyId\");",
+              "  pm.expect(r.accessToken).to.be.a(\"string\").and.match(/^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$/);",
+              "  pm.expect(r.tokenType).to.eql(\"Bearer\");",
+              "  pm.expect(r.userId).to.match(uuid);",
+              "  pm.expect(r.userId).to.eql(pm.collectionVariables.get(\"bankProfileId\"));",
+              "  pm.expect(r.role).to.eql(\"BANK_EMPLOYEE\");",
+              "  pm.expect(r.expiresAt).to.be.a(\"string\");",
+              "  pm.expect(r.companyId).to.eql(null);",
+              "});",
+              "// Decode public JWT claims only. Signing keys are never known to the collection.",
+              "function decodeJWTPart(value) {",
+              "  const alphabet = \"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/\";",
+              "  let bits = 0, count = 0, text = \"\";",
+              "  for (const char of value.replace(/-/g, \"+\").replace(/_/g, \"/\")) {",
+              "    const digit = alphabet.indexOf(char); if (digit < 0) continue;",
+              "    bits = (bits << 6) | digit; count += 6;",
+              "    if (count >= 8) { count -= 8; text += String.fromCharCode((bits >> count) & 255); }",
+              "  }",
+              "  return JSON.parse(text);",
+              "}",
+              "pm.test(\"HS256 JWT identity and eight-hour lifetime\", () => {",
+              "  const parts = r.accessToken.split(\".\");",
+              "  const header = decodeJWTPart(parts[0]); const claims = decodeJWTPart(parts[1]);",
+              "  pm.expect(header.alg).to.eql(\"HS256\"); pm.expect(header.typ).to.eql(\"JWT\");",
+              "  pm.expect(claims.sub).to.eql(r.userId);",
+              "  pm.expect(claims.iss).to.be.a(\"string\").and.not.empty;",
+              "  pm.expect(Array.isArray(claims.aud) ? claims.aud.length > 0 && claims.aud.every(a => typeof a === \"string\" && a.length > 0) : typeof claims.aud === \"string\" && claims.aud.length > 0).to.eql(true);",
+              "  pm.expect(claims.iat).to.be.a(\"number\"); pm.expect(claims.exp).to.be.a(\"number\");",
+              "  pm.expect(claims.exp - claims.iat).to.eql(8 * 60 * 60);",
+              "  pm.expect(Math.abs(claims.iat * 1000 - Date.now())).to.be.below(30000);",
+              "  pm.expect(Date.parse(r.expiresAt)).to.eql(claims.exp * 1000);",
+              "  pm.expect(claims.exp * 1000).to.be.above(Date.now());",
+              "});",
+              "if (pm.response.code === 200 && typeof r.accessToken === \"string\") { pm.collectionVariables.set(\"bankAccessToken\", r.accessToken); pm.collectionVariables.set(\"accessToken\", r.accessToken); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 · Bank — authenticated /me, no company",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "me"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;",
+              "pm.test(\"Current user DTO matches selected database profile\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"id\", \"name\", \"phone\", \"role\", \"companyId\");",
+              "  pm.expect(r.id).to.match(uuid);",
+              "  pm.expect(r.id).to.eql(pm.collectionVariables.get(\"bankProfileId\"));",
+              "  pm.expect(r.name).to.eql(pm.collectionVariables.get(\"bankName\"));",
+              "  pm.expect(r.phone).to.eql(pm.collectionVariables.get(\"bankPhone\"));",
+              "  pm.expect(r.role).to.eql(\"BANK_EMPLOYEE\");",
+              "  pm.expect(r.companyId).to.eql(null);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 · Client — request challenge to be replaced",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/otp/request",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "otp",
+            "request"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"profileId\": \"{{clientProfileId}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "const r = pm.response.json();",
+              "const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;",
+              "pm.test(\"OTP challenge DTO and five-minute expiry\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"otpRequestId\", \"expiresAt\", \"maskedPhone\");",
+              "  pm.expect(r.otpRequestId).to.match(uuid);",
+              "  pm.expect(r.expiresAt).to.be.a(\"string\");",
+              "  const expires = Date.parse(r.expiresAt);",
+              "  pm.expect(Number.isFinite(expires)).to.eql(true);",
+              "  pm.expect(expires - Date.now()).to.be.within(1, 301000);",
+              "  pm.expect(r.maskedPhone).to.be.a(\"string\").and.include(\"*\");",
+              "  const phone = pm.collectionVariables.get(\"clientPhone\");",
+              "  pm.expect(r.maskedPhone).to.eql(phone.slice(0, 2) + \"*** *** \" + phone.slice(-4));",
+              "  pm.expect(r).not.to.have.property(\"code\");",
+              "});",
+              "if (pm.response.code === 201 && uuid.test(r.otpRequestId)) { pm.collectionVariables.set(\"clientOtpRequestId\", r.otpRequestId); pm.collectionVariables.set(\"otpRequestId\", r.otpRequestId); }",
+              "if (pm.response.code === 201 && uuid.test(r.otpRequestId)) pm.collectionVariables.set(\"previousClientOtpRequestId\", r.otpRequestId);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "14 · Client — new challenge invalidates previous OTP",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/otp/request",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "otp",
+            "request"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"profileId\": \"{{clientProfileId}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "const r = pm.response.json();",
+              "const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;",
+              "pm.test(\"OTP challenge DTO and five-minute expiry\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"otpRequestId\", \"expiresAt\", \"maskedPhone\");",
+              "  pm.expect(r.otpRequestId).to.match(uuid);",
+              "  pm.expect(r.expiresAt).to.be.a(\"string\");",
+              "  const expires = Date.parse(r.expiresAt);",
+              "  pm.expect(Number.isFinite(expires)).to.eql(true);",
+              "  pm.expect(expires - Date.now()).to.be.within(1, 301000);",
+              "  pm.expect(r.maskedPhone).to.be.a(\"string\").and.include(\"*\");",
+              "  const phone = pm.collectionVariables.get(\"clientPhone\");",
+              "  pm.expect(r.maskedPhone).to.eql(phone.slice(0, 2) + \"*** *** \" + phone.slice(-4));",
+              "  pm.expect(r).not.to.have.property(\"code\");",
+              "});",
+              "if (pm.response.code === 201 && uuid.test(r.otpRequestId)) { pm.collectionVariables.set(\"clientOtpRequestId\", r.otpRequestId); pm.collectionVariables.set(\"otpRequestId\", r.otpRequestId); }",
+              "pm.test(\"Replacement challenge has a new ID\", () => pm.expect(r.otpRequestId).not.to.eql(pm.collectionVariables.get(\"previousClientOtpRequestId\")));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "15 · Client — previous challenge returns otp_invalidated",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/otp/verify",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "otp",
+            "verify"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"otpRequestId\": \"{{previousClientOtpRequestId}}\",\n  \"code\": \"{{demoOtpCode}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+              "const r = pm.response.json();",
+              "pm.test(\"Expected error and message, no credentials\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\");",
+              "  pm.expect(r.error).to.eql(\"otp_invalidated\");",
+              "  pm.expect(r.message).to.eql(\"Запрошен новый код. Используйте последнее подтверждение.\");",
+              "  pm.expect(r).not.to.have.property(\"accessToken\");",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "16 · Client — replacement challenge can be verified",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/otp/verify",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "otp",
+            "verify"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"otpRequestId\": \"{{otpRequestId}}\",\n  \"code\": \"{{demoOtpCode}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;",
+              "pm.test(\"Access token DTO and database identity\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"accessToken\", \"tokenType\", \"expiresAt\", \"userId\", \"role\", \"companyId\");",
+              "  pm.expect(r.accessToken).to.be.a(\"string\").and.match(/^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$/);",
+              "  pm.expect(r.tokenType).to.eql(\"Bearer\");",
+              "  pm.expect(r.userId).to.match(uuid);",
+              "  pm.expect(r.userId).to.eql(pm.collectionVariables.get(\"clientProfileId\"));",
+              "  pm.expect(r.role).to.eql(\"CLIENT\");",
+              "  pm.expect(r.expiresAt).to.be.a(\"string\");",
+              "  pm.expect(r.companyId).to.match(uuid);",
+              "});",
+              "// Decode public JWT claims only. Signing keys are never known to the collection.",
+              "function decodeJWTPart(value) {",
+              "  const alphabet = \"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/\";",
+              "  let bits = 0, count = 0, text = \"\";",
+              "  for (const char of value.replace(/-/g, \"+\").replace(/_/g, \"/\")) {",
+              "    const digit = alphabet.indexOf(char); if (digit < 0) continue;",
+              "    bits = (bits << 6) | digit; count += 6;",
+              "    if (count >= 8) { count -= 8; text += String.fromCharCode((bits >> count) & 255); }",
+              "  }",
+              "  return JSON.parse(text);",
+              "}",
+              "pm.test(\"HS256 JWT identity and eight-hour lifetime\", () => {",
+              "  const parts = r.accessToken.split(\".\");",
+              "  const header = decodeJWTPart(parts[0]); const claims = decodeJWTPart(parts[1]);",
+              "  pm.expect(header.alg).to.eql(\"HS256\"); pm.expect(header.typ).to.eql(\"JWT\");",
+              "  pm.expect(claims.sub).to.eql(r.userId);",
+              "  pm.expect(claims.iss).to.be.a(\"string\").and.not.empty;",
+              "  pm.expect(Array.isArray(claims.aud) ? claims.aud.length > 0 && claims.aud.every(a => typeof a === \"string\" && a.length > 0) : typeof claims.aud === \"string\" && claims.aud.length > 0).to.eql(true);",
+              "  pm.expect(claims.iat).to.be.a(\"number\"); pm.expect(claims.exp).to.be.a(\"number\");",
+              "  pm.expect(claims.exp - claims.iat).to.eql(8 * 60 * 60);",
+              "  pm.expect(Math.abs(claims.iat * 1000 - Date.now())).to.be.below(30000);",
+              "  pm.expect(Date.parse(r.expiresAt)).to.eql(claims.exp * 1000);",
+              "  pm.expect(claims.exp * 1000).to.be.above(Date.now());",
+              "});",
+              "if (pm.response.code === 200 && typeof r.accessToken === \"string\") { pm.collectionVariables.set(\"clientAccessToken\", r.accessToken); pm.collectionVariables.set(\"accessToken\", r.accessToken); }",
+              "if (pm.response.code === 200 && uuid.test(r.companyId)) pm.collectionVariables.set(\"clientCompanyId\", r.companyId);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "17 · Health endpoint",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "health"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Service healthy\", () => { pm.expect(r).to.have.all.keys(\"status\", \"service\"); pm.expect(r.status).to.eql(\"ok\"); pm.expect(r.service).to.eql(\"backend\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "18 · Readiness endpoint",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/ready",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "ready"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Service ready\", () => { pm.expect(r).to.have.all.keys(\"status\"); pm.expect(r.status).to.eql(\"ready\"); });"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Local values prevent stale environment/global variables from shadowing run results.",
+          "const transientKeys = [\"clientProfileId\", \"bankProfileId\", \"otpRequestId\", \"accessToken\", \"clientOtpRequestId\", \"bankOtpRequestId\", \"clientAccessToken\", \"bankAccessToken\", \"clientCompanyId\", \"clientName\", \"clientPhone\", \"bankName\", \"bankPhone\", \"previousClientOtpRequestId\"];",
+          "transientKeys.forEach(key => pm.variables.set(key, pm.collectionVariables.get(key) || \"\"));",
+          "const configuredCode = String(pm.variables.get(\"demoOtpCode\") || \"1234\");",
+          "pm.variables.set(\"demoOtpCode\", configuredCode);",
+          "pm.variables.set(\"wrongOtpCode\", configuredCode === \"0000\" ? \"1111\" : \"0000\");"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test(\"JSON response\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\"));",
+          "pm.test(\"Responses are not cached\", () => pm.expect(pm.response.headers.get(\"Cache-Control\")).to.eql(\"no-store\"));"
+        ]
+      }
+    }
+  ]
+}

@@ -34,7 +34,7 @@ func responseJSON(t *testing.T, response *httptest.ResponseRecorder) map[string]
 
 func TestHealthWorksWithoutDatabase(t *testing.T) {
 	response := httptest.NewRecorder()
-	NewHandler(nil, testLogger(), time.Second).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/health", nil))
+	NewHandler(nil, testLogger(), time.Second, nil).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/health", nil))
 	if response.Code != http.StatusOK || responseJSON(t, response)["status"] != "ok" {
 		t.Fatalf("liveness failed without a database: %d %s", response.Code, response.Body.String())
 	}
@@ -56,7 +56,7 @@ func TestReadinessUsesDatabaseAndDoesNotLeakErrors(t *testing.T) {
 				return nil
 			})
 			response := httptest.NewRecorder()
-			NewHandler(db, logger, time.Second).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/ready", nil))
+			NewHandler(db, logger, time.Second, nil).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/ready", nil))
 			wantCode, wantStatus := http.StatusOK, "ready"
 			if !available {
 				wantCode, wantStatus = http.StatusServiceUnavailable, "not_ready"
@@ -89,7 +89,7 @@ func TestReadinessEnforcesPingDeadline(t *testing.T) {
 	completed := make(chan struct{})
 	go func() {
 		request := httptest.NewRequest(http.MethodGet, "/ready", nil).WithContext(requestContext)
-		NewHandler(db, testLogger(), timeout).ServeHTTP(response, request)
+		NewHandler(db, testLogger(), timeout, nil).ServeHTTP(response, request)
 		close(completed)
 	}()
 	select {
@@ -115,7 +115,7 @@ func TestReadinessPropagatesRequestCancellation(t *testing.T) {
 	completed := make(chan struct{})
 	go func() {
 		request := httptest.NewRequest(http.MethodGet, "/ready", nil).WithContext(ctx)
-		NewHandler(db, testLogger(), time.Minute).ServeHTTP(response, request)
+		NewHandler(db, testLogger(), time.Minute, nil).ServeHTTP(response, request)
 		close(completed)
 	}()
 	select {
@@ -139,7 +139,7 @@ func TestHandlerRecoversPanicsWithoutLeakingDetails(t *testing.T) {
 	logger := slog.New(slog.NewJSONHandler(&logs, nil))
 	db := pingFunc(func(context.Context) error { panic("private-database-password") })
 	response := httptest.NewRecorder()
-	NewHandler(db, logger, time.Second).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/ready", nil))
+	NewHandler(db, logger, time.Second, nil).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/ready", nil))
 	if response.Code != http.StatusInternalServerError || responseJSON(t, response)["error"] != "internal_error" {
 		t.Fatalf("unexpected panic response: %d %s", response.Code, response.Body.String())
 	}
@@ -152,7 +152,7 @@ func TestHandlerRecoversPanicsWithoutLeakingDetails(t *testing.T) {
 }
 
 func TestUnknownRoutesAndMethodsReturnJSONErrors(t *testing.T) {
-	handler := NewHandler(nil, testLogger(), time.Second)
+	handler := NewHandler(nil, testLogger(), time.Second, nil)
 	for _, test := range []struct {
 		method string
 		path   string

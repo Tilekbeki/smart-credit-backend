@@ -15,6 +15,22 @@ jobs:
       - run: python -m json.tool contracts/scoring-response.schema.json > /dev/null
   go:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17.11-alpine3.24
+        env:
+          POSTGRES_USER: smart_credit
+          POSTGRES_PASSWORD: ci-test-password
+          POSTGRES_DB: smart_credit_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U smart_credit -d smart_credit_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://smart_credit:ci-test-password@127.0.0.1:5432/smart_credit_test?sslmode=disable
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5

@@ -35,12 +35,17 @@ type Database struct {
 }
 
 type Config struct {
+	AppEnv              string
 	HTTP                HTTP
 	Database            Database
 	LogLevel            slog.Level
 	DocumentStoragePath string
 	ScoringURL          string
 	JWTSecret           string
+	JWTSecretFile       string
+	JWTIssuer           string
+	JWTAudience         string
+	AuthDBTimeout       time.Duration
 	DemoOTPCode         string
 }
 
@@ -74,6 +79,10 @@ func load(lookup func(string) (string, bool)) (Config, error) {
 			invalid(key, "must be a positive duration, for example 5s")
 		}
 		return d
+	}
+	cfg.AppEnv = get("APP_ENV", "production")
+	if cfg.AppEnv != "demo" && cfg.AppEnv != "production" {
+		invalid("APP_ENV", "must be demo or production")
 	}
 	cfg.HTTP = HTTP{
 		Host:              get("HTTP_HOST", "127.0.0.1"),
@@ -114,11 +123,37 @@ func load(lookup func(string) (string, bool)) (Config, error) {
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
 		invalid("SCORING_URL", "must be an HTTP(S) base URL without credentials, query or fragment")
 	}
-	// Reserved settings: stage 1 does not enable authentication or contact scoring.
 	cfg.JWTSecret = get("JWT_SECRET", "")
+	if cfg.JWTSecret != "" && !validJWTSecret(cfg.JWTSecret) {
+		invalid("JWT_SECRET", "must contain at least 32 bytes")
+	}
+	if cfg.JWTSecret == "" && cfg.AppEnv == "production" {
+		invalid("JWT_SECRET", "is required in production and must contain at least 32 bytes")
+	}
+	cfg.JWTSecretFile = get("JWT_SECRET_FILE", "./data/secrets/jwt-secret")
+	if strings.TrimSpace(cfg.JWTSecretFile) == "" {
+		invalid("JWT_SECRET_FILE", "must not be empty")
+	}
+	cfg.JWTIssuer = get("JWT_ISSUER", "smart-credit-backend")
+	if strings.TrimSpace(cfg.JWTIssuer) == "" {
+		invalid("JWT_ISSUER", "must not be empty")
+	}
+	cfg.JWTAudience = get("JWT_AUDIENCE", "smart-credit-frontend")
+	if strings.TrimSpace(cfg.JWTAudience) == "" {
+		invalid("JWT_AUDIENCE", "must not be empty")
+	}
+	cfg.AuthDBTimeout = duration("AUTH_DB_TIMEOUT", "3s")
+	if cfg.AuthDBTimeout >= cfg.HTTP.WriteTimeout {
+		invalid("AUTH_DB_TIMEOUT", "must be less than HTTP_WRITE_TIMEOUT")
+	}
 	cfg.DemoOTPCode = get("DEMO_OTP_CODE", "1234")
 	if len(cfg.DemoOTPCode) != 4 || strings.IndexFunc(cfg.DemoOTPCode, func(r rune) bool { return r < '0' || r > '9' }) >= 0 {
 		invalid("DEMO_OTP_CODE", "must contain four digits")
 	}
-	return cfg, firstErr
+	if firstErr != nil {
+		return cfg, firstErr
+	}
+	// Initialize persistent demo state only after all configuration is valid.
+	cfg.JWTSecret, err = resolveJWTSecret(cfg.AppEnv, cfg.JWTSecret, cfg.JWTSecretFile)
+	return cfg, err
 }

@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"smart-credit-backend/internal/auth"
 	"smart-credit-backend/internal/config"
 	"smart-credit-backend/internal/httpapi"
 	"smart-credit-backend/internal/postgres"
@@ -29,6 +30,10 @@ func run() error {
 		return fmt.Errorf("configuration: %w", err)
 	}
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: cfg.LogLevel}))
+	tokens, err := auth.NewTokens(cfg.JWTSecret, cfg.JWTIssuer, cfg.JWTAudience)
+	if err != nil {
+		return errors.New("JWT configuration is invalid")
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	pool, err := postgres.Open(ctx, cfg.Database)
@@ -39,7 +44,9 @@ func run() error {
 		return err
 	}
 	defer pool.Close()
-	server := httpapi.NewServer(cfg.HTTP, httpapi.NewHandler(pool, logger, cfg.Database.PingTimeout), logger)
+	authRepo := postgres.NewAuthRepository(pool, cfg.AuthDBTimeout)
+	authHandler := httpapi.NewAuthHandler(authRepo, tokens, cfg.DemoOTPCode, cfg.AuthDBTimeout, logger)
+	server := httpapi.NewServer(cfg.HTTP, httpapi.NewHandler(pool, logger, cfg.Database.PingTimeout, authHandler), logger)
 	listener, err := net.Listen("tcp", server.Addr)
 	if err != nil {
 		return fmt.Errorf("listen HTTP: %w", err)

@@ -1,8 +1,12 @@
 openapi: 3.0.3
 info:
-  title: Smart Credit Go backend — infrastructure
-  version: 0.1.0
-  description: Stage 1 exposes probes only. Credit and authentication APIs are not implemented.
+  title: Smart Credit Go backend
+  version: 0.2.0
+  description: |
+    Demonstration authentication for a hackathon, using synthetic profiles and a fixed
+    OTP configured by DEMO_OTP_CODE (1234 by default). No SMS is sent. Public profile
+    selection includes a bank employee and must not be used for production access.
+    Credit APIs are not implemented. All application responses use Cache-Control: no-store.
 servers:
   - url: http://localhost:8080
 paths:
@@ -55,3 +59,310 @@ paths:
                   error:
                     type: string
                     enum: [database_unavailable]
+  /api/v1/demo/profiles:
+    get:
+      operationId: listDemoProfiles
+      summary: List the four seeded synthetic users from PostgreSQL
+      description: Three CLIENT profiles and one BANK_EMPLOYEE profile. Authentication is not required.
+      responses:
+        '200':
+          description: Available demonstration profiles; phone numbers are synthetic and displayable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemoProfilesResponse'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/auth/otp/request:
+    post:
+      operationId: requestDemoOTP
+      summary: Create an OTP challenge and simulate sending an SMS
+      description: |
+        Uses the selected user's stored phone number. The challenge expires after five
+        minutes and allows at most five verification attempts. Creating a new challenge
+        invalidates that user's previous active challenges atomically. The code is never
+        returned or logged; no real SMS is sent.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OTPRequestInput'
+      responses:
+        '201':
+          description: Challenge created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OTPRequestResponse'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '404':
+          description: The selected profile does not exist (profile_not_found)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          $ref: '#/components/responses/RequestTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/auth/otp/verify:
+    post:
+      operationId: verifyDemoOTP
+      summary: Consume a valid OTP and issue an eight-hour access token
+      description: |
+        Code comparison, attempt limits and single use are enforced atomically in
+        PostgreSQL. A valid code on the fifth attempt succeeds; after five incorrect
+        attempts the challenge is blocked. A consumed, expired, superseded or blocked
+        challenge cannot issue a token. Role and company come from the stored user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OTPVerifyInput'
+      responses:
+        '200':
+          description: OTP consumed and JWT issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OTPVerifyResponse'
+        '400':
+          description: Malformed input (invalid_request) or an incorrect code (invalid_otp)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Challenge does not exist (otp_not_found)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Challenge was already consumed (otp_used) or superseded (otp_invalidated)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '410':
+          description: Challenge has expired (otp_expired)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          $ref: '#/components/responses/RequestTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '429':
+          description: Five failed verification attempts exhausted the challenge (otp_attempts_exceeded); request a new OTP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/me:
+    get:
+      operationId: getCurrentUser
+      summary: Return the authenticated user from PostgreSQL
+      description: |
+        Requires an HS256 JWT with a valid signature, expiration, issuer and audience.
+        Its subject identifies the user; role and company are loaded from PostgreSQL
+        on each authenticated request instead of trusting client input or JWT role claims.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUser'
+        '401':
+          description: Missing, malformed, invalid or expired token, or unknown user (unauthorized)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: HS256 access token issued by OTP verification; expires in eight hours
+  schemas:
+    Role:
+      type: string
+      enum: [CLIENT, BANK_EMPLOYEE]
+    DemoProfile:
+      type: object
+      required: [id, name, phone, role, companyName]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Иван Лавкин
+        phone:
+          type: string
+          description: Synthetic phone number suitable for displaying in the demonstration UI
+          example: '+79990000001'
+        role:
+          $ref: '#/components/schemas/Role'
+        companyName:
+          type: string
+          nullable: true
+          description: Null for BANK_EMPLOYEE
+          example: ИП «Лавка у дома»
+    DemoProfilesResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DemoProfile'
+    OTPRequestInput:
+      type: object
+      additionalProperties: false
+      required: [profileId]
+      properties:
+        profileId:
+          type: string
+          format: uuid
+          description: Nonzero UUID of a seeded demonstration user
+          example: 20000000-0000-4000-8000-000000000001
+    OTPRequestResponse:
+      type: object
+      required: [otpRequestId, expiresAt, maskedPhone]
+      properties:
+        otpRequestId:
+          type: string
+          format: uuid
+        expiresAt:
+          type: string
+          format: date-time
+          description: UTC expiry, five minutes after challenge creation
+        maskedPhone:
+          type: string
+          example: '+7*** *** 0001'
+    OTPVerifyInput:
+      type: object
+      additionalProperties: false
+      required: [otpRequestId, code]
+      properties:
+        otpRequestId:
+          type: string
+          format: uuid
+          description: Nonzero challenge UUID returned by requestDemoOTP
+        code:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: Fixed demonstration OTP from DEMO_OTP_CODE; defaults to 1234
+          example: '1234'
+    OTPVerifyResponse:
+      type: object
+      required: [accessToken, tokenType, expiresAt, userId, role, companyId]
+      properties:
+        accessToken:
+          type: string
+          description: Signed JWT; do not log it
+        tokenType:
+          type: string
+          enum: [Bearer]
+        expiresAt:
+          type: string
+          format: date-time
+          description: UTC token expiry, eight hours after issuance
+        userId:
+          type: string
+          format: uuid
+        role:
+          $ref: '#/components/schemas/Role'
+        companyId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Null for BANK_EMPLOYEE
+    CurrentUser:
+      type: object
+      required: [id, name, phone, role, companyId]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        phone:
+          type: string
+          example: '+79990000001'
+        role:
+          $ref: '#/components/schemas/Role'
+        companyId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Null for BANK_EMPLOYEE
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          description: Stable machine-readable error code; role middleware returns forbidden with HTTP 403
+        message:
+          type: string
+          description: Safe human-readable explanation without database or credential details
+      example:
+        error: invalid_request
+        message: Некорректный запрос
+  responses:
+    InvalidRequest:
+      description: Invalid fields, UUID or JSON (invalid_request); unknown fields and trailing JSON values are rejected
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RequestTooLarge:
+      description: JSON body exceeds 64 KiB (request_too_large)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    UnsupportedMediaType:
+      description: Content-Type must be application/json; media type parameters are accepted (unsupported_media_type)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: PostgreSQL operation timed out or is unavailable (service_unavailable)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Unexpected internal error (internal_error); internal details are not returned
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

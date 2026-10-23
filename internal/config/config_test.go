@@ -2,6 +2,8 @@ package config
 
 import (
 	"log/slog"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -17,6 +19,7 @@ func environment(values map[string]string) func(string) (string, bool) {
 func TestLoadDefaults(t *testing.T) {
 	cfg, err := load(environment(map[string]string{
 		"DATABASE_URL": "postgres://user:password@localhost/database",
+		"JWT_SECRET":   strings.Repeat("d", 32),
 	}))
 	if err != nil {
 		t.Fatal(err)
@@ -36,11 +39,14 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.Database.PingTimeout >= cfg.HTTP.WriteTimeout {
 		t.Fatal("readiness must expire before the response write timeout")
 	}
-	if cfg.LogLevel != slog.LevelInfo || cfg.DemoOTPCode != "1234" || cfg.JWTSecret != "" {
+	if cfg.LogLevel != slog.LevelInfo || cfg.DemoOTPCode != "1234" || cfg.JWTSecret != strings.Repeat("d", 32) {
 		t.Fatal("unexpected logging or reserved authentication defaults")
 	}
 	if cfg.DocumentStoragePath == "" || cfg.ScoringURL == "" {
 		t.Fatal("future integration settings must have defaults")
+	}
+	if cfg.AppEnv != "production" || cfg.JWTSecretFile != "./data/secrets/jwt-secret" {
+		t.Fatal("local configuration must default to explicit production secrets")
 	}
 }
 
@@ -63,7 +69,7 @@ func TestLoadOverridesAndIPv6Address(t *testing.T) {
 		"LOG_LEVEL":                "debug",
 		"DOCUMENT_STORAGE_PATH":    "/tmp/custom-documents",
 		"SCORING_URL":              "https://scoring.example.test/v1",
-		"JWT_SECRET":               "future-auth-secret",
+		"JWT_SECRET":               "future-auth-secret-at-least-32-bytes",
 		"DEMO_OTP_CODE":            "0123",
 	}))
 	if err != nil {
@@ -78,7 +84,7 @@ func TestLoadOverridesAndIPv6Address(t *testing.T) {
 	if cfg.Database.URL != "postgres://custom:password@db/custom" || cfg.Database.MaxConns != 7 || cfg.Database.MinConns != 0 || cfg.Database.ConnectTimeout != 300*time.Millisecond || cfg.Database.PingTimeout != 100*time.Millisecond || cfg.Database.MaxConnLifetime != 2*time.Hour || cfg.Database.MaxConnIdleTime != 5*time.Minute {
 		t.Fatal("database overrides were not applied")
 	}
-	if cfg.LogLevel != slog.LevelDebug || cfg.DocumentStoragePath != "/tmp/custom-documents" || cfg.ScoringURL != "https://scoring.example.test/v1" || cfg.JWTSecret != "future-auth-secret" || cfg.DemoOTPCode != "0123" {
+	if cfg.LogLevel != slog.LevelDebug || cfg.DocumentStoragePath != "/tmp/custom-documents" || cfg.ScoringURL != "https://scoring.example.test/v1" || cfg.JWTSecret != "future-auth-secret-at-least-32-bytes" || cfg.DemoOTPCode != "0123" {
 		t.Fatal("logging or reserved configuration overrides were not applied")
 	}
 }
@@ -91,6 +97,8 @@ func TestLoadRejectsInvalidConfigurationWithoutEchoingValues(t *testing.T) {
 	}{
 		{name: "missing DSN", key: "DATABASE_URL", value: ""},
 		{name: "blank DSN", key: "DATABASE_URL", value: " \t "},
+		{name: "unknown app environment", key: "APP_ENV", value: "staging"},
+		{name: "empty app environment", key: "APP_ENV", value: ""},
 		{name: "port is not numeric", key: "HTTP_PORT", value: "secret-port"},
 		{name: "zero port", key: "HTTP_PORT", value: "0"},
 		{name: "oversized port", key: "HTTP_PORT", value: "65536"},
@@ -109,6 +117,14 @@ func TestLoadRejectsInvalidConfigurationWithoutEchoingValues(t *testing.T) {
 		{name: "scoring query", key: "SCORING_URL", value: "https://scoring.example.test?token=private-token"},
 		{name: "scoring fragment", key: "SCORING_URL", value: "https://scoring.example.test#private-token"},
 		{name: "scoring without host", key: "SCORING_URL", value: "https:///path"},
+		{name: "missing JWT secret", key: "JWT_SECRET", value: ""},
+		{name: "short JWT secret", key: "JWT_SECRET", value: "private-key"},
+		{name: "blank JWT secret", key: "JWT_SECRET", value: strings.Repeat(" ", 32)},
+		{name: "empty JWT secret file", key: "JWT_SECRET_FILE", value: ""},
+		{name: "empty issuer", key: "JWT_ISSUER", value: ""},
+		{name: "empty audience", key: "JWT_AUDIENCE", value: ""},
+		{name: "zero auth DB timeout", key: "AUTH_DB_TIMEOUT", value: "0s"},
+		{name: "auth exceeds response timeout", key: "AUTH_DB_TIMEOUT", value: "15s"},
 		{name: "OTP length", key: "DEMO_OTP_CODE", value: "12345"},
 		{name: "OTP letters", key: "DEMO_OTP_CODE", value: "abcd"},
 		{name: "OTP non-ASCII", key: "DEMO_OTP_CODE", value: "١٢"},
@@ -117,7 +133,7 @@ func TestLoadRejectsInvalidConfigurationWithoutEchoingValues(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			values := map[string]string{
 				"DATABASE_URL": "postgres://user:private-password@localhost/database",
-				"JWT_SECRET":   "private-jwt-secret",
+				"JWT_SECRET":   "private-jwt-secret-at-least-32-bytes",
 			}
 			values[test.key] = test.value
 			_, err := load(environment(values))
@@ -127,11 +143,64 @@ func TestLoadRejectsInvalidConfigurationWithoutEchoingValues(t *testing.T) {
 			if !strings.Contains(err.Error(), test.key) {
 				t.Fatalf("error must identify the setting: %v", err)
 			}
-			for _, sensitive := range []string{"private-password", "private-token", "private-jwt-secret", "secret-port", "secret-duration", "secret-log-level"} {
+			for _, sensitive := range []string{"private-password", "private-token", "private-jwt-secret-at-least-32-bytes", "secret-port", "secret-duration", "secret-log-level"} {
 				if strings.Contains(err.Error(), sensitive) {
 					t.Fatal("configuration error leaked a supplied value")
 				}
 			}
 		})
+	}
+}
+
+func TestLoadDemoInitializesPersistentSecret(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "secrets", "jwt-secret")
+	values := map[string]string{
+		"DATABASE_URL":    "postgres://user:password@localhost/database",
+		"APP_ENV":         "demo",
+		"JWT_SECRET_FILE": path,
+	}
+	first, err := load(environment(values))
+	if err != nil {
+		t.Fatal(err)
+	}
+	values["JWT_SECRET"] = "" // Compose passes an empty value when no override is configured.
+	second, err := load(environment(values))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.AppEnv != "demo" || first.JWTSecretFile != path || first.JWTSecret != second.JWTSecret || len(first.JWTSecret) < 32 {
+		t.Fatal("demo configuration must reuse the persisted random secret")
+	}
+}
+
+func TestLoadDoesNotInitializeSecretForInvalidConfiguration(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "must-not-exist", "jwt-secret")
+	_, err := load(environment(map[string]string{
+		"DATABASE_URL":    "postgres://user:password@localhost/database",
+		"APP_ENV":         "demo",
+		"JWT_SECRET_FILE": path,
+		"DEMO_OTP_CODE":   "invalid",
+	}))
+	if err == nil || !strings.Contains(err.Error(), "DEMO_OTP_CODE") {
+		t.Fatal("expected OTP configuration error")
+	}
+	if _, err := os.Stat(filepath.Dir(path)); !os.IsNotExist(err) {
+		t.Fatal("invalid configuration must not create the secret directory")
+	}
+}
+
+func TestLoadDemoDoesNotFallbackFromInvalidExplicitSecret(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "must-not-exist", "jwt-secret")
+	_, err := load(environment(map[string]string{
+		"DATABASE_URL":    "postgres://user:password@localhost/database",
+		"APP_ENV":         "demo",
+		"JWT_SECRET_FILE": path,
+		"JWT_SECRET":      "invalid-explicit-secret",
+	}))
+	if err == nil || !strings.Contains(err.Error(), "JWT_SECRET") {
+		t.Fatal("invalid explicit JWT_SECRET must fail")
+	}
+	if _, err := os.Stat(filepath.Dir(path)); !os.IsNotExist(err) {
+		t.Fatal("invalid explicit secret must not trigger automatic generation")
 	}
 }

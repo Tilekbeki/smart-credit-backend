@@ -1,4 +1,4 @@
-// Package httpapi implements the HTTP transport. Stage 1 exposes probes only.
+// Package httpapi implements the HTTP transport.
 package httpapi
 
 import (
@@ -18,7 +18,7 @@ type Pinger interface {
 	Ping(context.Context) error
 }
 
-func NewHandler(db Pinger, logger *slog.Logger, pingTimeout time.Duration) http.Handler {
+func NewHandler(db Pinger, logger *slog.Logger, pingTimeout time.Duration, authHandler *AuthHandler) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(func(next http.Handler) http.Handler {
@@ -29,7 +29,7 @@ func NewHandler(db Pinger, logger *slog.Logger, pingTimeout time.Duration) http.
 				if recover() != nil {
 					logger.ErrorContext(req.Context(), "HTTP panic", "request_id", middleware.GetReqID(req.Context()))
 					if ww.Status() == 0 {
-						writeJSON(ww, http.StatusInternalServerError, map[string]string{"error": "internal_error"})
+						writeAPIError(ww, http.StatusInternalServerError, "internal_error", "Внутренняя ошибка сервера.")
 					}
 				}
 				logger.InfoContext(req.Context(), "HTTP request", "method", req.Method,
@@ -52,11 +52,14 @@ func NewHandler(db Pinger, logger *slog.Logger, pingTimeout time.Duration) http.
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ready"})
 	})
+	if authHandler != nil {
+		authHandler.Register(r)
+	}
 	r.NotFound(func(w http.ResponseWriter, req *http.Request) {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not_found"})
+		writeAPIError(w, http.StatusNotFound, "not_found", "Маршрут не найден.")
 	})
 	r.MethodNotAllowed(func(w http.ResponseWriter, req *http.Request) {
-		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method_not_allowed"})
+		writeAPIError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Метод не поддерживается.")
 	})
 	return r
 }
@@ -71,7 +74,7 @@ func NewServer(cfg config.HTTP, handler http.Handler, logger *slog.Logger) *http
 	}
 }
 
-func writeJSON(w http.ResponseWriter, status int, payload map[string]string) {
+func writeJSON(w http.ResponseWriter, status int, payload any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)

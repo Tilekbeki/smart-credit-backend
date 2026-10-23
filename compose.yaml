@@ -5,6 +5,7 @@ services:
     build:
       context: .
     environment:
+      APP_ENV: ${APP_ENV:-demo}
       HTTP_HOST: 0.0.0.0
       HTTP_PORT: ${HTTP_PORT:-8080}
       HTTP_READ_HEADER_TIMEOUT: ${HTTP_READ_HEADER_TIMEOUT:-5s}
@@ -12,7 +13,7 @@ services:
       HTTP_WRITE_TIMEOUT: ${HTTP_WRITE_TIMEOUT:-15s}
       HTTP_IDLE_TIMEOUT: ${HTTP_IDLE_TIMEOUT:-60s}
       HTTP_SHUTDOWN_TIMEOUT: ${HTTP_SHUTDOWN_TIMEOUT:-15s}
-      DATABASE_URL: &database_url postgres://${POSTGRES_USER:-smart_credit}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-smart_credit}?sslmode=disable
+      DATABASE_URL: &database_url postgres://${POSTGRES_USER:-smart_credit}:${POSTGRES_PASSWORD:-smart-credit-demo-local-only}@postgres:5432/${POSTGRES_DB:-smart_credit}?sslmode=disable
       DB_MAX_CONNS: ${DB_MAX_CONNS:-10}
       DB_MIN_CONNS: ${DB_MIN_CONNS:-2}
       DB_CONNECT_TIMEOUT: ${DB_CONNECT_TIMEOUT:-5s}
@@ -23,14 +24,21 @@ services:
       DOCUMENT_STORAGE_PATH: /var/lib/smart-credit/documents
       SCORING_URL: ${SCORING_URL:-http://scoring:8001}
       JWT_SECRET: ${JWT_SECRET:-}
+      JWT_SECRET_FILE: /var/lib/smart-credit/secrets/jwt-secret
+      JWT_ISSUER: ${JWT_ISSUER:-smart-credit-backend}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-smart-credit-frontend}
+      AUTH_DB_TIMEOUT: ${AUTH_DB_TIMEOUT:-3s}
       DEMO_OTP_CODE: ${DEMO_OTP_CODE:-1234}
     ports:
       - "127.0.0.1:${HTTP_PORT:-8080}:${HTTP_PORT:-8080}"
     volumes:
       - documents:/var/lib/smart-credit/documents
+      - jwt_secrets:/var/lib/smart-credit/secrets
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:$${HTTP_PORT}/ready"]
       interval: 10s
@@ -44,7 +52,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-smart_credit}
       POSTGRES_USER: ${POSTGRES_USER:-smart_credit}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-smart-credit-demo-local-only}
     ports:
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
@@ -56,10 +64,10 @@ services:
       retries: 10
       start_period: 10s
 
-  # One-shot CLI, excluded from a normal `docker compose up`.
+  # One-shot initialization: backend starts only after migrations succeed.
   migrate:
     image: migrate/migrate:v4.20.1
-    profiles: ["tools"]
+    restart: "no"
     volumes:
       - ./migrations:/migrations:ro
     entrypoint:
@@ -76,3 +84,4 @@ services:
 volumes:
   postgres_data:
   documents:
+  jwt_secrets:
