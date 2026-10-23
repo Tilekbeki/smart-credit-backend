@@ -83,7 +83,7 @@ func ValidType(value Type) bool { return value == BankStatement || value == Equi
 // Turnover reliability must come from trusted company data, never from upload JSON.
 func RequiredTypes(productID string, reliableTurnover bool) []Type {
 	types := []Type{}
-	if !reliableTurnover {
+	if productID == "turnover" && !reliableTurnover {
 		types = append(types, BankStatement)
 	}
 	if productID == "investment" {

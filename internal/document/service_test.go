@@ -113,8 +113,8 @@ func TestDocumentTypeAndRequiredTypes(t *testing.T) {
 		reliable bool
 		want     []Type
 	}{
-		{"working_capital", true, []Type{}}, {"working_capital", false, []Type{BankStatement}},
-		{"investment", true, []Type{EquipmentInvoice}}, {"investment", false, []Type{BankStatement, EquipmentInvoice}},
+		{"turnover", true, []Type{}}, {"turnover", false, []Type{BankStatement}},
+		{"investment", true, []Type{EquipmentInvoice}}, {"investment", false, []Type{EquipmentInvoice}},
 	} {
 		actual := RequiredTypes(item.product, item.reliable)
 		if len(actual) != len(item.want) {

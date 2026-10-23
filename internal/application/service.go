@@ -28,29 +28,8 @@ func ValidStatus(status Status) bool {
 var productCode = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,31}$`)
 
 func (s *Service) validate(ctx context.Context, fields *Fields) error {
-	if fields.ProductID != nil && !productCode.MatchString(*fields.ProductID) {
+	if len(ValidateFields(fields)) != 0 {
 		return ErrInvalidInput
-	}
-	if fields.Purpose != nil && !slices.Contains([]string{"stock", "expenses", "seasonal", "equipment", "upgrade", "other"}, *fields.Purpose) {
-		return ErrInvalidInput
-	}
-	if fields.PurposeDescription != nil {
-		value := strings.TrimSpace(*fields.PurposeDescription)
-		if value == "" || !utf8.ValidString(value) || utf8.RuneCountInString(value) > 300 || strings.ContainsRune(value, 0) {
-			return ErrInvalidInput
-		}
-		fields.PurposeDescription = &value
-	}
-	if fields.RequestedAmountRub != nil && (*fields.RequestedAmountRub < 1 || *fields.RequestedAmountRub > 1_000_000_000_000) {
-		return ErrInvalidInput
-	}
-	if fields.TermMonths != nil && (*fields.TermMonths < 1 || *fields.TermMonths > 120) {
-		return ErrInvalidInput
-	}
-	for _, value := range []*int64{fields.MonthlyRevenueRub, fields.MonthlyExpensesRub} {
-		if value != nil && (*value < 0 || *value > 1_000_000_000_000) {
-			return ErrInvalidInput
-		}
 	}
 	if fields.ProductID == nil {
 		return nil
@@ -62,16 +41,63 @@ func (s *Service) validate(ctx context.Context, fields *Fields) error {
 	if err != nil {
 		return ErrStorage
 	}
-	if fields.RequestedAmountRub != nil && (*fields.RequestedAmountRub < product.MinAmountRub || *fields.RequestedAmountRub > product.MaxAmountRub) {
-		return ErrInvalidInput
-	}
-	if fields.TermMonths != nil && (*fields.TermMonths < product.MinTermMonths || *fields.TermMonths > product.MaxTermMonths) {
-		return ErrInvalidInput
-	}
-	if fields.Purpose != nil && !slices.Contains(product.Purposes, *fields.Purpose) {
+	if len(ValidateProductFields(*fields, product)) != 0 {
 		return ErrInvalidInput
 	}
 	return nil
+}
+
+// FieldProblem is shared by partial-draft and complete-submission validation.
+type FieldProblem struct {
+	Field string
+	Code  string
+}
+
+// ValidateFields accepts absent draft fields and normalizes the description.
+func ValidateFields(fields *Fields) []FieldProblem {
+	problems := []FieldProblem{}
+	add := func(field, code string) { problems = append(problems, FieldProblem{field, code}) }
+	if fields.ProductID != nil && !productCode.MatchString(*fields.ProductID) {
+		add("productId", "invalid_value")
+	}
+	if fields.Purpose != nil && !slices.Contains([]string{"stock", "expenses", "seasonal", "equipment", "upgrade", "other"}, *fields.Purpose) {
+		add("purpose", "invalid_value")
+	}
+	if fields.PurposeDescription != nil {
+		value := strings.TrimSpace(*fields.PurposeDescription)
+		if value == "" || !utf8.ValidString(value) || utf8.RuneCountInString(value) > 300 || strings.ContainsRune(value, 0) {
+			add("purposeDescription", "invalid_value")
+		}
+		fields.PurposeDescription = &value
+	}
+	if fields.RequestedAmountRub != nil && (*fields.RequestedAmountRub < 1 || *fields.RequestedAmountRub > 1_000_000_000_000) {
+		add("requestedAmountRub", "out_of_range")
+	}
+	if fields.TermMonths != nil && (*fields.TermMonths < 1 || *fields.TermMonths > 120) {
+		add("termMonths", "out_of_range")
+	}
+	if fields.MonthlyRevenueRub != nil && (*fields.MonthlyRevenueRub < 0 || *fields.MonthlyRevenueRub > 1_000_000_000_000) {
+		add("monthlyRevenueRub", "out_of_range")
+	}
+	if fields.MonthlyExpensesRub != nil && (*fields.MonthlyExpensesRub < 0 || *fields.MonthlyExpensesRub > 1_000_000_000_000) {
+		add("monthlyExpensesRub", "out_of_range")
+	}
+	return problems
+}
+
+// ValidateProductFields applies product conditions to values present in a draft.
+func ValidateProductFields(fields Fields, product credit.Product) []FieldProblem {
+	problems := []FieldProblem{}
+	if fields.RequestedAmountRub != nil && (*fields.RequestedAmountRub < product.MinAmountRub || *fields.RequestedAmountRub > product.MaxAmountRub) {
+		problems = append(problems, FieldProblem{"requestedAmountRub", "out_of_range"})
+	}
+	if fields.TermMonths != nil && (*fields.TermMonths < product.MinTermMonths || *fields.TermMonths > product.MaxTermMonths) {
+		problems = append(problems, FieldProblem{"termMonths", "out_of_range"})
+	}
+	if fields.Purpose != nil && !slices.Contains(product.Purposes, *fields.Purpose) {
+		problems = append(problems, FieldProblem{"purpose", "unsupported_purpose"})
+	}
+	return problems
 }
 
 func (s *Service) Create(ctx context.Context, scope Scope, fields Fields) (Application, error) {

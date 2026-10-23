@@ -3,13 +3,13 @@ package postgres
 import (
 	"context"
 	"errors"
-	"slices"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"smart-credit-backend/internal/application"
+	"smart-credit-backend/internal/credit"
 )
 
 // ApplicationRepository scopes every application read and write to its owner and company.
@@ -93,9 +93,9 @@ func applicationProductID(ctx context.Context, tx pgx.Tx, fields application.Fie
 	}
 	// Recheck product-dependent rules while holding the catalog row lock: terms
 	// may have changed since service validation, before this transaction started.
-	if fields.RequestedAmountRub != nil && (*fields.RequestedAmountRub < minAmount || *fields.RequestedAmountRub > maxAmount) ||
-		fields.TermMonths != nil && (*fields.TermMonths < minTerm || *fields.TermMonths > maxTerm) ||
-		fields.Purpose != nil && !slices.Contains(purposes, *fields.Purpose) {
+	if len(application.ValidateProductFields(fields, credit.Product{
+		MinAmountRub: minAmount, MaxAmountRub: maxAmount, MinTermMonths: minTerm, MaxTermMonths: maxTerm, Purposes: purposes,
+	})) != 0 {
 		return nil, application.ErrInvalidInput
 	}
 	return &id, nil

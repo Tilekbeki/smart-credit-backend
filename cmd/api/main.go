@@ -18,6 +18,7 @@ import (
 	"smart-credit-backend/internal/credit"
 	"smart-credit-backend/internal/document"
 	"smart-credit-backend/internal/httpapi"
+	"smart-credit-backend/internal/pipeline"
 	"smart-credit-backend/internal/postgres"
 )
 
@@ -63,11 +64,22 @@ func run() error {
 		return errors.New("document storage recovery failed")
 	}
 	documentHandler := httpapi.NewDocumentHandler(documents, auth.NewMiddleware(tokens, authRepo, cfg.AuthDBTimeout))
-	server := httpapi.NewServer(cfg.HTTP, httpapi.NewHandler(pool, logger, cfg.Database.PingTimeout, authHandler, creditHandler.Register, applicationHandler.Register, documentHandler.Register), logger)
+	submissions := pipeline.NewSubmissionService(postgres.NewApplicationRepository(pool, cfg.AuthDBTimeout), documents, postgres.NewSubmissionRepository(pool, cfg.AuthDBTimeout))
+	submissionHandler := httpapi.NewSubmissionHandler(submissions, auth.NewMiddleware(tokens, authRepo, cfg.AuthDBTimeout))
+	worker, err := pipeline.NewWorker(postgres.NewPrecheckQueue(pool, cfg.AuthDBTimeout), pipeline.NewSimulator(), pipeline.DefaultConfig(), logger)
+	if err != nil {
+		return errors.New("precheck worker configuration is invalid")
+	}
+	server := httpapi.NewServer(cfg.HTTP, httpapi.NewHandler(pool, logger, cfg.Database.PingTimeout, authHandler, creditHandler.Register, applicationHandler.Register, documentHandler.Register, submissionHandler.Register), logger)
 	listener, err := net.Listen("tcp", server.Addr)
 	if err != nil {
 		return fmt.Errorf("listen HTTP: %w", err)
 	}
+	workerCtx, cancelWorker := context.WithCancel(ctx)
+	workerDone := make(chan error, 1)
+	go func() { workerDone <- worker.Run(workerCtx) }()
+	// Stop and join the worker before the document store and PostgreSQL pool close.
+	defer func() { cancelWorker(); <-workerDone }()
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- server.Serve(listener) }()
 	logger.Info("HTTP server started", "address", listener.Addr().String())

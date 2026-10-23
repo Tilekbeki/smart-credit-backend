@@ -1,15 +1,18 @@
 openapi: 3.0.3
 info:
   title: Smart Credit Go backend
-  version: 0.5.0
+  version: 0.6.1
   description: 'Demonstration authentication, own-company data, synthetic credit products and preliminary
     financing selection for a hackathon. DEMO_OTP_CODE defaults to 1234; no SMS is sent. Public profile
     selection includes a bank employee and must not be used for production access. Product conditions
     and company data are synthetic and are not actual Alfa-Bank offers. Recommendations neither create
     applications nor constitute or guarantee credit decisions; Python scoring is not called. All responses
     use Cache-Control: no-store. CLIENT users can persist partial credit drafts and inspect their history;
-    draft APIs do not submit applications, call scoring or enqueue processing. Private application documents
-    can be uploaded by their CLIENT owner and read by their owner or BANK_EMPLOYEE.'
+    a separate submit operation validates and atomically queues preliminary checks. A durable worker in
+    the same process performs synthetic company and credit-history checks, then waits for scoring while
+    the application remains processing. Python scoring and credit decisions are not implemented at this
+    stage. Private application documents can be uploaded by their CLIENT owner and read by their owner
+    or BANK_EMPLOYEE.'
 servers:
 - url: http://localhost:8080
 paths:
@@ -446,8 +449,8 @@ paths:
         and company scope; other owners are never included. Ordered by createdAt descending,
         then applicationId descending. total counts all matching rows before pagination.
         Unknown/repeated query parameters and malformed limits, offsets or statuses
-        are rejected. Existing non-draft states may be read, but Stage 4 only creates
-        draft.
+        are rejected. Creating a draft does not submit it; the separate submit operation
+        advances complete applications to submitted and asynchronous processing.
       security:
       - BearerAuth: []
       parameters:
@@ -502,7 +505,7 @@ paths:
       description: CLIENT only, owner and company must match the current user. Missing
         and foreign UUIDs both return 404 application_not_found without disclosing existence.
         Includes permitted company details and the selected product summary. Draft availableActions
-        is [edit]; submit is not available in Stage 4.
+        is [edit]; other states have no editing actions. Submit is a separate API operation.
       security:
       - BearerAuth: []
       responses:
@@ -586,14 +589,113 @@ paths:
           $ref: '#/components/responses/ServiceUnavailable'
         '500':
           $ref: '#/components/responses/InternalError'
+  /api/v1/applications/{applicationId}/submit:
+    post:
+      operationId: submitApplication
+      summary: Submit the current client's complete draft for asynchronous preliminary checks
+      description: >-
+        CLIENT owner in the authenticated company only. No body is required; a nonempty
+        body is rejected. Missing and foreign applications both return 404
+        application_not_found. Requires productId, purpose, requestedAmountRub, termMonths,
+        monthlyRevenueRub and monthlyExpensesRub; purposeDescription is also required for
+        other. The active product's purpose, amount, term and minimum company age must
+        match. A turnover loan requires a ready BANK_STATEMENT unless the company's
+        private server-controlled profile has a trusted financial source. An investment
+        loan requires a ready EQUIPMENT_INVOICE. Pending uploads never satisfy these
+        requirements. Validation failures return detailed 422 errors without changing
+        the application, events or jobs.
+        In one PostgreSQL transaction the backend rechecks ownership, state and the
+        draft revision, saves immutable financial and product snapshots, changes draft
+        to submitted, sets submittedAt, appends APPLICATION_SUBMITTED and creates one
+        durable job. A concurrent draft change can produce 409 version_conflict.
+        The HTTP response does not wait for checks. The in-process worker changes the
+        application to processing and durably stores synthetic company and credit-history
+        results. On completion the job waits in awaiting_scoring; the application stays
+        processing. No scoring service is called and no credit decision is made.
+        Repeated or concurrent submits of a submitted/processing application return 202
+        with the same submittedAt and do not duplicate jobs or submission events.
+        Other non-draft states return 409 invalid_status. Poll the existing application
+        and timeline APIs to observe progress; internal job results are not public.
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: applicationId
+        in: path
+        required: true
+        description: Nonzero UUID of an application owned by the authenticated client.
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '202':
+          description: Submission accepted, or its existing asynchronous state returned idempotently
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationSubmitResponse'
+              examples:
+                queued:
+                  value:
+                    applicationId: 40000000-0000-4000-8000-000000000001
+                    status: submitted
+                    submittedAt: '2026-10-23T12:00:00Z'
+                    nextStage: prechecks
+                waitingForScoring:
+                  value:
+                    applicationId: 40000000-0000-4000-8000-000000000001
+                    status: processing
+                    submittedAt: '2026-10-23T12:00:00Z'
+                    nextStage: awaiting_scoring
+        '400':
+          description: Malformed UUID or nonempty request body (invalid_request)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Missing or foreign application (application_not_found)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Incompatible application state (invalid_status) or concurrent draft update (version_conflict)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Missing fields/documents or unmet active product requirements (validation_failed)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationSubmitValidationError'
+              example:
+                error: validation_failed
+                message: Проверьте обязательные поля и документы заявки.
+                details:
+                - field: documents.EQUIPMENT_INVOICE
+                  code: required_document_missing
+                  message: Загрузите счёт или договор на оборудование.
+        '503':
+          $ref: '#/components/responses/DocumentStorageUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /api/v1/applications/{applicationId}/timeline:
     get:
       operationId: getApplicationTimeline
       summary: Read the ordered history of the current client’s application
       description: CLIENT owner only. Missing and foreign applications both return 404
-        application_not_found. Events are ordered by increasing sequence. Stage 4 records
-        draft_created and draft_updated with generic titles; timeline never contains
-        OTP, JWT or editable financial values.
+        application_not_found. Events are ordered by increasing sequence. Draft writes
+        record draft_created and draft_updated. Submission records APPLICATION_SUBMITTED
+        with the client actorId; processing records PROCESSING_STARTED,
+        COMPANY_CHECK_COMPLETED, CREDIT_HISTORY_CHECK_COMPLETED and PRECHECKS_COMPLETED
+        with null actorId for system actions. Retries do not duplicate these processing
+        events. Timeline never contains OTP, JWT, internal errors or editable financial values.
       security:
       - BearerAuth: []
       parameters:
@@ -646,7 +748,7 @@ paths:
         5308416 bytes (5 MiB + 64 KiB). Multiple documents of the same type are allowed.
         Storage keys, checksums and filesystem paths are never returned. The application
         remains a draft and its optimistic version does not change. Required-document
-        checks are reserved for the later submit operation; no OCR is performed.
+        checks are performed separately by submit; no OCR is performed.
       security:
       - BearerAuth: []
       requestBody:
@@ -1382,8 +1484,9 @@ components:
       - counter_offer
       - signed
       - closed
-      description: Stage 4 creates and edits only draft. The remaining statuses are reserved
-        for later stages; technical processing errors are stored separately.
+      description: Create and PATCH work with draft. Submit advances draft to submitted;
+        the worker advances it to processing and stops before scoring. Remaining
+        statuses are reserved for later stages; technical errors are stored separately.
     ApplicationDraftInput:
       type: object
       additionalProperties: false
@@ -1609,14 +1712,82 @@ components:
           type: string
           nullable: true
           format: date-time
-          description: null for a draft; submit is not implemented.
+          description: null for a draft; set once by successful submit and preserved on repeated submit.
         availableActions:
           type: array
           items:
             type: string
             enum:
             - edit
-          description: '[edit] for draft; [] otherwise. submit is not exposed yet.'
+          description: '[edit] for draft; [] otherwise. Submit uses its separate endpoint.'
+    ApplicationSubmitResponse:
+      type: object
+      additionalProperties: false
+      required:
+      - applicationId
+      - status
+      - submittedAt
+      - nextStage
+      properties:
+        applicationId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - submitted
+          - processing
+        submittedAt:
+          type: string
+          format: date-time
+          description: Timestamp of the first successful submission; unchanged by retries.
+        nextStage:
+          type: string
+          enum:
+          - prechecks
+          - awaiting_scoring
+          description: Preliminary checks are queued/running, or durably finished and waiting for future scoring.
+    ApplicationSubmitValidationError:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      - message
+      - details
+      properties:
+        error:
+          type: string
+          enum:
+          - validation_failed
+        message:
+          type: string
+          example: Проверьте обязательные поля и документы заявки.
+        details:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - field
+            - code
+            - message
+            properties:
+              field:
+                type: string
+                description: Editable application field or documents.BANK_STATEMENT/documents.EQUIPMENT_INVOICE.
+              code:
+                type: string
+                enum:
+                - required
+                - out_of_range
+                - unsupported_purpose
+                - product_unavailable
+                - business_too_young
+                - required_document_missing
+                - invalid_value
+              message:
+                type: string
     ApplicationProductSummary:
       type: object
       nullable: true
@@ -1734,7 +1905,9 @@ components:
           format: uuid
         eventType:
           type: string
-          description: Stage 4 produces draft_created or draft_updated.
+          description: >-
+            draft_created, draft_updated, APPLICATION_SUBMITTED, PROCESSING_STARTED,
+            COMPANY_CHECK_COMPLETED, CREDIT_HISTORY_CHECK_COMPLETED or PRECHECKS_COMPLETED.
         sequence:
           type: integer
           format: int64
@@ -1748,6 +1921,7 @@ components:
           type: string
           nullable: true
           format: uuid
+          description: Acting user for draft/submission events; null for system processing events.
         title:
           type: string
           example: Черновик создан
@@ -1763,9 +1937,10 @@ components:
     DocumentType:
       type: string
       description: >-
-        BANK_STATEMENT is reserved for company turnover evidence; EQUIPMENT_INVOICE
-        is reserved for an investment loan invoice or purchase contract. Required
-        types will be enforced on submit in the next stage, not on draft upload.
+        BANK_STATEMENT is required on turnover submit without a trusted server-controlled
+        financial source; EQUIPMENT_INVOICE is required on investment submit. Draft
+        upload permits either type without checking completeness; only ready documents
+        satisfy submit validation.
       enum:
       - BANK_STATEMENT
       - EQUIPMENT_INVOICE
