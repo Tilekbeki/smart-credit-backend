@@ -170,21 +170,21 @@ func TestDocumentRepositoryAccessScope(t *testing.T) {
 			t.Fatalf("foreign activation permitted: %v", err)
 		}
 	}
-	if status, err := repo.CheckApplication(ctx, documentEmployee, appID, false); err != nil || status != application.Draft {
-		t.Fatalf("bank read check: %v, %v", status, err)
+	if _, err := repo.CheckApplication(ctx, documentEmployee, appID, false); !errors.Is(err, document.ErrApplicationNotFound) {
+		t.Fatalf("bank discovered draft: %v", err)
 	}
-	if items, err := repo.List(ctx, documentEmployee, appID); err != nil || len(items) != 1 {
-		t.Fatalf("bank list: %+v, %v", items, err)
+	if _, err := repo.List(ctx, documentEmployee, appID); !errors.Is(err, document.ErrApplicationNotFound) {
+		t.Fatalf("bank listed draft documents: %v", err)
 	}
-	if metadata, err := repo.Get(ctx, documentEmployee, appID, ready.DocumentID); err != nil || metadata.DocumentID != ready.DocumentID {
-		t.Fatalf("bank download metadata: %+v, %v", metadata, err)
+	if _, err := repo.Get(ctx, documentEmployee, appID, ready.DocumentID); !errors.Is(err, document.ErrApplicationNotFound) {
+		t.Fatalf("bank read draft document metadata: %v", err)
 	}
 	other := createDraft(t, NewApplicationRepository(pool, 5*time.Second), draftOwner, application.Fields{})
 	if _, err := repo.Get(ctx, documentOwner, other.ApplicationID, ready.DocumentID); !errors.Is(err, document.ErrNotFound) {
 		t.Fatalf("document from another owned application exposed: %v", err)
 	}
-	if _, err := repo.Get(ctx, documentEmployee, other.ApplicationID, ready.DocumentID); !errors.Is(err, document.ErrNotFound) {
-		t.Fatalf("bank cross-application document mismatch: %v", err)
+	if _, err := repo.Get(ctx, documentEmployee, other.ApplicationID, ready.DocumentID); !errors.Is(err, document.ErrApplicationNotFound) {
+		t.Fatalf("bank accessed another draft: %v", err)
 	}
 	missing := uuid.NewString()
 	if _, err := repo.List(ctx, documentOwner, missing); !errors.Is(err, document.ErrApplicationNotFound) {
@@ -431,20 +431,18 @@ func TestDocumentServicePostgresAndLocalStorage(t *testing.T) {
 			if err != nil || duplicate.DocumentID == metadata.DocumentID {
 				t.Fatalf("repeated upload: %+v, %v", duplicate, err)
 			}
-			for _, scope := range []document.Scope{documentOwner, documentEmployee} {
-				items, err := service.List(ctx, scope, appID)
-				if err != nil || len(items) != 2 {
-					t.Fatalf("list: %+v, %v", items, err)
-				}
-				_, file, err := service.Download(ctx, scope, appID, metadata.DocumentID)
-				if err != nil {
-					t.Fatalf("download: %v", err)
-				}
-				got, err := io.ReadAll(file)
-				file.Close()
-				if err != nil || !bytes.Equal(got, content) {
-					t.Fatalf("downloaded file differs: %v", err)
-				}
+			items, err := service.List(ctx, documentOwner, appID)
+			if err != nil || len(items) != 2 {
+				t.Fatalf("list: %+v, %v", items, err)
+			}
+			_, file, err := service.Download(ctx, documentOwner, appID, metadata.DocumentID)
+			if err != nil {
+				t.Fatalf("download: %v", err)
+			}
+			got, err := io.ReadAll(file)
+			file.Close()
+			if err != nil || !bytes.Equal(got, content) {
+				t.Fatalf("downloaded file differs: %v", err)
 			}
 			if _, _, err := service.Download(ctx, documentOtherOwner, appID, metadata.DocumentID); !errors.Is(err, document.ErrApplicationNotFound) {
 				t.Fatalf("foreign read: %v", err)
@@ -461,16 +459,87 @@ func TestDocumentServicePostgresAndLocalStorage(t *testing.T) {
 			if err := service.Recover(ctx); err != nil {
 				t.Fatalf("reopen recovery: %v", err)
 			}
-			_, file, err := service.Download(ctx, documentOwner, appID, metadata.DocumentID)
+			_, file, err = service.Download(ctx, documentOwner, appID, metadata.DocumentID)
 			if err != nil {
 				t.Fatalf("document did not survive reopen: %v", err)
 			}
-			got, err := io.ReadAll(file)
+			got, err = io.ReadAll(file)
 			file.Close()
 			if err != nil || !bytes.Equal(got, content) {
 				t.Fatalf("reopened contents changed: %v", err)
 			}
 		})
+	}
+}
+
+func TestDocumentServiceBankAccessBeginsAfterSubmit(t *testing.T) {
+	pool, apps := applicationFixture(t)
+	ctx := context.Background()
+	draft := createDraft(t, apps, draftOwner, draftFields())
+	otherDraft := createDraft(t, apps, draftOwner, draftFields())
+	store, err := document.NewLocalStorage(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	repo := NewDocumentRepository(pool, 5*time.Second)
+	service := document.NewService(repo, store)
+	content, name := syntheticDocument(t, "pdf")
+	metadata, err := service.Upload(ctx, documentOwner, draft.ApplicationID, document.BankStatement, name, bytes.NewReader(content))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, scope := range []document.Scope{documentEmployee, documentOtherOwner} {
+		if _, err := service.List(ctx, scope, draft.ApplicationID); !errors.Is(err, document.ErrApplicationNotFound) {
+			t.Fatalf("draft document list exposed to %s: %v", scope.Role, err)
+		}
+		if _, _, err := service.Download(ctx, scope, draft.ApplicationID, metadata.DocumentID); !errors.Is(err, document.ErrApplicationNotFound) {
+			t.Fatalf("draft document exposed to %s: %v", scope.Role, err)
+		}
+	}
+	assertReadable := func(scope document.Scope) {
+		t.Helper()
+		items, err := service.List(ctx, scope, draft.ApplicationID)
+		if err != nil || len(items) != 1 || items[0].DocumentID != metadata.DocumentID {
+			t.Fatalf("document list for %s: %+v %v", scope.Role, items, err)
+		}
+		_, file, err := service.Download(ctx, scope, draft.ApplicationID, metadata.DocumentID)
+		if err != nil {
+			t.Fatalf("document download for %s: %v", scope.Role, err)
+		}
+		got, err := io.ReadAll(file)
+		file.Close()
+		if err != nil || !bytes.Equal(got, content) {
+			t.Fatalf("document contents for %s: %v", scope.Role, err)
+		}
+	}
+	assertReadable(documentOwner)
+	result, err := NewSubmissionRepository(pool, 5*time.Second).Submit(ctx, draftOwner, draft.ApplicationID, draft.Version, []string{metadata.DocumentID})
+	if err != nil || result.Status != application.Submitted {
+		t.Fatalf("real submission: %+v %v", result, err)
+	}
+	for _, status := range []application.Status{application.Submitted, application.Processing} {
+		if status == application.Processing {
+			job, err := NewPrecheckQueue(pool, 5*time.Second).Claim(ctx, time.Minute)
+			if err != nil || job == nil || job.ApplicationID != draft.ApplicationID {
+				t.Fatalf("start real processing: %+v %v", job, err)
+			}
+		}
+		assertReadable(documentOwner)
+		assertReadable(documentEmployee)
+		if _, err := service.List(ctx, documentOtherOwner, draft.ApplicationID); !errors.Is(err, document.ErrApplicationNotFound) {
+			t.Fatalf("foreign list after %s: %v", status, err)
+		}
+		if _, _, err := service.Download(ctx, documentOtherOwner, draft.ApplicationID, metadata.DocumentID); !errors.Is(err, document.ErrApplicationNotFound) {
+			t.Fatalf("foreign download after %s: %v", status, err)
+		}
+		if _, err := service.List(ctx, documentEmployee, otherDraft.ApplicationID); !errors.Is(err, document.ErrApplicationNotFound) {
+			t.Fatalf("submitting one draft exposed another draft: %v", err)
+		}
+		remaining, err := apps.Get(ctx, draftOwner, otherDraft.ApplicationID)
+		if err != nil || remaining.Status != application.Draft || remaining.Version != otherDraft.Version || remaining.SubmittedAt != nil {
+			t.Fatalf("submission changed another draft of the same product: %+v %v", remaining, err)
+		}
 	}
 }
 

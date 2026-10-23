@@ -23,6 +23,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       DOCUMENT_STORAGE_PATH: /var/lib/smart-credit/documents
       SCORING_URL: ${SCORING_URL:-http://scoring:8001}
+      SCORING_TIMEOUT: ${SCORING_TIMEOUT:-5s}
       JWT_SECRET: ${JWT_SECRET:-}
       JWT_SECRET_FILE: /var/lib/smart-credit/secrets/jwt-secret
       JWT_ISSUER: ${JWT_ISSUER:-smart-credit-backend}

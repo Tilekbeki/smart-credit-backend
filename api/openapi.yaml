@@ -1,24 +1,93 @@
 openapi: 3.0.3
 info:
   title: Smart Credit Go backend
-  version: 0.6.1
+  version: 1.0.0
   description: 'Demonstration authentication, own-company data, synthetic credit products and preliminary
     financing selection for a hackathon. DEMO_OTP_CODE defaults to 1234; no SMS is sent. Public profile
     selection includes a bank employee and must not be used for production access. Product conditions
     and company data are synthetic and are not actual Alfa-Bank offers. Recommendations neither create
-    applications nor constitute or guarantee credit decisions; Python scoring is not called. All responses
+    applications nor constitute or guarantee credit decisions; the recommendations endpoint does not
+    call Python scoring. All responses
     use Cache-Control: no-store. CLIENT users can persist partial credit drafts and inspect their history;
     a separate submit operation validates and atomically queues preliminary checks. A durable worker in
-    the same process performs synthetic company and credit-history checks, then waits for scoring while
-    the application remains processing. Python scoring and credit decisions are not implemented at this
+    the same process performs synthetic company and credit-history checks, calls a separately configured
+    Python scoring HTTP service and durably saves its validated recommendation. The application remains
+    processing while the job waits in awaiting_decision. Credit decisions are not implemented at this
     stage. Private application documents can be uploaded by their CLIENT owner and read by their owner
-    or BANK_EMPLOYEE.'
+    or BANK_EMPLOYEE after successful submit. Drafts are private to their CLIENT owner.
+    API v1 freezes 19 implemented and seven planned operations; planned operations are marked
+    x-implementation-status: planned and have no handlers. No Decision Engine is implemented yet.
+    Scoring integration follows the local JSON Schema; the real Python service and its Docker artifact
+    are not supplied by this repository and have not been verified. Monetary amounts use integer rubles,
+    annualRatePercent uses percent, and
+    timestamps use RFC 3339 UTC. Clients may keep unlimited independent drafts, including several
+    drafts of the same product; submitting one does not alter the others.'
+x-application-lifecycle:
+  transitions:
+  - from: draft
+    to: submitted
+    actor: CLIENT
+    via: POST /api/v1/applications/{applicationId}/submit
+    implementation: implemented
+  - from: submitted
+    to: processing
+    actor: WORKER
+    implementation: implemented
+  - from: processing
+    to:
+    - approved
+    - counter_offer
+    - rejected
+    - manual_review
+    actor: GO_CREDIT_POLICY
+    implementation: planned
+  - from: manual_review
+    to:
+    - approved
+    - counter_offer
+    - rejected
+    actor: BANK_EMPLOYEE
+    via: POST /api/v1/bank/applications/{applicationId}/decisions
+    implementation: planned
+  - from:
+    - approved
+    - counter_offer
+    to: signed
+    actor: CLIENT
+    via: POST /api/v1/applications/{applicationId}/accept
+    implementation: planned
+  - from:
+    - approved
+    - counter_offer
+    to: closed
+    actor: CLIENT
+    via: POST /api/v1/applications/{applicationId}/decline
+    implementation: planned
+  terminalStates:
+  - rejected
+  - signed
+  - closed
+  technicalFailure: Retain submitted/processing. The planned decision API will expose a safe Processing
+    state; current application reads do not expose job errors. awaiting_scoring and awaiting_decision
+    are internal job states, never application statuses.
+  signedMeaning: MVP demonstration confirmation only; no loan disbursement or legally binding bank agreement.
+x-known-issues:
+- code: application_available_actions_incomplete
+  description: Implemented Application.availableActions is [edit] for draft and [] otherwise. submit is
+    implemented but omitted from this list; expansion is a separate agreed task.
+x-bank-draft-policy:
+  visibilityStartsAt: successful submit
+  draftListResult: never included; status=draft returns 400 invalid_request
+  draftReadResult: 404 application_not_found for all bank reads, including existing document list/download
+  draftCountLimit: none for CLIENT; several independent drafts per product allowed
 servers:
 - url: http://localhost:8080
 paths:
   /health:
     get:
+      x-implementation-status: implemented
       operationId: health
+      x-roles: []
       summary: Process liveness; does not query PostgreSQL
       responses:
         '200':
@@ -41,7 +110,9 @@ paths:
                     - backend
   /ready:
     get:
+      x-implementation-status: implemented
       operationId: readiness
+      x-roles: []
       summary: Checks PostgreSQL connectivity within DB_PING_TIMEOUT
       responses:
         '200':
@@ -77,7 +148,9 @@ paths:
                     - database_unavailable
   /api/v1/demo/profiles:
     get:
+      x-implementation-status: implemented
       operationId: listDemoProfiles
+      x-roles: []
       summary: List the four seeded synthetic users from PostgreSQL
       description: Three CLIENT profiles and one BANK_EMPLOYEE profile. Authentication is not required.
       responses:
@@ -93,7 +166,9 @@ paths:
           $ref: '#/components/responses/InternalError'
   /api/v1/auth/otp/request:
     post:
+      x-implementation-status: implemented
       operationId: requestDemoOTP
+      x-roles: []
       summary: Create an OTP challenge and simulate sending an SMS
       description: 'Uses the selected user''s stored phone number. The challenge expires after five
 
@@ -135,7 +210,9 @@ paths:
           $ref: '#/components/responses/InternalError'
   /api/v1/auth/otp/verify:
     post:
+      x-implementation-status: implemented
       operationId: verifyDemoOTP
+      x-roles: []
       summary: Consume a valid OTP and issue an eight-hour access token
       description: 'Code comparison, attempt limits and single use are enforced atomically in
 
@@ -200,7 +277,11 @@ paths:
           $ref: '#/components/responses/InternalError'
   /api/v1/me:
     get:
+      x-implementation-status: implemented
       operationId: getCurrentUser
+      x-roles:
+      - CLIENT
+      - BANK_EMPLOYEE
       summary: Return the authenticated user from PostgreSQL
       description: 'Requires an HS256 JWT with a valid signature, expiration, issuer and audience.
 
@@ -230,7 +311,10 @@ paths:
           $ref: '#/components/responses/InternalError'
   /api/v1/companies/{companyId}:
     get:
+      x-implementation-status: implemented
       operationId: getOwnCompany
+      x-roles:
+      - CLIENT
       summary: Get the authenticated client’s own company
       description: CLIENT only. Company ownership is checked before reading details. BANK_EMPLOYEE and
         access to another company return 403; no foreign company existence is disclosed. All legal and
@@ -270,7 +354,11 @@ paths:
         description: Nonzero UUID matching the authenticated user’s companyId.
   /api/v1/credit-products:
     get:
+      x-implementation-status: implemented
       operationId: listCreditProducts
+      x-roles:
+      - CLIENT
+      - BANK_EMPLOYEE
       summary: List active synthetic credit products
       description: CLIENT and BANK_EMPLOYEE. Products and conditions are read from PostgreSQL. No product
         is created by this request.
@@ -293,7 +381,11 @@ paths:
           $ref: '#/components/responses/InternalError'
   /api/v1/credit-products/{productId}:
     get:
+      x-implementation-status: implemented
       operationId: getCreditProduct
+      x-roles:
+      - CLIENT
+      - BANK_EMPLOYEE
       summary: Get an active product by public code
       description: CLIENT and BANK_EMPLOYEE. The path uses turnover/investment codes, not UUIDs. Conditions
         are synthetic, not actual bank offers.
@@ -329,7 +421,10 @@ paths:
         example: turnover
   /api/v1/recommendations:
     post:
+      x-implementation-status: implemented
       operationId: recommendFinancing
+      x-roles:
+      - CLIENT
       summary: Calculate an explainable preliminary financing selection
       description: CLIENT only. The company and existing monthly debt payments come from PostgreSQL. Request
         revenue/expenses override the company figures for this calculation only and are not persisted.
@@ -369,14 +464,18 @@ paths:
               $ref: '#/components/schemas/RecommendationInput'
   /api/v1/applications:
     post:
+      x-implementation-status: implemented
       operationId: createApplicationDraft
+      x-roles:
+      - CLIENT
       summary: Create a partial client-owned credit draft
       description: CLIENT only. Owner and company come from the current PostgreSQL user;
         they must not be supplied in JSON. An empty object or nullable editable fields
         are accepted. Provided values must be valid; when productId is selected, any
         present purpose, amount and term must satisfy that active product. Creation
         and draft_created event are committed atomically. No scoring, decision or background
-        job is created.
+        job is created. Multiple independent drafts, including drafts of the same product,
+        are allowed without an MVP count limit. Submitting one never submits or deletes the others.
       security:
       - BearerAuth: []
       requestBody:
@@ -443,7 +542,10 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
     get:
+      x-implementation-status: implemented
       operationId: listOwnApplications
+      x-roles:
+      - CLIENT
       summary: List applications owned by the current client in their company
       description: CLIENT only. SQL pagination and status filtering apply to both owner
         and company scope; other owners are never included. Ordered by createdAt descending,
@@ -500,7 +602,10 @@ paths:
         type: string
         format: uuid
     get:
+      x-implementation-status: implemented
       operationId: getOwnApplication
+      x-roles:
+      - CLIENT
       summary: Open the current client’s saved application
       description: CLIENT only, owner and company must match the current user. Missing
         and foreign UUIDs both return 404 application_not_found without disclosing existence.
@@ -532,7 +637,10 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
     patch:
+      x-implementation-status: implemented
       operationId: patchApplicationDraft
+      x-roles:
+      - CLIENT
       summary: Edit a draft using optimistic locking
       description: CLIENT owner only. Positive non-null version and at least one editable
         field are required. An absent field is unchanged; an explicit null clears that
@@ -591,7 +699,10 @@ paths:
           $ref: '#/components/responses/InternalError'
   /api/v1/applications/{applicationId}/submit:
     post:
+      x-implementation-status: implemented
       operationId: submitApplication
+      x-roles:
+      - CLIENT
       summary: Submit the current client's complete draft for asynchronous preliminary checks
       description: >-
         CLIENT owner in the authenticated company only. No body is required; a nonempty
@@ -610,8 +721,10 @@ paths:
         durable job. A concurrent draft change can produce 409 version_conflict.
         The HTTP response does not wait for checks. The in-process worker changes the
         application to processing and durably stores synthetic company and credit-history
-        results. On completion the job waits in awaiting_scoring; the application stays
-        processing. No scoring service is called and no credit decision is made.
+        results. The same worker calls the configured Python scoring service after prechecks, validates and
+        persists its recommendation, then leaves the job in awaiting_decision. The application stays
+        processing and no credit decision is made. An unavailable scoring service uses bounded retries;
+        technical failures never produce rejected.
         Repeated or concurrent submits of a submitted/processing application return 202
         with the same submittedAt and do not duplicate jobs or submission events.
         Other non-draft states return 409 invalid_status. Poll the existing application
@@ -687,15 +800,20 @@ paths:
           $ref: '#/components/responses/InternalError'
   /api/v1/applications/{applicationId}/timeline:
     get:
+      x-implementation-status: implemented
       operationId: getApplicationTimeline
+      x-roles:
+      - CLIENT
       summary: Read the ordered history of the current client’s application
       description: CLIENT owner only. Missing and foreign applications both return 404
         application_not_found. Events are ordered by increasing sequence. Draft writes
         record draft_created and draft_updated. Submission records APPLICATION_SUBMITTED
         with the client actorId; processing records PROCESSING_STARTED,
         COMPANY_CHECK_COMPLETED, CREDIT_HISTORY_CHECK_COMPLETED and PRECHECKS_COMPLETED
-        with null actorId for system actions. Retries do not duplicate these processing
-        events. Timeline never contains OTP, JWT, internal errors or editable financial values.
+        with null actorId for system actions. Scoring adds SCORING_STARTED and, only after its result
+        is durably saved, SCORING_COMPLETED. These events have null actorId and processing status.
+        Retries do not duplicate these processing events. Timeline never contains OTP, JWT,
+        internal errors, score, factors or editable financial values.
       security:
       - BearerAuth: []
       parameters:
@@ -734,7 +852,10 @@ paths:
     parameters:
     - $ref: '#/components/parameters/DocumentApplicationId'
     post:
+      x-implementation-status: implemented
       operationId: uploadApplicationDocument
+      x-roles:
+      - CLIENT
       summary: Upload a private document to the current client's draft
       description: >-
         CLIENT owner in the authenticated company only. Authorization and draft status
@@ -841,12 +962,17 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
     get:
+      x-implementation-status: implemented
       operationId: listApplicationDocuments
+      x-roles:
+      - CLIENT
+      - BANK_EMPLOYEE
       summary: List readable documents of an accessible application
       description: >-
         CLIENT can read only their own application in their company. BANK_EMPLOYEE can
-        read application documents across the MVP's single bank; there is no branch
-        or bank organization model. Employees cannot upload documents. Missing and
+        read documents only after successful submit, across the MVP's single bank;
+        there is no branch or bank organization model. A draft is private to its CLIENT
+        owner and returns 404 application_not_found to BANK_EMPLOYEE, even when its UUID is known. Employees cannot upload documents. Missing and
         foreign applications return the same 404 application_not_found. Only ready,
         readable documents are returned; pending or failed uploads are excluded.
         No pagination is exposed in this MVP. Documents remain readable after a
@@ -883,10 +1009,15 @@ paths:
         type: string
         format: uuid
     get:
+      x-implementation-status: implemented
       operationId: downloadApplicationDocument
+      x-roles:
+      - CLIENT
+      - BANK_EMPLOYEE
       summary: Download a private document as an attachment
       description: >-
-        CLIENT owner in their company or BANK_EMPLOYEE read access. The application
+        CLIENT owner in their company, including their own draft; BANK_EMPLOYEE only
+        after successful submit. A draft returns 404 application_not_found to BANK_EMPLOYEE. The application
         scope is checked before the document lookup; a document ID from another
         application cannot be substituted. A missing or foreign application returns
         application_not_found; a missing, unreadable or wrong-application document
@@ -940,7 +1071,7 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
-          description: Missing or inaccessible application (application_not_found), or missing/unreadable/wrong-application document (document_not_found)
+          description: Missing or inaccessible application, including a draft requested by BANK_EMPLOYEE (application_not_found), or missing/unreadable/wrong-application document (document_not_found)
           content:
             application/json:
               schema:
@@ -949,6 +1080,624 @@ paths:
           $ref: '#/components/responses/DocumentStorageUnavailable'
         '500':
           $ref: '#/components/responses/InternalError'
+  /api/v1/applications/{applicationId}/decision:
+    parameters:
+    - $ref: '#/components/parameters/DecisionApplicationId'
+    get:
+      x-implementation-status: planned
+      security:
+      - BearerAuth: []
+      operationId: getApplicationDecision
+      summary: Read the current client-owned credit decision or processing state
+      description: 'PLANNED: no HTTP handler exists yet. CLIENT owner and company must both match. Returns
+        200 in all nine application states, including a null decision before completion. Missing and foreign
+        applications both return 404. manual_review has decision=null and processing=null. signed/closed
+        preserve the credit decision; technical errors never mean rejected.'
+      x-roles:
+      - CLIENT
+      responses:
+        '200':
+          description: Current decision or pending state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditDecision'
+              examples:
+                waiting:
+                  value:
+                    applicationId: 40000000-0000-4000-8000-000000000001
+                    status: processing
+                    version: 3
+                    decision: null
+                    score: null
+                    riskLevel: null
+                    reasons: []
+                    assessedAt: null
+                    reviewedBy: null
+                    offer: null
+                    processing:
+                      stage: scoring
+                      state: waiting
+                      retryAt: null
+                      message: Ожидается результат оценки.
+                manualReview:
+                  value:
+                    applicationId: 40000000-0000-4000-8000-000000000001
+                    status: manual_review
+                    version: 7
+                    decision: null
+                    score: 62
+                    riskLevel: MEDIUM
+                    reasons: []
+                    assessedAt: null
+                    reviewedBy: null
+                    offer: null
+                    processing: null
+                approved:
+                  value:
+                    applicationId: 40000000-0000-4000-8000-000000000001
+                    status: approved
+                    version: 8
+                    decision: approved
+                    score: 62
+                    riskLevel: MEDIUM
+                    reasons:
+                    - Исходные условия одобрены.
+                    assessedAt: '2026-10-24T10:05:00Z'
+                    reviewedBy: 20000000-0000-4000-8000-000000000004
+                    offer:
+                      offerId: 60000000-0000-4000-8000-000000000001
+                      applicationId: 40000000-0000-4000-8000-000000000001
+                      productId: turnover
+                      amountRub: 1000000
+                      termMonths: 24
+                      annualRatePercent: 22
+                      monthlyPaymentRub: 51878
+                      expiresAt: null
+                      status: active
+                    processing: null
+                counterOffer:
+                  value:
+                    applicationId: 40000000-0000-4000-8000-000000000001
+                    status: counter_offer
+                    version: 8
+                    decision: counter_offer
+                    score: 62
+                    riskLevel: MEDIUM
+                    reasons:
+                    - Предложена меньшая сумма кредита.
+                    assessedAt: '2026-10-24T10:05:00Z'
+                    reviewedBy: 20000000-0000-4000-8000-000000000004
+                    offer:
+                      offerId: 60000000-0000-4000-8000-000000000001
+                      applicationId: 40000000-0000-4000-8000-000000000001
+                      productId: turnover
+                      amountRub: 800000
+                      termMonths: 24
+                      annualRatePercent: 22
+                      monthlyPaymentRub: 41503
+                      expiresAt: null
+                      status: active
+                    processing: null
+                rejected:
+                  value:
+                    applicationId: 40000000-0000-4000-8000-000000000001
+                    status: rejected
+                    version: 8
+                    decision: rejected
+                    score: 62
+                    riskLevel: MEDIUM
+                    reasons:
+                    - Кредит не одобрен по результатам рассмотрения.
+                    assessedAt: '2026-10-24T10:05:00Z'
+                    reviewedBy: 20000000-0000-4000-8000-000000000004
+                    offer: null
+                    processing: null
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ApplicationNotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/applications/{applicationId}/accept:
+    parameters:
+    - $ref: '#/components/parameters/DecisionApplicationId'
+    post:
+      x-implementation-status: planned
+      security:
+      - BearerAuth: []
+      operationId: acceptApplicationOffer
+      summary: Accept the current active primary offer
+      description: 'PLANNED: no HTTP handler exists yet. CLIENT owner and company only. Allowed in approved/counter_offer
+        with a current active primary offer. Changes application to signed and offer to accepted atomically
+        with an event. Credit decision is preserved. signed is demonstration confirmation only, without
+        disbursement or a legally binding bank agreement. Repeating the same completed action on the same
+        offer succeeds without another event/version increment, including after idempotency retention expires.
+        Opposite actions or stale/different offers return 409. State/version/offer checks and mutations
+        use one transaction and application row locking. Same Idempotency-Key and body replay the original
+        result; changed body gives 409. Authorization is checked before replay. Keys live 24 hours; transactional
+        state guards remain afterwards.'
+      x-roles:
+      - CLIENT
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OfferActionInput'
+            example:
+              version: 8
+              offerId: 60000000-0000-4000-8000-000000000001
+      responses:
+        '200':
+          description: Offer action completed or its original result replayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditDecision'
+              example:
+                applicationId: 40000000-0000-4000-8000-000000000001
+                status: signed
+                version: 9
+                decision: counter_offer
+                score: 62
+                riskLevel: MEDIUM
+                reasons:
+                - Предложена меньшая сумма кредита.
+                assessedAt: '2026-10-24T10:05:00Z'
+                reviewedBy: 20000000-0000-4000-8000-000000000004
+                offer:
+                  offerId: 60000000-0000-4000-8000-000000000001
+                  applicationId: 40000000-0000-4000-8000-000000000001
+                  productId: turnover
+                  amountRub: 800000
+                  termMonths: 24
+                  annualRatePercent: 22
+                  monthlyPaymentRub: 41503
+                  expiresAt: null
+                  status: accepted
+                processing: null
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ApplicationNotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '409':
+          $ref: '#/components/responses/DecisionConflict'
+        '413':
+          $ref: '#/components/responses/RequestTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+  /api/v1/applications/{applicationId}/decline:
+    parameters:
+    - $ref: '#/components/parameters/DecisionApplicationId'
+    post:
+      x-implementation-status: planned
+      security:
+      - BearerAuth: []
+      operationId: declineApplicationOffer
+      summary: Decline the current active primary offer
+      description: 'PLANNED: no HTTP handler exists yet. CLIENT owner and company only. Allowed in approved/counter_offer
+        with a current active primary offer. Changes application to closed and offer to withdrawn atomically
+        with an event. Credit decision is preserved. signed is demonstration confirmation only, without
+        disbursement or a legally binding bank agreement. Repeating the same completed action on the same
+        offer succeeds without another event/version increment, including after idempotency retention expires.
+        Opposite actions or stale/different offers return 409. State/version/offer checks and mutations
+        use one transaction and application row locking. Same Idempotency-Key and body replay the original
+        result; changed body gives 409. Authorization is checked before replay. Keys live 24 hours; transactional
+        state guards remain afterwards.'
+      x-roles:
+      - CLIENT
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OfferActionInput'
+            example:
+              version: 8
+              offerId: 60000000-0000-4000-8000-000000000001
+      responses:
+        '200':
+          description: Offer action completed or its original result replayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditDecision'
+              example:
+                applicationId: 40000000-0000-4000-8000-000000000001
+                status: closed
+                version: 9
+                decision: counter_offer
+                score: 62
+                riskLevel: MEDIUM
+                reasons:
+                - Предложена меньшая сумма кредита.
+                assessedAt: '2026-10-24T10:05:00Z'
+                reviewedBy: 20000000-0000-4000-8000-000000000004
+                offer:
+                  offerId: 60000000-0000-4000-8000-000000000001
+                  applicationId: 40000000-0000-4000-8000-000000000001
+                  productId: turnover
+                  amountRub: 800000
+                  termMonths: 24
+                  annualRatePercent: 22
+                  monthlyPaymentRub: 41503
+                  expiresAt: null
+                  status: withdrawn
+                processing: null
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ApplicationNotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '409':
+          $ref: '#/components/responses/DecisionConflict'
+        '413':
+          $ref: '#/components/responses/RequestTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+  /api/v1/bank/applications:
+    get:
+      x-implementation-status: planned
+      security:
+      - BearerAuth: []
+      operationId: listBankApplications
+      summary: List submitted applications visible to bank employees
+      description: 'PLANNED: no HTTP handler exists yet. BANK_EMPLOYEE only. Server-side access excludes
+        drafts regardless of knowing their UUID. Bank visibility starts only after successful submit. With
+        no status filter returns all eight bank-visible statuses. status=draft is 400 invalid_request. Optional
+        filters are status and companyId; limit/offset pagination follows the client-list convention. Repeated/unknown
+        query parameters are rejected. Sort: createdAt DESC, applicationId DESC; total is counted after
+        filters and before pagination. No draft counts or data are exposed.'
+      x-roles:
+      - BANK_EMPLOYEE
+      parameters:
+      - $ref: '#/components/parameters/BankStatus'
+      - $ref: '#/components/parameters/BankCompanyId'
+      - $ref: '#/components/parameters/PageLimit'
+      - $ref: '#/components/parameters/PageOffset'
+      responses:
+        '200':
+          description: Bank-visible submitted applications
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankApplicationPage'
+              example:
+                items:
+                - applicationId: 40000000-0000-4000-8000-000000000001
+                  company:
+                    id: 10000000-0000-4000-8000-000000000002
+                    name: ООО «Мастерская Север»
+                    inn: '7701234567'
+                  product:
+                    id: turnover
+                    name: Оборотный кредит
+                  requestedAmountRub: 1000000
+                  termMonths: 24
+                  status: manual_review
+                  version: 7
+                  createdAt: '2026-10-24T09:00:00Z'
+                  updatedAt: '2026-10-24T10:00:00Z'
+                  submittedAt: '2026-10-24T09:30:00Z'
+                  manualReviewRequired: true
+                  availableActions:
+                  - decide
+                total: 1
+                limit: 20
+                offset: 0
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/bank/applications/{applicationId}:
+    parameters:
+    - $ref: '#/components/parameters/BankApplicationId'
+    get:
+      x-implementation-status: planned
+      security:
+      - BearerAuth: []
+      operationId: getBankApplication
+      summary: Read a submitted application with frozen company/product data
+      description: 'PLANNED: no HTTP handler exists yet. BANK_EMPLOYEE only. Server-side access excludes
+        drafts regardless of knowing their UUID. Bank visibility starts only after successful submit. A
+        draft and a missing application both return 404 application_not_found. Financial/company and product
+        data are read from the submitted snapshots. No employee edit, upload or submit operation is provided.
+        Documents use the existing protected list/download endpoints.'
+      x-roles:
+      - BANK_EMPLOYEE
+      responses:
+        '200':
+          description: Submitted application visible to bank
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankApplicationDetail'
+              example:
+                applicationId: 40000000-0000-4000-8000-000000000001
+                userId: 20000000-0000-4000-8000-000000000002
+                companyId: 10000000-0000-4000-8000-000000000002
+                productId: turnover
+                productName: Оборотный кредит
+                purpose: stock
+                purposeDescription: null
+                requestedAmountRub: 1000000
+                termMonths: 24
+                monthlyRevenueRub: 4200000
+                monthlyExpensesRub: 2800000
+                status: manual_review
+                version: 7
+                createdAt: '2026-10-24T09:00:00Z'
+                updatedAt: '2026-10-24T10:00:00Z'
+                submittedAt: '2026-10-24T09:30:00Z'
+                availableActions:
+                - decide
+                company:
+                  id: 10000000-0000-4000-8000-000000000002
+                  name: ООО «Мастерская Север»
+                  organizationType: ООО
+                  inn: '7701234567'
+                  registrationNumber: '1237700000001'
+                  registrationDate: '2022-01-10'
+                  okved: '25.11'
+                  directorName: Анна Северова
+                  contact:
+                    phone: '+79990000002'
+                    email: workshop@example.test
+                    address: Демонстрационный адрес
+                  financials:
+                    monthlyRevenueRub: 4200000
+                    monthlyExpensesRub: 2800000
+                    existingDebtRub: 1200000
+                    existingMonthlyPaymentsRub: 180000
+                    overdueCount: 0
+                  simulation: true
+                product:
+                  id: turnover
+                  name: Оборотный кредит
+                productTerms:
+                  id: turnover
+                  name: Оборотный кредит
+                  purposes:
+                  - stock
+                  - expenses
+                  - seasonal
+                  minAmountRub: 100000
+                  maxAmountRub: 3000000
+                  minTermMonths: 6
+                  maxTermMonths: 24
+                  annualRatePercent: 22
+                  minBusinessAgeMonths: 6
+                  version: 1
+                  illustrative: true
+                manualReviewRequired: true
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ApplicationNotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/bank/applications/{applicationId}/assessment:
+    parameters:
+    - $ref: '#/components/parameters/BankApplicationId'
+    get:
+      x-implementation-status: planned
+      security:
+      - BearerAuth: []
+      operationId: getBankApplicationAssessment
+      summary: Read normalized checks, risk assessment and review recommendations
+      description: 'PLANNED: no HTTP handler exists yet. BANK_EMPLOYEE only. Server-side access excludes
+        drafts regardless of knowing their UUID. Bank visibility starts only after successful submit. A
+        draft and a missing application both return 404 application_not_found. Existing check results are
+        reused. Empty assessments use null fields and empty arrays; do not manufacture a zero score. Go
+        policy owns final decisions and categories; numeric risk thresholds are not fixed by this contract.
+        Private manual comments are bank-only.'
+      x-roles:
+      - BANK_EMPLOYEE
+      responses:
+        '200':
+          description: Normalized submitted-application assessment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankAssessment'
+              example:
+                applicationId: 40000000-0000-4000-8000-000000000001
+                status: manual_review
+                version: 7
+                companyCheck:
+                  status: passed
+                  checks:
+                  - code: registration_active
+                    passed: true
+                  problems: []
+                  checkedAt: '2026-10-24T09:31:00Z'
+                  durationMs: 2
+                  simulation: true
+                creditHistory:
+                  existingDebtRub: 1200000
+                  existingMonthlyPaymentsRub: 180000
+                  overdueCount: 0
+                  checkedAt: '2026-10-24T09:31:00Z'
+                  simulation: true
+                scoring:
+                  score: 62
+                  assessedAt: '2026-10-24T09:32:00Z'
+                riskLevel: MEDIUM
+                manualReviewReasons:
+                - code: policy_review_required
+                  message: Требуется подтверждение условий сотрудником банка.
+                recommendations:
+                - decision: counter_offer
+                  reasons:
+                  - Рассмотреть уменьшение суммы.
+                  offer:
+                    amountRub: 800000
+                    termMonths: 24
+                manualDecision: null
+                processing: null
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ApplicationNotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/bank/applications/{applicationId}/decisions:
+    parameters:
+    - $ref: '#/components/parameters/BankApplicationId'
+    post:
+      x-implementation-status: planned
+      security:
+      - BearerAuth: []
+      operationId: createManualCreditDecision
+      summary: Record an employee decision for a manual-review application
+      description: 'PLANNED: no HTTP handler exists yet. BANK_EMPLOYEE only. Server-side access excludes
+        drafts regardless of knowing their UUID. Bank visibility starts only after successful submit. Only
+        manual_review may be decided. A draft is hidden with 404 application_not_found, before state validation.
+        Current application version and a trimmed 1..1000-character internal comment are required. approved
+        preserves submitted amount/term; counter_offer amount cannot exceed requested amount, both conditions
+        satisfy frozen product limits, and at least one changes. Frozen rate and product are unchanged;
+        backend calculates the payment. rejected requires offer=null. Employee identity comes from authentication,
+        not JSON. Application/decision/offer/event/idempotency result commit in one transaction with application
+        locking. Same key/body replays original 201; changed body gives 409. Keys live 24 hours; state/version
+        constraints still prevent repeating the decision after expiry. Manual approval does not redefine
+        the scoring result or original risk assessment.'
+      x-roles:
+      - BANK_EMPLOYEE
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManualDecisionInput'
+            examples:
+              approved:
+                value:
+                  version: 7
+                  decision: approved
+                  comment: Проверка завершена, исходные условия подтверждены.
+                  offer:
+                    amountRub: 1000000
+                    termMonths: 24
+              counterOffer:
+                value:
+                  version: 7
+                  decision: counter_offer
+                  comment: Предлагаю уменьшить сумму до 800 тысяч рублей.
+                  offer:
+                    amountRub: 800000
+                    termMonths: 24
+              rejected:
+                value:
+                  version: 7
+                  decision: rejected
+                  comment: Представленных сведений недостаточно для одобрения.
+                  offer: null
+      responses:
+        '201':
+          description: Manual decision and optional active offer created; same key/body replays this result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditDecision'
+              example:
+                applicationId: 40000000-0000-4000-8000-000000000001
+                status: counter_offer
+                version: 8
+                decision: counter_offer
+                score: 62
+                riskLevel: MEDIUM
+                reasons:
+                - Предложена меньшая сумма кредита.
+                assessedAt: '2026-10-24T10:05:00Z'
+                reviewedBy: 20000000-0000-4000-8000-000000000004
+                offer:
+                  offerId: 60000000-0000-4000-8000-000000000001
+                  applicationId: 40000000-0000-4000-8000-000000000001
+                  productId: turnover
+                  amountRub: 800000
+                  termMonths: 24
+                  annualRatePercent: 22
+                  monthlyPaymentRub: 41503
+                  expiresAt: null
+                  status: active
+                processing: null
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ApplicationNotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '409':
+          $ref: '#/components/responses/DecisionConflict'
+        '413':
+          $ref: '#/components/responses/RequestTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          description: Invalid manual business conditions or comment (validation_failed)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionValidationError'
+              example:
+                error: validation_failed
+                message: Проверьте условия предложения.
+                details:
+                - field: offer.amountRub
+                  code: out_of_range
+                  message: Сумма выходит за допустимые границы.
 components:
   securitySchemes:
     BearerAuth:
@@ -961,10 +1710,74 @@ components:
       name: applicationId
       in: path
       required: true
-      description: Nonzero application UUID; CLIENT access requires both owner and company match
+      description: Nonzero application UUID; CLIENT access requires both owner and company match; BANK_EMPLOYEE reads only successfully submitted applications and receives 404 for draft
       schema:
         type: string
         format: uuid
+    DecisionApplicationId:
+      name: applicationId
+      in: path
+      required: true
+      description: Nonzero UUID. CLIENT access requires both authenticated owner and company; foreign and
+        absent applications both return 404.
+      schema:
+        type: string
+        format: uuid
+    BankApplicationId:
+      name: applicationId
+      in: path
+      required: true
+      description: Nonzero UUID of a successfully submitted application. A draft and an absent application
+        both return 404 application_not_found for BANK_EMPLOYEE.
+      schema:
+        type: string
+        format: uuid
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: UUID generated once per logical new POST operation. Scoped by authenticated user, operation
+        and application. Same canonical body/key replays original status/body; changed body returns 409 idempotency_conflict.
+        Retention is 24 hours. Access is rechecked before replay; state/transaction guards prevent duplicate
+        actions after expiry. Existing submit does not require this header.
+      schema:
+        type: string
+        format: uuid
+      example: 70000000-0000-4000-8000-000000000001
+    BankStatus:
+      name: status
+      in: query
+      required: false
+      description: One optional bank-visible status. Omitting returns all eight submitted states; draft, unknown
+        or repeated values return 400 invalid_request.
+      schema:
+        $ref: '#/components/schemas/BankApplicationStatus'
+    BankCompanyId:
+      name: companyId
+      in: query
+      required: false
+      description: Optional nonzero company UUID. May occur at most once.
+      schema:
+        type: string
+        format: uuid
+    PageLimit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    PageOffset:
+      name: offset
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+        maximum: 2147483647
+        default: 0
   schemas:
     Role:
       type: string
@@ -1485,7 +2298,7 @@ components:
       - signed
       - closed
       description: Create and PATCH work with draft. Submit advances draft to submitted;
-        the worker advances it to processing and stops before scoring. Remaining
+        the worker advances it to processing and saves scoring without finalizing a decision. Remaining
         statuses are reserved for later stages; technical errors are stored separately.
     ApplicationDraftInput:
       type: object
@@ -1719,7 +2532,9 @@ components:
             type: string
             enum:
             - edit
-          description: '[edit] for draft; [] otherwise. Submit uses its separate endpoint.'
+          description: '[edit] for draft; [] otherwise. Known API v1 mismatch: this implemented
+            list omits submit although the separate submit endpoint exists. It is not yet an
+            exhaustive list of actions; extending it is a separate backend task.'
     ApplicationSubmitResponse:
       type: object
       additionalProperties: false
@@ -1746,7 +2561,9 @@ components:
           enum:
           - prechecks
           - awaiting_scoring
-          description: Preliminary checks are queued/running, or durably finished and waiting for future scoring.
+          description: Frozen coarse progress marker. prechecks means preliminary checks are queued/running;
+            awaiting_scoring means prechecks are durably saved, including scoring in progress or
+            already saved for the future Decision Engine. It does not prove a scoring result exists.
     ApplicationSubmitValidationError:
       type: object
       additionalProperties: false
@@ -1775,7 +2592,7 @@ components:
             properties:
               field:
                 type: string
-                description: Editable application field or documents.BANK_STATEMENT/documents.EQUIPMENT_INVOICE.
+                description: Editable application field, company.registrationDate, or documents.BANK_STATEMENT/documents.EQUIPMENT_INVOICE.
               code:
                 type: string
                 enum:
@@ -1907,7 +2724,8 @@ components:
           type: string
           description: >-
             draft_created, draft_updated, APPLICATION_SUBMITTED, PROCESSING_STARTED,
-            COMPANY_CHECK_COMPLETED, CREDIT_HISTORY_CHECK_COMPLETED or PRECHECKS_COMPLETED.
+            COMPANY_CHECK_COMPLETED, CREDIT_HISTORY_CHECK_COMPLETED, PRECHECKS_COMPLETED,
+            SCORING_STARTED or SCORING_COMPLETED. System scoring events contain no financial results.
         sequence:
           type: integer
           format: int64
@@ -1992,6 +2810,815 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/DocumentMetadata'
+    BankApplicationStatus:
+      type: string
+      enum:
+      - submitted
+      - processing
+      - manual_review
+      - approved
+      - counter_offer
+      - rejected
+      - signed
+      - closed
+      description: Only submitted applications are visible to BANK_EMPLOYEE. draft is never a bank-visible
+        state.
+    RiskLevel:
+      type: string
+      nullable: true
+      enum:
+      - LOW
+      - MEDIUM
+      - HIGH
+      - null
+      description: Risk category assigned by Go backend policy. Numeric thresholds and score direction are
+        not frozen yet; null means not available.
+    CreditOutcome:
+      type: string
+      nullable: true
+      enum:
+      - approved
+      - counter_offer
+      - rejected
+      - null
+      description: Final credit decision made by Go backend; scoring recommendations are not final decisions.
+        null before a final decision, including manual_review.
+    CreditOffer:
+      type: object
+      additionalProperties: false
+      required:
+      - offerId
+      - applicationId
+      - productId
+      - amountRub
+      - termMonths
+      - annualRatePercent
+      - monthlyPaymentRub
+      - expiresAt
+      - status
+      properties:
+        offerId:
+          type: string
+          format: uuid
+        applicationId:
+          type: string
+          format: uuid
+        productId:
+          type: string
+          enum:
+          - turnover
+          - investment
+          description: Public product code; not the internal product UUID.
+        amountRub:
+          type: integer
+          format: int64
+          minimum: 1
+        termMonths:
+          type: integer
+          minimum: 1
+          maximum: 120
+        annualRatePercent:
+          type: number
+          minimum: 0
+          description: 'Fixed annual rate in percent: 22 means 22%, not 0.22. The frozen product rate is used.'
+        monthlyPaymentRub:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Integer rubles, calculated by backend using the frozen product conditions.
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Always null in MVP; offer expiry and expiry processing are not implemented.
+        status:
+          type: string
+          enum:
+          - active
+          - accepted
+          - withdrawn
+      description: One current primary offer. Null when no offer exists; rejected decisions have no offer.
+        All monetary amounts are integer rubles.
+      nullable: true
+    Processing:
+      type: object
+      additionalProperties: false
+      required:
+      - stage
+      - state
+      - retryAt
+      - message
+      properties:
+        stage:
+          type: string
+          enum:
+          - prechecks
+          - scoring
+          - decision
+        state:
+          type: string
+          enum:
+          - waiting
+          - running
+          - retrying
+          - failed
+        retryAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Scheduled automatic retry, or null.
+        message:
+          type: string
+          nullable: true
+          description: Safe user-facing message. Never contains raw errors, SQL, addresses, lease data or
+            scoring payloads.
+      description: Normalized background-processing state. Null for drafts, final states and manual_review.
+        A technical failure never implies a rejected credit decision.
+      nullable: true
+    CreditDecision:
+      type: object
+      additionalProperties: false
+      required:
+      - applicationId
+      - status
+      - version
+      - decision
+      - score
+      - riskLevel
+      - reasons
+      - assessedAt
+      - reviewedBy
+      - offer
+      - processing
+      properties:
+        applicationId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/ApplicationStatus'
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Application revision used for optimistic locking; not a decision, product or offer
+            version.
+        decision:
+          $ref: '#/components/schemas/CreditOutcome'
+        score:
+          type: integer
+          nullable: true
+          minimum: 0
+          maximum: 100
+          description: Existing Python scoring integer scale 0..100. No risk thresholds are implied by examples;
+            null means not available, not zero.
+        riskLevel:
+          $ref: '#/components/schemas/RiskLevel'
+        reasons:
+          type: array
+          items:
+            type: string
+          description: Safe client-facing reasons generated by backend. Private employee comments are not
+            exposed here.
+        assessedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp of final credit decision creation; null until a final decision exists.
+        reviewedBy:
+          type: string
+          format: uuid
+          nullable: true
+          description: Acting employee UUID for a manual final decision, otherwise null.
+        offer:
+          $ref: '#/components/schemas/CreditOffer'
+        processing:
+          $ref: '#/components/schemas/Processing'
+      description: Decision view for every client-owned application state. manual_review has decision=null
+        and processing=null; score and riskLevel may be present. signed/closed preserve the last credit decision.
+        Declining a proposal does not turn the bank decision into rejected. Score examples are synthetic and
+        do not define risk thresholds.
+    OfferActionInput:
+      type: object
+      additionalProperties: false
+      required:
+      - version
+      - offerId
+      properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Current application revision. A repeat of the same completed offer action succeeds
+            without another mutation.
+        offerId:
+          type: string
+          format: uuid
+      description: The current active primary offer of the current decision. Only CLIENT owner in the same
+        company may act.
+    ManualOfferInput:
+      type: object
+      additionalProperties: false
+      required:
+      - amountRub
+      - termMonths
+      properties:
+        amountRub:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 1000000000000
+        termMonths:
+          type: integer
+          minimum: 1
+          maximum: 120
+      description: Product and fixed rate come from the submitted snapshot. Amount and term must be within
+        its product limits; monthly payment is calculated by backend.
+    ApprovedDecisionInput:
+      type: object
+      additionalProperties: false
+      required:
+      - version
+      - decision
+      - comment
+      - offer
+      properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        decision:
+          type: string
+          enum:
+          - approved
+        comment:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: 'Required bank-internal comment: 1..1000 Unicode characters after trimming outer whitespace.
+            Never copied automatically to client-facing reasons.'
+        offer:
+          $ref: '#/components/schemas/ManualOfferInput'
+      description: Both amountRub and termMonths must equal the original submitted request.
+    CounterOfferDecisionInput:
+      type: object
+      additionalProperties: false
+      required:
+      - version
+      - decision
+      - comment
+      - offer
+      properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        decision:
+          type: string
+          enum:
+          - counter_offer
+        comment:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: 'Required bank-internal comment: 1..1000 Unicode characters after trimming outer whitespace.
+            Never copied automatically to client-facing reasons.'
+        offer:
+          $ref: '#/components/schemas/ManualOfferInput'
+      description: Amount must not exceed the original requested amount; amount and term must satisfy frozen
+        product limits; at least one must differ. Rate stays fixed.
+    RejectedDecisionInput:
+      type: object
+      additionalProperties: false
+      required:
+      - version
+      - decision
+      - comment
+      - offer
+      properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        decision:
+          type: string
+          enum:
+          - rejected
+        comment:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: 'Required bank-internal comment: 1..1000 Unicode characters after trimming outer whitespace.
+            Never copied automatically to client-facing reasons.'
+        offer:
+          type: object
+          nullable: true
+          enum:
+          - null
+      description: 'No proposal is allowed: offer must be null.'
+    ManualDecisionInput:
+      type: object
+      oneOf:
+      - $ref: '#/components/schemas/ApprovedDecisionInput'
+      - $ref: '#/components/schemas/CounterOfferDecisionInput'
+      - $ref: '#/components/schemas/RejectedDecisionInput'
+      discriminator:
+        propertyName: decision
+        mapping:
+          approved: '#/components/schemas/ApprovedDecisionInput'
+          counter_offer: '#/components/schemas/CounterOfferDecisionInput'
+          rejected: '#/components/schemas/RejectedDecisionInput'
+      description: BANK_EMPLOYEE only, application must be manual_review. Employee identity is read from authentication;
+        reviewer, score, risk, rate and calculated payment input fields are forbidden.
+    BankCompanySummary:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - name
+      - inn
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        inn:
+          type: string
+      description: Submitted company identity from its frozen snapshot.
+    BankProductSummary:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - name
+      properties:
+        id:
+          type: string
+          description: Public product code from the submitted snapshot.
+        name:
+          type: string
+      description: Non-null product identity of a successfully submitted application.
+    BankApplication:
+      type: object
+      additionalProperties: false
+      required:
+      - applicationId
+      - company
+      - product
+      - requestedAmountRub
+      - termMonths
+      - status
+      - version
+      - createdAt
+      - updatedAt
+      - submittedAt
+      - manualReviewRequired
+      - availableActions
+      properties:
+        applicationId:
+          type: string
+          format: uuid
+        company:
+          $ref: '#/components/schemas/BankCompanySummary'
+        product:
+          $ref: '#/components/schemas/BankProductSummary'
+        requestedAmountRub:
+          type: integer
+          format: int64
+          minimum: 1
+        termMonths:
+          type: integer
+          minimum: 1
+          maximum: 120
+        status:
+          $ref: '#/components/schemas/BankApplicationStatus'
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        submittedAt:
+          type: string
+          format: date-time
+        manualReviewRequired:
+          type: boolean
+          description: True exactly when status is manual_review.
+        availableActions:
+          type: array
+          items:
+            type: string
+            enum:
+            - decide
+          description: '[decide] only in manual_review; [] otherwise. No draft editing, upload or submit actions
+            for employees.'
+      description: Bank list item; drafts are never returned.
+    BankApplicationPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - total
+      - limit
+      - offset
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/BankApplication'
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+        offset:
+          type: integer
+          minimum: 0
+          maximum: 2147483647
+      description: Filtered total before pagination. Ordered by createdAt DESC, applicationId DESC. With no
+        status filter all eight bank-visible statuses are included, never draft.
+    BankApplicationDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - applicationId
+      - userId
+      - companyId
+      - productId
+      - purpose
+      - purposeDescription
+      - requestedAmountRub
+      - termMonths
+      - monthlyRevenueRub
+      - monthlyExpensesRub
+      - productName
+      - status
+      - version
+      - createdAt
+      - updatedAt
+      - submittedAt
+      - availableActions
+      - company
+      - product
+      - productTerms
+      - manualReviewRequired
+      properties:
+        applicationId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+          description: Owner derived by backend from authentication.
+        companyId:
+          type: string
+          format: uuid
+        productId:
+          type: string
+          pattern: ^[a-z][a-z0-9_-]{0,31}$
+          description: Public selected product code, currently turnover or investment. An existing application
+            can retain a subsequently inactive product; writes require an active product.
+        purpose:
+          type: string
+          enum:
+          - stock
+          - expenses
+          - seasonal
+          - equipment
+          - upgrade
+          - other
+          description: Submitted purpose validated against the product snapshot. other requires a nonblank
+            purposeDescription at submit.
+        purposeDescription:
+          type: string
+          nullable: true
+          maxLength: 300
+          description: Submitted explanation, at most 300 Unicode characters, no NUL. Null when no explanation
+            was supplied for a purpose other than other.
+        requestedAmountRub:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 1000000000000
+          description: Integer rubles; selected product limits also apply.
+        termMonths:
+          type: integer
+          minimum: 1
+          maximum: 120
+          description: Selected product limits also apply.
+        monthlyRevenueRub:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 1000000000000
+        monthlyExpensesRub:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 1000000000000
+        productName:
+          type: string
+        status:
+          $ref: '#/components/schemas/BankApplicationStatus'
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Optimistic locking revision, initially 1.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        submittedAt:
+          type: string
+          format: date-time
+          description: Set by successful submit; bank visibility starts only after submission.
+        availableActions:
+          type: array
+          items:
+            type: string
+            enum:
+            - decide
+          description: '[decide] only in manual_review; [] otherwise. No draft editing, upload or submit actions
+            for employees.'
+        company:
+          $ref: '#/components/schemas/Company'
+        product:
+          $ref: '#/components/schemas/BankProductSummary'
+        productTerms:
+          $ref: '#/components/schemas/CreditProduct'
+        manualReviewRequired:
+          type: boolean
+          description: True exactly when status is manual_review.
+      description: Submitted application only; draft returns 404 application_not_found. Company and productTerms
+        are the snapshots frozen by submit, not current mutable company/product data. Documents use the existing
+        list/download operations. Bank availableActions is independent of the existing client Application.availableActions.
+    AssessmentProblem:
+      type: object
+      additionalProperties: false
+      required:
+      - code
+      - message
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+      description: Stable machine code and safe display message.
+    CompanyCheck:
+      type: object
+      additionalProperties: false
+      required:
+      - status
+      - checks
+      - problems
+      - checkedAt
+      - durationMs
+      - simulation
+      properties:
+        status:
+          type: string
+          enum:
+          - passed
+          - failed
+        checks:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - code
+            - passed
+            properties:
+              code:
+                type: string
+              passed:
+                type: boolean
+        problems:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssessmentProblem'
+        checkedAt:
+          type: string
+          format: date-time
+        durationMs:
+          type: integer
+          format: int64
+          minimum: 0
+        simulation:
+          type: boolean
+          enum:
+          - true
+      description: Existing pipeline company-check shape. Null until the result is durably available.
+      nullable: true
+    CreditHistory:
+      type: object
+      additionalProperties: false
+      required:
+      - existingDebtRub
+      - existingMonthlyPaymentsRub
+      - overdueCount
+      - checkedAt
+      - simulation
+      properties:
+        existingDebtRub:
+          type: integer
+          format: int64
+          minimum: 0
+        existingMonthlyPaymentsRub:
+          type: integer
+          format: int64
+          minimum: 0
+        overdueCount:
+          type: integer
+          format: int64
+          minimum: 0
+        checkedAt:
+          type: string
+          format: date-time
+        simulation:
+          type: boolean
+          enum:
+          - true
+      description: Existing synthetic credit-history shape. Null until available.
+      nullable: true
+    ScoringAssessment:
+      type: object
+      additionalProperties: false
+      required:
+      - score
+      - assessedAt
+      properties:
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        assessedAt:
+          type: string
+          format: date-time
+      description: Normalized existing scoring result, not a final credit decision. Neither score direction
+        nor LOW/MEDIUM/HIGH numeric thresholds are fixed here.
+      nullable: true
+    AssessmentRecommendation:
+      type: object
+      additionalProperties: false
+      required:
+      - decision
+      - reasons
+      - offer
+      properties:
+        decision:
+          type: string
+          enum:
+          - approved
+          - counter_offer
+          - rejected
+        reasons:
+          type: array
+          items:
+            type: string
+        offer:
+          type: object
+          nullable: true
+          additionalProperties: false
+          required:
+          - amountRub
+          - termMonths
+          properties:
+            amountRub:
+              type: integer
+              format: int64
+              minimum: 1
+            termMonths:
+              type: integer
+              minimum: 1
+              maximum: 120
+      description: 'Advisory Go-policy recommendation. Not an active CreditOffer: no offerId. For rejected,
+        offer=null.'
+    ManualDecisionAudit:
+      type: object
+      additionalProperties: false
+      required:
+      - decision
+      - comment
+      - reviewedBy
+      - reviewedAt
+      properties:
+        decision:
+          type: string
+          enum:
+          - approved
+          - counter_offer
+          - rejected
+        comment:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        reviewedBy:
+          type: string
+          format: uuid
+        reviewedAt:
+          type: string
+          format: date-time
+      description: Bank-only audit of a manual final decision. Null before a manual decision.
+      nullable: true
+    BankAssessment:
+      type: object
+      additionalProperties: false
+      required:
+      - applicationId
+      - status
+      - version
+      - companyCheck
+      - creditHistory
+      - scoring
+      - riskLevel
+      - manualReviewReasons
+      - recommendations
+      - manualDecision
+      - processing
+      properties:
+        applicationId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/BankApplicationStatus'
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        companyCheck:
+          $ref: '#/components/schemas/CompanyCheck'
+        creditHistory:
+          $ref: '#/components/schemas/CreditHistory'
+        scoring:
+          $ref: '#/components/schemas/ScoringAssessment'
+        riskLevel:
+          $ref: '#/components/schemas/RiskLevel'
+        manualReviewReasons:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssessmentProblem'
+        recommendations:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssessmentRecommendation'
+        manualDecision:
+          $ref: '#/components/schemas/ManualDecisionAudit'
+        processing:
+          $ref: '#/components/schemas/Processing'
+      description: Bank-only normalized assessment of a submitted application. Draft returns 404. Missing
+        results are null; missing reason/recommendation lists are []. Risk policy is authoritative in Go;
+        Python scoring provides recommendations. No raw service response or private infrastructure details
+        are exposed.
+    DecisionValidationError:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      - message
+      - details
+      properties:
+        error:
+          type: string
+          enum:
+          - validation_failed
+        message:
+          type: string
+        details:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - field
+            - code
+            - message
+            properties:
+              field:
+                type: string
+                description: comment, offer.amountRub or offer.termMonths.
+              code:
+                type: string
+                enum:
+                - required
+                - out_of_range
+                - invalid_value
+                - unchanged_offer
+              message:
+                type: string
+      description: Business validation failures; the application, decision, offer, timeline and idempotency
+        result are not partially committed.
   responses:
     InvalidRequest:
       description: Invalid fields, UUID or JSON (invalid_request); unknown fields and trailing JSON values
@@ -2037,7 +3664,7 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
     DocumentApplicationNotFound:
-      description: Missing application or application inaccessible to this CLIENT (application_not_found)
+      description: Missing application, application inaccessible to this CLIENT, or draft requested by BANK_EMPLOYEE (application_not_found)
       content:
         application/json:
           schema:
@@ -2048,3 +3675,38 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+    ApplicationNotFound:
+      description: 'Application absent or inaccessible: for CLIENT, owner/company mismatch; for BANK_EMPLOYEE,
+        includes every draft (application_not_found).'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: application_not_found
+            message: Заявка не найдена.
+    DecisionConflict:
+      description: State forbids action (invalid_status), stale application version (version_conflict), stale/inactive/current-offer
+        mismatch (offer_not_active), or Idempotency-Key reused with another body (idempotency_conflict). Conflicts
+        do not partially change application/decision/offer/events.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            invalid_status:
+              value:
+                error: invalid_status
+                message: Действие недоступно в текущем статусе заявки.
+            version_conflict:
+              value:
+                error: version_conflict
+                message: Заявка была изменена. Обновите данные.
+            offer_not_active:
+              value:
+                error: offer_not_active
+                message: Предложение больше недоступно.
+            idempotency_conflict:
+              value:
+                error: idempotency_conflict
+                message: Ключ идемпотентности уже использован с другим запросом.

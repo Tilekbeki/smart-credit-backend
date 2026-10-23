@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Smart Credit — Backend Stages 2–6.1 (OTP, drafts, documents, submit)",
-    "description": "Единая коллекция Smart Credit, Postman Collection v2.1. Запустите docker compose up -d --build, затем всю коллекцию сверху вниз в Collection Runner. baseUrl по умолчанию http://localhost:8080; demoOtpCode по умолчанию 1234. Все профили, companyId, OTP challenges и JWT передаются автоматически; первый запрос очищает результаты предыдущего запуска. Сохранены сценарии OTP/JWT обеих ролей. Новые сценарии проверяют собственную и чужую компанию, каталог и карточки продуктов, подбор финансирования, точные финансовые расчёты, границы и ошибки. Для проверки чужой компании автоматически авторизуется второй обнаруженный CLIENT. Расчёты проверяются независимой аннуитетной формулой JavaScript на синтетических значениях; точная арифметика и границы округления дополнительно проверяются Go-тестами. Рекомендация не является кредитным решением; scoring не вызывается. Не экспортируйте коллекцию с заполненными токенами и не используйте реальные персональные данные. Этап 4: пустой и частичный черновик, редактирование, null/отсутствующие поля, сохранение и обновление applicationId/version, история, SQL-пагинация и фильтры, конфликт версий, изоляция другого CLIENT, ограничения ролей и валидация. Два новых черновика создаются на каждой итерации; тесты не требуют пустой БД. submit, документы и scoring не вызываются. Этап 5: документы загружаются к новому черновику, UUID и JWT передаются автоматически. Маленькие синтетические файлы находятся в fixtures/ рядом с коллекцией. Для Newman укажите --working-dir api/postman из корня backend; в Postman настройте Working directory на api/postman и разрешите чтение тестовых файлов. Превышение размера и опасные имена проверяются динамическим multipart без большого файла в репозитории. Все файлы синтетические, без банковских данных. Этап 6.1: отправка заполненных заявок, детальные ошибки 422, обязательные документы и серверный доверенный источник финансов, повторный submit, запрет изменений после отправки. Ограниченный автоматический polling timeline ожидает PRECHECKS_COMPLETED (до 20 проверок с интервалом 250 мс); заявка остаётся processing и ожидает будущего scoring. Все новые заявки, версии и третий профиль передаются автоматически. Внутренние результаты проверок и очередь не публикуются. Две итерации Runner создают независимые заявки; никакая ручная очистка не нужна.",
+    "description": "Единая коллекция Smart Credit, Postman Collection v2.1. Запустите docker compose up -d --build, затем всю коллекцию сверху вниз в Collection Runner. baseUrl по умолчанию http://localhost:8080; demoOtpCode по умолчанию 1234. Все профили, companyId, OTP challenges и JWT передаются автоматически; первый запрос очищает результаты предыдущего запуска. Сохранены сценарии OTP/JWT обеих ролей. Новые сценарии проверяют собственную и чужую компанию, каталог и карточки продуктов, подбор финансирования, точные финансовые расчёты, границы и ошибки. Для проверки чужой компании автоматически авторизуется второй обнаруженный CLIENT. Расчёты проверяются независимой аннуитетной формулой JavaScript на синтетических значениях; точная арифметика и границы округления дополнительно проверяются Go-тестами. Рекомендация не является кредитным решением; scoring не вызывается. Не экспортируйте коллекцию с заполненными токенами и не используйте реальные персональные данные. Этап 4: пустой и частичный черновик, редактирование, null/отсутствующие поля, сохранение и обновление applicationId/version, история, SQL-пагинация и фильтры, конфликт версий, изоляция другого CLIENT, ограничения ролей и валидация. Два новых черновика создаются на каждой итерации; тесты не требуют пустой БД. В сценариях этапа 4 submit, документы и scoring не вызываются. Остальные этапы коллекции выполняются далее. Этап 5: документы загружаются к новому черновику, UUID и JWT передаются автоматически. Маленькие синтетические файлы находятся в fixtures/ рядом с коллекцией. Для Newman укажите --working-dir api/postman из корня backend; в Postman настройте Working directory на api/postman и разрешите чтение тестовых файлов. Превышение размера и опасные имена проверяются динамическим multipart без большого файла в репозитории. Все файлы синтетические, без банковских данных. Этап 6.1: отправка заполненных заявок, детальные ошибки 422, обязательные документы и серверный доверенный источник финансов, повторный submit, запрет изменений после отправки. Ограниченный автоматический polling timeline ожидает PRECHECKS_COMPLETED (до 20 проверок с интервалом 250 мс); заявка остаётся processing; успешный scoring по умолчанию не предполагается. Все новые заявки, версии и третий профиль передаются автоматически. Внутренние результаты проверок и очередь не публикуются. Две итерации Runner создают независимые заявки; никакая ручная очистка не нужна. API Freeze v1: черновики приватны для предпринимателя. BANK_EMPLOYEE получает 404 application_not_found при чтении списка документов или скачивании документа draft; после успешного submit банк получает метаданные и файл. CLIENT продолжает читать собственные draft, чужие заявки и документы возвращают 404. Проверяется независимость нескольких черновиков turnover: отправка выбранного не отправляет остальные, оставшийся черновик доступен для редактирования без изменения отправленной заявки. Семь маршрутов decision/accept/decline и bank/applications зафиксированы в api/openapi.yaml как PLANNED и не вызываются этой коллекцией до реализации; интеграционные правила описаны в api/FRONTEND_INTEGRATION.md. Этап 6.2: expectScoringResult=false по умолчанию сохраняет проверки prechecks и processing без заявления об успешном scoring. Только для backend с доступным совместимым scoring задайте expectScoringResult=true: polling до 30 секунд на заявку ожидает SCORING_COMPLETED, проверяет порядок, уникальность и сохранение событий после повторного submit. nextStage сохраняет frozen значение awaiting_scoring и не доказывает наличие результата. Результат score/factors проверяется PostgreSQL-интеграционными тестами, нового публичного endpoint нет. Коллекция никогда не вызывает scoring напрямую; тестовый HTTP-сервис не подтверждает совместимость с реальным Python scoring.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -13,6 +13,11 @@
     {
       "key": "demoOtpCode",
       "value": "1234",
+      "type": "string"
+    },
+    {
+      "key": "expectScoringResult",
+      "value": "false",
       "type": "string"
     },
     {
@@ -289,6 +294,31 @@
       "key": "submitVersion",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "investmentDocumentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "investmentDocumentMetadataJSON",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "submittedApplicationJSON",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "investmentTimelineJSON",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "untrustedTimelineJSON",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -320,7 +350,7 @@
             "type": "text/javascript",
             "exec": [
               "// Run on every Collection Runner iteration, preserving baseUrl and demoOtpCode.",
-              "const resetKeys = [\"clientProfileId\", \"bankProfileId\", \"otpRequestId\", \"accessToken\", \"clientOtpRequestId\", \"bankOtpRequestId\", \"clientAccessToken\", \"bankAccessToken\", \"clientCompanyId\", \"clientName\", \"clientPhone\", \"bankName\", \"bankPhone\", \"previousClientOtpRequestId\", \"otherClientProfileId\", \"otherClientOtpRequestId\", \"otherClientAccessToken\", \"otherCompanyId\", \"ownCompanyJSON\", \"creditProductsJSON\", \"applicationId\", \"applicationVersion\", \"previousApplicationVersion\", \"secondApplicationId\", \"applicationCreatedAt\", \"applicationUpdatedAt\", \"applicationListTotal\", \"documentApplicationId\", \"pdfDocumentId\", \"pdfMetadataJSON\", \"pngDocumentId\", \"pngMetadataJSON\", \"jpegDocumentId\", \"jpegMetadataJSON\", \"repeatedDocumentId\", \"repeatedMetadataJSON\", \"submitApplicationId\", \"submitVersion\", \"submitSubmittedAt\", \"submitPollAttempts\", \"submitTimelineJSON\", \"investmentApplicationId\", \"investmentVersion\", \"investmentSubmittedAt\", \"investmentPollAttempts\", \"thirdClientProfileId\", \"thirdClientOtpRequestId\", \"thirdClientAccessToken\", \"thirdCompanyId\", \"untrustedApplicationId\", \"untrustedVersion\", \"untrustedSubmittedAt\", \"untrustedPollAttempts\", \"incompleteApplicationId\", \"incompleteVersion\"];",
+              "const resetKeys = [\"clientProfileId\", \"bankProfileId\", \"otpRequestId\", \"accessToken\", \"clientOtpRequestId\", \"bankOtpRequestId\", \"clientAccessToken\", \"bankAccessToken\", \"clientCompanyId\", \"clientName\", \"clientPhone\", \"bankName\", \"bankPhone\", \"previousClientOtpRequestId\", \"otherClientProfileId\", \"otherClientOtpRequestId\", \"otherClientAccessToken\", \"otherCompanyId\", \"ownCompanyJSON\", \"creditProductsJSON\", \"applicationId\", \"applicationVersion\", \"previousApplicationVersion\", \"secondApplicationId\", \"applicationCreatedAt\", \"applicationUpdatedAt\", \"applicationListTotal\", \"documentApplicationId\", \"pdfDocumentId\", \"pdfMetadataJSON\", \"pngDocumentId\", \"pngMetadataJSON\", \"jpegDocumentId\", \"jpegMetadataJSON\", \"repeatedDocumentId\", \"repeatedMetadataJSON\", \"submitApplicationId\", \"submitVersion\", \"submitSubmittedAt\", \"submitPollAttempts\", \"submitTimelineJSON\", \"investmentApplicationId\", \"investmentVersion\", \"investmentSubmittedAt\", \"investmentPollAttempts\", \"thirdClientProfileId\", \"thirdClientOtpRequestId\", \"thirdClientAccessToken\", \"thirdCompanyId\", \"untrustedApplicationId\", \"untrustedVersion\", \"untrustedSubmittedAt\", \"untrustedPollAttempts\", \"incompleteApplicationId\", \"incompleteVersion\", \"investmentDocumentId\", \"investmentDocumentMetadataJSON\", \"submittedApplicationJSON\", \"investmentTimelineJSON\", \"untrustedTimelineJSON\"];",
               "resetKeys.forEach(key => { pm.collectionVariables.set(key, \"\"); pm.variables.set(key, \"\"); });"
             ]
           }
@@ -6841,7 +6871,7 @@
       ]
     },
     {
-      "name": "128 · Documents — employee can read the same document metadata",
+      "name": "128 · Documents — employee cannot list private draft documents",
       "request": {
         "method": "GET",
         "auth": {
@@ -6873,13 +6903,12 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-              "const r=pm.response.json();",
-              "pm.test(\"All four immutable metadata records, no storage paths\", () => {",
-              " pm.expect(r).to.have.all.keys(\"items\"); pm.expect(r.items).to.be.an(\"array\").with.length(4); const ids=new Set();",
-              " r.items.forEach(item => { pm.expect(item).to.have.all.keys(\"documentId\", \"applicationId\", \"documentType\", \"fileName\", \"contentType\", \"sizeBytes\", \"uploadedAt\"); ids.add(item.documentId); });",
-              " [\"pdf\", \"png\", \"jpeg\", \"repeated\"].forEach(kind => { const expected=JSON.parse(pm.collectionVariables.get(kind+\"MetadataJSON\")); pm.expect(r.items.find(item=>item.documentId===expected.documentId)).to.deep.eql(expected); });",
-              " pm.expect(ids.size).to.eql(4);",
+              "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+              "const r = pm.response.json();",
+              "pm.test(\"Private draft is indistinguishable from an unavailable application\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\");",
+              "  pm.expect(r.error).to.eql(\"application_not_found\");",
+              "  pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
               "});"
             ]
           }
@@ -6934,7 +6963,7 @@
       ]
     },
     {
-      "name": "130 · Documents — employee downloads pdf with byte integrity check",
+      "name": "130 · Documents — employee cannot download a private draft document",
       "request": {
         "method": "GET",
         "auth": {
@@ -6967,13 +6996,12 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-              "pm.test(\"Correct MIME, length and private attachment headers\", () => { pm.expect(pm.response.headers.get(\"Content-Type\")).to.eql(\"application/pdf\"); pm.expect(Number(pm.response.headers.get(\"Content-Length\"))).to.eql(608); pm.expect(pm.response.headers.get(\"Content-Disposition\")).to.match(/^attachment(?:;|$)/); pm.expect(pm.response.headers.get(\"Content-Disposition\")).to.include(\"sample.pdf\"); pm.expect(pm.response.headers.get(\"X-Content-Type-Options\")).to.eql(\"nosniff\"); });",
-              "pm.test(\"Downloaded bytes exactly match the synthetic fixture SHA-256\", () => {",
-              " const CryptoJS=require(\"crypto-js\"); const bytes=pm.response.stream; const words=[];",
-              " for(let i=0;i<bytes.length;i++) words[i>>>2]=(words[i>>>2]||0) | (bytes[i] << (24-(i%4)*8));",
-              " const digest=CryptoJS.SHA256(CryptoJS.lib.WordArray.create(words,bytes.length)).toString();",
-              " pm.expect(digest).to.eql(\"07a654c060ac047559af7abd2c8023b5f42b3a7ec41848bca74a791424eb9fd4\");",
+              "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+              "const r = pm.response.json();",
+              "pm.test(\"Private draft is indistinguishable from an unavailable application\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"error\", \"message\");",
+              "  pm.expect(r.error).to.eql(\"application_not_found\");",
+              "  pm.expect(r.message).to.be.a(\"string\").and.not.empty;",
               "});"
             ]
           }
@@ -9348,6 +9376,7 @@
               "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
               "const r=pm.response.json();",
               "pm.test(\"Own draft, no submission yet\",()=>{pm.expect(r.status).to.eql(\"draft\");pm.expect(r.submittedAt).to.eql(null);pm.expect(r.version).to.eql(1);pm.expect(r.userId).to.eql(pm.collectionVariables.get(\"clientProfileId\"));});",
+              "pm.test(\"Same product permits a separate draft without replacing the first\", () => { pm.expect(r.productId).to.eql(\"turnover\"); pm.expect(r.applicationId).not.to.eql(pm.collectionVariables.get(\"applicationId\")); });",
               "if(pm.response.code===201){pm.collectionVariables.set(\"submitApplicationId\",r.applicationId);pm.collectionVariables.set(\"submitVersion\",r.version);}"
             ]
           }
@@ -9533,7 +9562,7 @@
       ]
     },
     {
-      "name": "183 · Submit — wait for submit durable preliminary checks",
+      "name": "183 · Submit — wait for submit prechecks and optional durable scoring",
       "request": {
         "method": "GET",
         "auth": {
@@ -9567,13 +9596,18 @@
             "exec": [
               "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
               "const r=pm.response.json();",
+              "const expectScoring=String(pm.variables.get(\"expectScoringResult\")).toLowerCase()===\"true\";",
               "const types=[\"APPLICATION_SUBMITTED\",\"PROCESSING_STARTED\",\"COMPANY_CHECK_COMPLETED\",\"CREDIT_HISTORY_CHECK_COMPLETED\",\"PRECHECKS_COMPLETED\"];",
-              "const done=pm.response.code===200&&Array.isArray(r.items)&&r.items.some(e=>e.eventType===\"PRECHECKS_COMPLETED\");",
+              "const scoringTypes=[\"SCORING_STARTED\",\"SCORING_COMPLETED\"];",
+              "const target=expectScoring?\"SCORING_COMPLETED\":\"PRECHECKS_COMPLETED\";",
+              "const done=pm.response.code===200&&Array.isArray(r.items)&&r.items.some(e=>e.eventType===target);",
               "const attempts=Number(pm.collectionVariables.get(\"submitPollAttempts\")||0)+1;pm.collectionVariables.set(\"submitPollAttempts\",attempts);",
-              "if(!done&&attempts<20){setTimeout(()=>pm.execution.setNextRequest(pm.info.requestId),250);}else{",
-              " pm.test(\"Prechecks complete within bounded polling\",()=>pm.expect(done).to.eql(true));",
+              "if(!done&&attempts<(expectScoring?60:20)){setTimeout(()=>pm.execution.setNextRequest(pm.info.requestId),expectScoring?500:250);}else{",
+              " pm.test(expectScoring?\"Scoring result saved within bounded polling\":\"Prechecks complete within bounded polling\",()=>pm.expect(done,target).to.eql(true));",
               " pm.test(\"One ordered event per durable transition\",()=>{pm.expect(r).to.have.all.keys(\"items\");const ids=new Set();let sequence=0;types.forEach(type=>pm.expect(r.items.filter(e=>e.eventType===type),type).to.have.length(1));const pipeline=r.items.filter(e=>types.includes(e.eventType));pm.expect(pipeline.map(e=>e.eventType)).to.deep.eql(types);r.items.forEach(e=>{pm.expect(e).to.have.all.keys(\"eventId\",\"eventType\",\"sequence\",\"status\",\"createdAt\",\"actorId\",\"title\");pm.expect(e.sequence).to.be.above(sequence);sequence=e.sequence;ids.add(e.eventId);pm.expect(Number.isFinite(Date.parse(e.createdAt))).to.eql(true);pm.expect(e.title).to.be.a(\"string\").and.not.empty;});pm.expect(ids.size).to.eql(r.items.length);});",
               " pm.test(\"User and system actors and application states\",()=>{r.items.filter(e=>types.includes(e.eventType)).forEach(e=>{if(e.eventType===\"APPLICATION_SUBMITTED\"){pm.expect(e.actorId).to.eql(pm.collectionVariables.get(\"clientProfileId\"));pm.expect(e.status).to.eql(\"submitted\");}else{pm.expect(e.actorId).to.eql(null);pm.expect(e.status).to.eql(\"processing\");}});});",
+              " pm.test(\"Scoring events are unique, safe and ordered after prechecks\",()=>{scoringTypes.forEach(type=>{const events=r.items.filter(e=>e.eventType===type);pm.expect(events.length,type).to.be.at.most(1);if(expectScoring)pm.expect(events,type).to.have.length(1);events.forEach(e=>{pm.expect(e.actorId).to.eql(null);pm.expect(e.status).to.eql(\"processing\");pm.expect(e).not.to.have.any.keys(\"score\",\"factors\",\"scoringUrl\",\"error\");});});const observed=r.items.filter(e=>types.concat(scoringTypes).includes(e.eventType)).map(e=>e.eventType);const expected=types.concat(scoringTypes).filter(type=>observed.includes(type));pm.expect(observed).to.deep.eql(expected);if(observed.includes(\"SCORING_COMPLETED\"))pm.expect(observed).to.include(\"SCORING_STARTED\");});",
+              " if(!expectScoring)pm.test.skip(\"Persisted scoring result requires expectScoringResult=true and a compatible service\",()=>{});",
               " if(done)pm.collectionVariables.set(\"submitTimelineJSON\",JSON.stringify(r));",
               "}"
             ]
@@ -9582,7 +9616,7 @@
       ]
     },
     {
-      "name": "184 · Submit — read submit application awaiting scoring",
+      "name": "184 · Submit — read submit application remaining processing",
       "request": {
         "method": "GET",
         "auth": {
@@ -9615,7 +9649,8 @@
             "exec": [
               "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
               "const r=pm.response.json();",
-              "pm.test(\"Persisted processing state, fields preserved and no private results\",()=>{pm.expect(r.status).to.eql(\"processing\");pm.expect(r.submittedAt).to.eql(pm.collectionVariables.get(\"submitSubmittedAt\"));pm.expect(r.availableActions).to.deep.eql([]);pm.expect(r.monthlyRevenueRub).to.be.a(\"number\");pm.expect(r.monthlyExpensesRub).to.be.a(\"number\");[\"financialSnapshot\",\"productSnapshot\",\"precheckResults\",\"job\",\"processingError\",\"decision\",\"approvedAmountRub\"].forEach(k=>pm.expect(r).not.to.have.property(k));pm.expect(r.company).not.to.have.property(\"financialDataSource\");pm.expect(r.company).not.to.have.property(\"registrationStatus\");});"
+              "pm.test(\"Persisted processing state, fields preserved and no private results\",()=>{pm.expect(r.status).to.eql(\"processing\");pm.expect(r.submittedAt).to.eql(pm.collectionVariables.get(\"submitSubmittedAt\"));pm.expect(r.availableActions).to.deep.eql([]);pm.expect(r.monthlyRevenueRub).to.be.a(\"number\");pm.expect(r.monthlyExpensesRub).to.be.a(\"number\");[\"financialSnapshot\",\"productSnapshot\",\"precheckResults\",\"job\",\"processingError\",\"decision\",\"approvedAmountRub\"].forEach(k=>pm.expect(r).not.to.have.property(k));pm.expect(r.company).not.to.have.property(\"financialDataSource\");pm.expect(r.company).not.to.have.property(\"registrationStatus\");});",
+              "if (pm.response.code === 200) pm.collectionVariables.set(\"submittedApplicationJSON\", JSON.stringify(r));"
             ]
           }
         }
@@ -9698,7 +9733,10 @@
             "type": "text/javascript",
             "exec": [
               "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-              "pm.test(\"Repeated submit did not append events\",()=>pm.expect(pm.response.json()).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"submitTimelineJSON\"))));"
+              "const expectScoring=String(pm.variables.get(\"expectScoringResult\")).toLowerCase()===\"true\";",
+              "const current=pm.response.json();const previous=JSON.parse(pm.collectionVariables.get(\"submitTimelineJSON\"));",
+              "const stable=items=>expectScoring?items:items.filter(e=>![\"SCORING_STARTED\",\"SCORING_COMPLETED\"].includes(e.eventType));",
+              "pm.test(\"Repeated submit did not append or alter durable events\",()=>pm.expect(stable(current.items)).to.deep.eql(stable(previous.items)));"
             ]
           }
         }
@@ -10049,7 +10087,8 @@
             "exec": [
               "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
               "const r=pm.response.json();",
-              "pm.test(\"Ready document belongs to the submitted draft flow\",()=>{pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"investmentApplicationId\"));pm.expect(r.documentType).to.eql(\"EQUIPMENT_INVOICE\");pm.expect(r.documentId).to.match(/^[0-9a-f-]{36}$/i);});"
+              "pm.test(\"Ready document belongs to the submitted draft flow\",()=>{pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"investmentApplicationId\"));pm.expect(r.documentType).to.eql(\"EQUIPMENT_INVOICE\");pm.expect(r.documentId).to.match(/^[0-9a-f-]{36}$/i);});",
+              "if (pm.response.code === 201) { pm.collectionVariables.set(\"investmentDocumentId\", r.documentId); pm.collectionVariables.set(\"investmentDocumentMetadataJSON\", JSON.stringify(r)); }"
             ]
           }
         }
@@ -10098,7 +10137,7 @@
       ]
     },
     {
-      "name": "195 · Submit — wait for investment durable preliminary checks",
+      "name": "195 · Submit — wait for investment prechecks and optional durable scoring",
       "request": {
         "method": "GET",
         "auth": {
@@ -10132,14 +10171,19 @@
             "exec": [
               "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
               "const r=pm.response.json();",
+              "const expectScoring=String(pm.variables.get(\"expectScoringResult\")).toLowerCase()===\"true\";",
               "const types=[\"APPLICATION_SUBMITTED\",\"PROCESSING_STARTED\",\"COMPANY_CHECK_COMPLETED\",\"CREDIT_HISTORY_CHECK_COMPLETED\",\"PRECHECKS_COMPLETED\"];",
-              "const done=pm.response.code===200&&Array.isArray(r.items)&&r.items.some(e=>e.eventType===\"PRECHECKS_COMPLETED\");",
+              "const scoringTypes=[\"SCORING_STARTED\",\"SCORING_COMPLETED\"];",
+              "const target=expectScoring?\"SCORING_COMPLETED\":\"PRECHECKS_COMPLETED\";",
+              "const done=pm.response.code===200&&Array.isArray(r.items)&&r.items.some(e=>e.eventType===target);",
               "const attempts=Number(pm.collectionVariables.get(\"investmentPollAttempts\")||0)+1;pm.collectionVariables.set(\"investmentPollAttempts\",attempts);",
-              "if(!done&&attempts<20){setTimeout(()=>pm.execution.setNextRequest(pm.info.requestId),250);}else{",
-              " pm.test(\"Prechecks complete within bounded polling\",()=>pm.expect(done).to.eql(true));",
+              "if(!done&&attempts<(expectScoring?60:20)){setTimeout(()=>pm.execution.setNextRequest(pm.info.requestId),expectScoring?500:250);}else{",
+              " pm.test(expectScoring?\"Scoring result saved within bounded polling\":\"Prechecks complete within bounded polling\",()=>pm.expect(done,target).to.eql(true));",
               " pm.test(\"One ordered event per durable transition\",()=>{pm.expect(r).to.have.all.keys(\"items\");const ids=new Set();let sequence=0;types.forEach(type=>pm.expect(r.items.filter(e=>e.eventType===type),type).to.have.length(1));const pipeline=r.items.filter(e=>types.includes(e.eventType));pm.expect(pipeline.map(e=>e.eventType)).to.deep.eql(types);r.items.forEach(e=>{pm.expect(e).to.have.all.keys(\"eventId\",\"eventType\",\"sequence\",\"status\",\"createdAt\",\"actorId\",\"title\");pm.expect(e.sequence).to.be.above(sequence);sequence=e.sequence;ids.add(e.eventId);pm.expect(Number.isFinite(Date.parse(e.createdAt))).to.eql(true);pm.expect(e.title).to.be.a(\"string\").and.not.empty;});pm.expect(ids.size).to.eql(r.items.length);});",
               " pm.test(\"User and system actors and application states\",()=>{r.items.filter(e=>types.includes(e.eventType)).forEach(e=>{if(e.eventType===\"APPLICATION_SUBMITTED\"){pm.expect(e.actorId).to.eql(pm.collectionVariables.get(\"clientProfileId\"));pm.expect(e.status).to.eql(\"submitted\");}else{pm.expect(e.actorId).to.eql(null);pm.expect(e.status).to.eql(\"processing\");}});});",
-              "",
+              " pm.test(\"Scoring events are unique, safe and ordered after prechecks\",()=>{scoringTypes.forEach(type=>{const events=r.items.filter(e=>e.eventType===type);pm.expect(events.length,type).to.be.at.most(1);if(expectScoring)pm.expect(events,type).to.have.length(1);events.forEach(e=>{pm.expect(e.actorId).to.eql(null);pm.expect(e.status).to.eql(\"processing\");pm.expect(e).not.to.have.any.keys(\"score\",\"factors\",\"scoringUrl\",\"error\");});});const observed=r.items.filter(e=>types.concat(scoringTypes).includes(e.eventType)).map(e=>e.eventType);const expected=types.concat(scoringTypes).filter(type=>observed.includes(type));pm.expect(observed).to.deep.eql(expected);if(observed.includes(\"SCORING_COMPLETED\"))pm.expect(observed).to.include(\"SCORING_STARTED\");});",
+              " if(!expectScoring)pm.test.skip(\"Persisted scoring result requires expectScoringResult=true and a compatible service\",()=>{});",
+              " if(done)pm.collectionVariables.set(\"investmentTimelineJSON\",JSON.stringify(r));",
               "}"
             ]
           }
@@ -10147,7 +10191,7 @@
       ]
     },
     {
-      "name": "196 · Submit — read investment application awaiting scoring",
+      "name": "196 · Submit — read investment application remaining processing",
       "request": {
         "method": "GET",
         "auth": {
@@ -10566,7 +10610,7 @@
       ]
     },
     {
-      "name": "205 · Submit — wait for untrusted durable preliminary checks",
+      "name": "205 · Submit — wait for untrusted prechecks and optional durable scoring",
       "request": {
         "method": "GET",
         "auth": {
@@ -10600,14 +10644,19 @@
             "exec": [
               "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
               "const r=pm.response.json();",
+              "const expectScoring=String(pm.variables.get(\"expectScoringResult\")).toLowerCase()===\"true\";",
               "const types=[\"APPLICATION_SUBMITTED\",\"PROCESSING_STARTED\",\"COMPANY_CHECK_COMPLETED\",\"CREDIT_HISTORY_CHECK_COMPLETED\",\"PRECHECKS_COMPLETED\"];",
-              "const done=pm.response.code===200&&Array.isArray(r.items)&&r.items.some(e=>e.eventType===\"PRECHECKS_COMPLETED\");",
+              "const scoringTypes=[\"SCORING_STARTED\",\"SCORING_COMPLETED\"];",
+              "const target=expectScoring?\"SCORING_COMPLETED\":\"PRECHECKS_COMPLETED\";",
+              "const done=pm.response.code===200&&Array.isArray(r.items)&&r.items.some(e=>e.eventType===target);",
               "const attempts=Number(pm.collectionVariables.get(\"untrustedPollAttempts\")||0)+1;pm.collectionVariables.set(\"untrustedPollAttempts\",attempts);",
-              "if(!done&&attempts<20){setTimeout(()=>pm.execution.setNextRequest(pm.info.requestId),250);}else{",
-              " pm.test(\"Prechecks complete within bounded polling\",()=>pm.expect(done).to.eql(true));",
+              "if(!done&&attempts<(expectScoring?60:20)){setTimeout(()=>pm.execution.setNextRequest(pm.info.requestId),expectScoring?500:250);}else{",
+              " pm.test(expectScoring?\"Scoring result saved within bounded polling\":\"Prechecks complete within bounded polling\",()=>pm.expect(done,target).to.eql(true));",
               " pm.test(\"One ordered event per durable transition\",()=>{pm.expect(r).to.have.all.keys(\"items\");const ids=new Set();let sequence=0;types.forEach(type=>pm.expect(r.items.filter(e=>e.eventType===type),type).to.have.length(1));const pipeline=r.items.filter(e=>types.includes(e.eventType));pm.expect(pipeline.map(e=>e.eventType)).to.deep.eql(types);r.items.forEach(e=>{pm.expect(e).to.have.all.keys(\"eventId\",\"eventType\",\"sequence\",\"status\",\"createdAt\",\"actorId\",\"title\");pm.expect(e.sequence).to.be.above(sequence);sequence=e.sequence;ids.add(e.eventId);pm.expect(Number.isFinite(Date.parse(e.createdAt))).to.eql(true);pm.expect(e.title).to.be.a(\"string\").and.not.empty;});pm.expect(ids.size).to.eql(r.items.length);});",
               " pm.test(\"User and system actors and application states\",()=>{r.items.filter(e=>types.includes(e.eventType)).forEach(e=>{if(e.eventType===\"APPLICATION_SUBMITTED\"){pm.expect(e.actorId).to.eql(pm.collectionVariables.get(\"thirdClientProfileId\"));pm.expect(e.status).to.eql(\"submitted\");}else{pm.expect(e.actorId).to.eql(null);pm.expect(e.status).to.eql(\"processing\");}});});",
-              "",
+              " pm.test(\"Scoring events are unique, safe and ordered after prechecks\",()=>{scoringTypes.forEach(type=>{const events=r.items.filter(e=>e.eventType===type);pm.expect(events.length,type).to.be.at.most(1);if(expectScoring)pm.expect(events,type).to.have.length(1);events.forEach(e=>{pm.expect(e.actorId).to.eql(null);pm.expect(e.status).to.eql(\"processing\");pm.expect(e).not.to.have.any.keys(\"score\",\"factors\",\"scoringUrl\",\"error\");});});const observed=r.items.filter(e=>types.concat(scoringTypes).includes(e.eventType)).map(e=>e.eventType);const expected=types.concat(scoringTypes).filter(type=>observed.includes(type));pm.expect(observed).to.deep.eql(expected);if(observed.includes(\"SCORING_COMPLETED\"))pm.expect(observed).to.include(\"SCORING_STARTED\");});",
+              " if(!expectScoring)pm.test.skip(\"Persisted scoring result requires expectScoringResult=true and a compatible service\",()=>{});",
+              " if(done)pm.collectionVariables.set(\"untrustedTimelineJSON\",JSON.stringify(r));",
               "}"
             ]
           }
@@ -10615,7 +10664,7 @@
       ]
     },
     {
-      "name": "206 · Submit — read untrusted application awaiting scoring",
+      "name": "206 · Submit — read untrusted application remaining processing",
       "request": {
         "method": "GET",
         "auth": {
@@ -10858,6 +10907,455 @@
           }
         }
       ]
+    },
+    {
+      "name": "212 · Documents — employee lists submitted application documents",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{investmentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{investmentApplicationId}}",
+            "documents"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Successful submit makes invoice metadata visible to the bank\", () => {",
+              "  pm.expect(r).to.have.all.keys(\"items\");",
+              "  pm.expect(r.items).to.be.an(\"array\").with.length(1);",
+              "  pm.expect(r.items[0]).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"investmentDocumentMetadataJSON\")));",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "213 · Documents — employee downloads submitted invoice with byte integrity check",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{investmentApplicationId}}/documents/{{investmentDocumentId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{investmentApplicationId}}",
+            "documents",
+            "{{investmentDocumentId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Correct MIME, length and private attachment headers\", () => { pm.expect(pm.response.headers.get(\"Content-Type\")).to.eql(\"application/pdf\"); pm.expect(Number(pm.response.headers.get(\"Content-Length\"))).to.eql(608); pm.expect(pm.response.headers.get(\"Content-Disposition\")).to.match(/^attachment(?:;|$)/); pm.expect(pm.response.headers.get(\"Content-Disposition\")).to.include(\"sample.pdf\"); pm.expect(pm.response.headers.get(\"X-Content-Type-Options\")).to.eql(\"nosniff\"); });",
+              "pm.test(\"Downloaded bytes exactly match the synthetic fixture SHA-256\", () => {",
+              " const CryptoJS=require(\"crypto-js\"); const bytes=pm.response.stream; const words=[];",
+              " for(let i=0;i<bytes.length;i++) words[i>>>2]=(words[i>>>2]||0) | (bytes[i] << (24-(i%4)*8));",
+              " const digest=CryptoJS.SHA256(CryptoJS.lib.WordArray.create(words,bytes.length)).toString();",
+              " pm.expect(digest).to.eql(\"07a654c060ac047559af7abd2c8023b5f42b3a7ec41848bca74a791424eb9fd4\");",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "214 · Drafts — submitting one turnover draft leaves another private and unchanged",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{applicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{applicationId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Own saved draft includes permitted company and public product summary\", () => {",
+              " pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"applicationId\")); pm.expect(r.version).to.eql(Number(pm.collectionVariables.get(\"applicationVersion\")));",
+              " pm.expect(r.userId).to.eql(pm.collectionVariables.get(\"clientProfileId\")); pm.expect(r.companyId).to.eql(pm.collectionVariables.get(\"clientCompanyId\"));",
+              " pm.expect(r.company).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"ownCompanyJSON\"))); pm.expect(r.availableActions).to.deep.eql([\"edit\"]);",
+              " pm.expect(r.createdAt).to.eql(pm.collectionVariables.get(\"applicationCreatedAt\")); pm.expect(r.updatedAt).to.eql(pm.collectionVariables.get(\"applicationUpdatedAt\"));",
+              " if (r.productId === null) pm.expect(r.product).to.eql(null);",
+              " else { pm.expect(r.product).to.have.all.keys(\"id\", \"name\"); pm.expect(r.product.id).to.eql(r.productId); pm.expect(r.product.name).to.eql(r.productName); }",
+              "});",
+              "pm.test(\"No failed write changed data\", () => { pm.expect(r.version).to.eql(3); pm.expect(r.requestedAmountRub).to.eql(1500000); pm.expect(r.monthlyRevenueRub).to.eql(null); pm.expect(r.purposeDescription).to.eql(null); pm.expect(r.purpose).to.eql(\"stock\"); });",
+              "pm.test(\"Selected submit does not send another draft of the same product\", () => { pm.expect(r.applicationId).not.to.eql(pm.collectionVariables.get(\"submitApplicationId\")); pm.expect(r.productId).to.eql(\"turnover\"); pm.expect(r.status).to.eql(\"draft\"); pm.expect(r.submittedAt).to.eql(null); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "215 · Drafts — retained same-product draft remains independently editable",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{applicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{applicationId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"version\": {{applicationVersion}},\n  \"purposeDescription\": \"Независимый черновик того же продукта\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Only this private draft changes\", () => {",
+              "  pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"applicationId\"));",
+              "  pm.expect(r.applicationId).not.to.eql(pm.collectionVariables.get(\"submitApplicationId\"));",
+              "  pm.expect(r.userId).to.eql(pm.collectionVariables.get(\"clientProfileId\"));",
+              "  pm.expect(r.companyId).to.eql(pm.collectionVariables.get(\"clientCompanyId\"));",
+              "  pm.expect(r.productId).to.eql(\"turnover\");",
+              "  pm.expect(r.status).to.eql(\"draft\");",
+              "  pm.expect(r.submittedAt).to.eql(null);",
+              "  pm.expect(r.version).to.eql(Number(pm.collectionVariables.get(\"applicationVersion\")) + 1);",
+              "  pm.expect(r.purposeDescription).to.eql(\"Независимый черновик того же продукта\");",
+              "  pm.expect(r.monthlyRevenueRub).to.eql(null);",
+              "  pm.expect(r.monthlyExpensesRub).to.eql(1500000);",
+              "  pm.expect(r.requestedAmountRub).to.eql(1500000);",
+              "  pm.expect(r.createdAt).to.eql(pm.collectionVariables.get(\"applicationCreatedAt\"));",
+              "});",
+              "if (pm.response.code === 200) { pm.collectionVariables.set(\"applicationVersion\", r.version); pm.collectionVariables.set(\"applicationUpdatedAt\", r.updatedAt); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "216 · Drafts — editing another turnover draft preserves the submitted application",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{submitApplicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{submitApplicationId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Independent draft edit does not alter the submitted application\", () => {",
+              "  pm.expect(r).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"submittedApplicationJSON\")));",
+              "  pm.expect(r.status).to.eql(\"processing\");",
+              "  pm.expect(r.productId).to.eql(\"turnover\");",
+              "  pm.expect(r.submittedAt).to.eql(pm.collectionVariables.get(\"submitSubmittedAt\"));",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "217 · Drafts — client list retains all other drafts after selected submissions",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications?limit=100&status=draft",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "100"
+            },
+            {
+              "key": "status",
+              "value": "draft"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test(\"Other drafts remain saved and selected submissions leave only the draft filter\", () => {",
+              "  const ids = r.items.map(item => item.applicationId);",
+              "  [\"applicationId\", \"secondApplicationId\", \"documentApplicationId\", \"incompleteApplicationId\"].forEach(key => pm.expect(ids).to.include(pm.collectionVariables.get(key)));",
+              "  [\"submitApplicationId\", \"investmentApplicationId\"].forEach(key => pm.expect(ids).not.to.include(pm.collectionVariables.get(key)));",
+              "  r.items.forEach(item => pm.expect(item.status).to.eql(\"draft\"));",
+              "  const first = r.items.find(item => item.applicationId === pm.collectionVariables.get(\"applicationId\"));",
+              "  pm.expect(first.version).to.eql(Number(pm.collectionVariables.get(\"applicationVersion\")));",
+              "  pm.expect(first.productId).to.eql(\"turnover\");",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "218 · Scoring — submit history remains stable after repeat submit",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{submitApplicationId}}/timeline",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{submitApplicationId}}",
+            "timeline"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "const expectScoring=String(pm.variables.get(\"expectScoringResult\")).toLowerCase()===\"true\";",
+              "const previous=JSON.parse(pm.collectionVariables.get(\"submitTimelineJSON\"));",
+              "const stable=items=>expectScoring?items:items.filter(e=>![\"SCORING_STARTED\",\"SCORING_COMPLETED\"].includes(e.eventType));",
+              "pm.test(\"Repeated submission preserves persisted history and event IDs\",()=>pm.expect(stable(r.items)).to.deep.eql(stable(previous.items)));",
+              "pm.test(\"Scoring does not create duplicate transitions or a credit decision\",()=>{[\"SCORING_STARTED\",\"SCORING_COMPLETED\"].forEach(type=>{const events=r.items.filter(e=>e.eventType===type);pm.expect(events.length,type).to.be.at.most(1);if(expectScoring)pm.expect(events,type).to.have.length(1);});r.items.filter(e=>e.eventType!==\"APPLICATION_SUBMITTED\"&&!e.eventType.startsWith(\"draft_\")).forEach(e=>pm.expect(e.status).to.eql(\"processing\"));});",
+              "if(!expectScoring)pm.test.skip(\"Scoring completion is not asserted without a configured compatible service\",()=>{});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "219 · Scoring — investment history remains stable after repeat submit",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{investmentApplicationId}}/timeline",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{investmentApplicationId}}",
+            "timeline"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "const expectScoring=String(pm.variables.get(\"expectScoringResult\")).toLowerCase()===\"true\";",
+              "const previous=JSON.parse(pm.collectionVariables.get(\"investmentTimelineJSON\"));",
+              "const stable=items=>expectScoring?items:items.filter(e=>![\"SCORING_STARTED\",\"SCORING_COMPLETED\"].includes(e.eventType));",
+              "pm.test(\"Repeated submission preserves persisted history and event IDs\",()=>pm.expect(stable(r.items)).to.deep.eql(stable(previous.items)));",
+              "pm.test(\"Scoring does not create duplicate transitions or a credit decision\",()=>{[\"SCORING_STARTED\",\"SCORING_COMPLETED\"].forEach(type=>{const events=r.items.filter(e=>e.eventType===type);pm.expect(events.length,type).to.be.at.most(1);if(expectScoring)pm.expect(events,type).to.have.length(1);});r.items.filter(e=>e.eventType!==\"APPLICATION_SUBMITTED\"&&!e.eventType.startsWith(\"draft_\")).forEach(e=>pm.expect(e.status).to.eql(\"processing\"));});",
+              "if(!expectScoring)pm.test.skip(\"Scoring completion is not asserted without a configured compatible service\",()=>{});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "220 · Scoring — untrusted history remains stable after repeat submit",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{thirdClientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{untrustedApplicationId}}/timeline",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{untrustedApplicationId}}",
+            "timeline"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "const expectScoring=String(pm.variables.get(\"expectScoringResult\")).toLowerCase()===\"true\";",
+              "const previous=JSON.parse(pm.collectionVariables.get(\"untrustedTimelineJSON\"));",
+              "const stable=items=>expectScoring?items:items.filter(e=>![\"SCORING_STARTED\",\"SCORING_COMPLETED\"].includes(e.eventType));",
+              "pm.test(\"Repeated submission preserves persisted history and event IDs\",()=>pm.expect(stable(r.items)).to.deep.eql(stable(previous.items)));",
+              "pm.test(\"Scoring does not create duplicate transitions or a credit decision\",()=>{[\"SCORING_STARTED\",\"SCORING_COMPLETED\"].forEach(type=>{const events=r.items.filter(e=>e.eventType===type);pm.expect(events.length,type).to.be.at.most(1);if(expectScoring)pm.expect(events,type).to.have.length(1);});r.items.filter(e=>e.eventType!==\"APPLICATION_SUBMITTED\"&&!e.eventType.startsWith(\"draft_\")).forEach(e=>pm.expect(e.status).to.eql(\"processing\"));});",
+              "if(!expectScoring)pm.test.skip(\"Scoring completion is not asserted without a configured compatible service\",()=>{});"
+            ]
+          }
+        }
+      ]
     }
   ],
   "event": [
@@ -10867,7 +11365,7 @@
         "type": "text/javascript",
         "exec": [
           "// Local values prevent stale environment/global variables from shadowing run results.",
-          "const transientKeys = [\"clientProfileId\", \"bankProfileId\", \"otpRequestId\", \"accessToken\", \"clientOtpRequestId\", \"bankOtpRequestId\", \"clientAccessToken\", \"bankAccessToken\", \"clientCompanyId\", \"clientName\", \"clientPhone\", \"bankName\", \"bankPhone\", \"previousClientOtpRequestId\", \"otherClientProfileId\", \"otherClientOtpRequestId\", \"otherClientAccessToken\", \"otherCompanyId\", \"ownCompanyJSON\", \"creditProductsJSON\", \"applicationId\", \"applicationVersion\", \"previousApplicationVersion\", \"secondApplicationId\", \"applicationCreatedAt\", \"applicationUpdatedAt\", \"applicationListTotal\", \"documentApplicationId\", \"pdfDocumentId\", \"pdfMetadataJSON\", \"pngDocumentId\", \"pngMetadataJSON\", \"jpegDocumentId\", \"jpegMetadataJSON\", \"repeatedDocumentId\", \"repeatedMetadataJSON\", \"submitApplicationId\", \"submitVersion\", \"submitSubmittedAt\", \"submitPollAttempts\", \"submitTimelineJSON\", \"investmentApplicationId\", \"investmentVersion\", \"investmentSubmittedAt\", \"investmentPollAttempts\", \"thirdClientProfileId\", \"thirdClientOtpRequestId\", \"thirdClientAccessToken\", \"thirdCompanyId\", \"untrustedApplicationId\", \"untrustedVersion\", \"untrustedSubmittedAt\", \"untrustedPollAttempts\", \"incompleteApplicationId\", \"incompleteVersion\"];",
+          "const transientKeys = [\"clientProfileId\", \"bankProfileId\", \"otpRequestId\", \"accessToken\", \"clientOtpRequestId\", \"bankOtpRequestId\", \"clientAccessToken\", \"bankAccessToken\", \"clientCompanyId\", \"clientName\", \"clientPhone\", \"bankName\", \"bankPhone\", \"previousClientOtpRequestId\", \"otherClientProfileId\", \"otherClientOtpRequestId\", \"otherClientAccessToken\", \"otherCompanyId\", \"ownCompanyJSON\", \"creditProductsJSON\", \"applicationId\", \"applicationVersion\", \"previousApplicationVersion\", \"secondApplicationId\", \"applicationCreatedAt\", \"applicationUpdatedAt\", \"applicationListTotal\", \"documentApplicationId\", \"pdfDocumentId\", \"pdfMetadataJSON\", \"pngDocumentId\", \"pngMetadataJSON\", \"jpegDocumentId\", \"jpegMetadataJSON\", \"repeatedDocumentId\", \"repeatedMetadataJSON\", \"submitApplicationId\", \"submitVersion\", \"submitSubmittedAt\", \"submitPollAttempts\", \"submitTimelineJSON\", \"investmentApplicationId\", \"investmentVersion\", \"investmentSubmittedAt\", \"investmentPollAttempts\", \"thirdClientProfileId\", \"thirdClientOtpRequestId\", \"thirdClientAccessToken\", \"thirdCompanyId\", \"untrustedApplicationId\", \"untrustedVersion\", \"untrustedSubmittedAt\", \"untrustedPollAttempts\", \"incompleteApplicationId\", \"incompleteVersion\", \"investmentDocumentId\", \"investmentDocumentMetadataJSON\", \"submittedApplicationJSON\", \"investmentTimelineJSON\", \"untrustedTimelineJSON\"];",
           "transientKeys.forEach(key => pm.variables.set(key, pm.collectionVariables.get(key) || \"\"));",
           "const configuredCode = String(pm.variables.get(\"demoOtpCode\") || \"1234\");",
           "pm.variables.set(\"demoOtpCode\", configuredCode);",

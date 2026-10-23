@@ -39,7 +39,7 @@ func (q *PrecheckQueue) Claim(ctx context.Context, lease time.Duration) (*pipeli
 	var job pipeline.Job
 	var attempts, maxAttempts int
 	err = tx.QueryRow(ctx, `SELECT id::text, application_id::text, attempt_count, max_attempts
-		FROM jobs WHERE type=$1 AND (
+		FROM jobs WHERE type=$1 AND processing_stage='prechecks' AND (
 		(status='pending' AND available_at <= clock_timestamp()) OR
 		(status='running' AND lease_until <= clock_timestamp()))
 		ORDER BY available_at, id FOR UPDATE SKIP LOCKED LIMIT 1`, pipeline.JobType).
@@ -151,10 +151,11 @@ func (q *PrecheckQueue) Complete(ctx context.Context, job pipeline.Job, results 
 	if status != "processing" {
 		return pipeline.ErrLeaseLost
 	}
-	updated, err := tx.Exec(ctx, `UPDATE jobs SET status='awaiting_scoring', precheck_results=$4,
+	updated, err := tx.Exec(ctx, `UPDATE jobs SET status='awaiting_scoring', processing_stage='scoring', precheck_results=$4,
+		available_at=clock_timestamp(),
 		lease_token=NULL, lease_until=NULL, finished_at=NULL, last_error=NULL, updated_at=clock_timestamp()
 		WHERE id=$1 AND application_id=$2 AND lease_token=$3 AND status='running'
-		AND lease_until>clock_timestamp()`, job.ID, job.ApplicationID, job.LeaseToken, data)
+		AND processing_stage='prechecks' AND lease_until>clock_timestamp()`, job.ID, job.ApplicationID, job.LeaseToken, data)
 	if err != nil {
 		return pipeline.ErrStorage
 	}
@@ -231,7 +232,7 @@ func (q *PrecheckQueue) Fail(ctx context.Context, job pipeline.Job, code string,
 func lockPrecheckJob(ctx context.Context, tx pgx.Tx, job pipeline.Job) error {
 	var id string
 	err := tx.QueryRow(ctx, `SELECT id::text FROM jobs WHERE id=$1 AND application_id=$2
-		AND type=$4 AND status='running' AND lease_token=$3 AND lease_until>clock_timestamp()
+		AND type=$4 AND processing_stage='prechecks' AND status='running' AND lease_token=$3 AND lease_until>clock_timestamp()
 		FOR UPDATE`, job.ID, job.ApplicationID, job.LeaseToken, pipeline.JobType).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return pipeline.ErrLeaseLost

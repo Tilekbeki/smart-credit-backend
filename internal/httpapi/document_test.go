@@ -45,6 +45,9 @@ func (s *documentRepoStub) CheckApplication(_ context.Context, scope document.Sc
 	if scope.Role == auth.RoleClient && (scope.UserID != testUserID || scope.CompanyID != ownCompanyID) {
 		return "", document.ErrApplicationNotFound
 	}
+	if scope.Role == auth.RoleBankEmployee && s.status == application.Draft {
+		return "", document.ErrApplicationNotFound
+	}
 	if write && s.status != application.Draft {
 		return s.status, document.ErrInvalidStatus
 	}
@@ -248,6 +251,11 @@ func TestDocumentHTTPAccessAndDocumentApplicationBinding(t *testing.T) {
 	if documentRequest(h, "POST", base, body, ct, "", false).Code != 401 {
 		t.Fatal("upload JWT required")
 	}
+	for _, path := range []string{base, base + "/" + meta.DocumentID} {
+		if documentRequest(h, "GET", path, nil, "", token, false).Code != 200 {
+			t.Fatal("owner cannot read draft documents")
+		}
+	}
 	employee := demoUser()
 	employee.ID = "20000000-0000-4000-8000-000000000004"
 	employee.Role = auth.RoleBankEmployee
@@ -257,8 +265,9 @@ func TestDocumentHTTPAccessAndDocumentApplicationBinding(t *testing.T) {
 		t.Fatal("employee upload accepted")
 	}
 	for _, path := range []string{base, base + "/" + meta.DocumentID} {
-		if documentRequest(h, "GET", path, nil, "", bank, false).Code != 200 {
-			t.Fatal("bank read forbidden")
+		w = documentRequest(h, "GET", path, nil, "", bank, false)
+		if w.Code != 404 || responseJSON(t, w)["error"] != "application_not_found" {
+			t.Fatalf("bank accessed draft documents: %d %s", w.Code, w.Body)
 		}
 	}
 	foreign := demoUser()
@@ -286,6 +295,12 @@ func TestDocumentHTTPAccessAndDocumentApplicationBinding(t *testing.T) {
 	}
 	if documentRequest(h, "GET", base+"/"+meta.DocumentID, nil, "", token, false).Code != 200 {
 		t.Fatal("submitted attachment should remainreadable")
+	}
+	bank = issue(employee)
+	for _, path := range []string{base, base + "/" + meta.DocumentID} {
+		if w := documentRequest(h, "GET", path, nil, "", bank, false); w.Code != 200 {
+			t.Fatalf("bank cannot read submitted documents: %d %s", w.Code, w.Body)
+		}
 	}
 }
 

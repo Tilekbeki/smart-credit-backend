@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"smart-credit-backend/internal/application"
 	"smart-credit-backend/internal/auth"
@@ -20,6 +21,7 @@ import (
 	"smart-credit-backend/internal/httpapi"
 	"smart-credit-backend/internal/pipeline"
 	"smart-credit-backend/internal/postgres"
+	"smart-credit-backend/internal/scoring"
 )
 
 func main() {
@@ -66,9 +68,19 @@ func run() error {
 	documentHandler := httpapi.NewDocumentHandler(documents, auth.NewMiddleware(tokens, authRepo, cfg.AuthDBTimeout))
 	submissions := pipeline.NewSubmissionService(postgres.NewApplicationRepository(pool, cfg.AuthDBTimeout), documents, postgres.NewSubmissionRepository(pool, cfg.AuthDBTimeout))
 	submissionHandler := httpapi.NewSubmissionHandler(submissions, auth.NewMiddleware(tokens, authRepo, cfg.AuthDBTimeout))
-	worker, err := pipeline.NewWorker(postgres.NewPrecheckQueue(pool, cfg.AuthDBTimeout), pipeline.NewSimulator(), pipeline.DefaultConfig(), logger)
+	scoringClient, err := scoring.NewClient(cfg.ScoringURL, cfg.ScoringTimeout)
 	if err != nil {
-		return errors.New("precheck worker configuration is invalid")
+		return errors.New("scoring HTTP client configuration is invalid")
+	}
+	defer scoringClient.CloseIdleConnections()
+	workerConfig := pipeline.DefaultConfig()
+	// Leave room for bounded database writes around the HTTP call; the lease
+	// outlives the entire attempt, including its final fenced transaction.
+	workerConfig.AttemptTimeout = max(workerConfig.AttemptTimeout, cfg.ScoringTimeout+10*time.Second)
+	workerConfig.LeaseDuration = max(workerConfig.LeaseDuration, workerConfig.AttemptTimeout+15*time.Second)
+	worker, err := pipeline.NewWorker(postgres.NewPrecheckQueue(pool, cfg.AuthDBTimeout), pipeline.NewSimulator(), workerConfig, logger, pipeline.WithScoring(scoringClient))
+	if err != nil {
+		return errors.New("background worker configuration is invalid")
 	}
 	server := httpapi.NewServer(cfg.HTTP, httpapi.NewHandler(pool, logger, cfg.Database.PingTimeout, authHandler, creditHandler.Register, applicationHandler.Register, documentHandler.Register, submissionHandler.Register), logger)
 	listener, err := net.Listen("tcp", server.Addr)

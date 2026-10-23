@@ -41,6 +41,7 @@ type Config struct {
 	LogLevel            slog.Level
 	DocumentStoragePath string
 	ScoringURL          string
+	ScoringTimeout      time.Duration
 	JWTSecret           string
 	JWTSecretFile       string
 	JWTIssuer           string
@@ -122,6 +123,10 @@ func load(lookup func(string) (string, bool)) (Config, error) {
 	u, err := url.Parse(cfg.ScoringURL)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
 		invalid("SCORING_URL", "must be an HTTP(S) base URL without credentials, query or fragment")
+	}
+	cfg.ScoringTimeout = duration("SCORING_TIMEOUT", "5s")
+	if cfg.ScoringTimeout > time.Minute {
+		invalid("SCORING_TIMEOUT", "must not exceed 1m")
 	}
 	cfg.JWTSecret = get("JWT_SECRET", "")
 	if cfg.JWTSecret != "" && !validJWTSecret(cfg.JWTSecret) {

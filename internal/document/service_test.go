@@ -29,7 +29,10 @@ type repoStub struct {
 func newRepoStub() *repoStub {
 	return &repoStub{rows: map[string]Metadata{}, status: application.Draft}
 }
-func (r *repoStub) CheckApplication(context.Context, Scope, string, bool) (application.Status, error) {
+func (r *repoStub) CheckApplication(_ context.Context, scope Scope, _ string, _ bool) (application.Status, error) {
+	if scope.Role == auth.RoleBankEmployee && r.status == application.Draft {
+		return "", ErrApplicationNotFound
+	}
 	return r.status, r.checkErr
 }
 func (r *repoStub) Reserve(_ context.Context, _ Scope, m Metadata) (Metadata, error) {
@@ -76,9 +79,12 @@ func (r *repoStub) List(context.Context, Scope, string) ([]Metadata, error) {
 	}
 	return rows, nil
 }
-func (r *repoStub) Get(_ context.Context, _ Scope, appID, id string) (Metadata, error) {
+func (r *repoStub) Get(ctx context.Context, scope Scope, appID, id string) (Metadata, error) {
 	if r.getErr != nil {
 		return Metadata{}, r.getErr
+	}
+	if _, err := r.CheckApplication(ctx, scope, appID, false); err != nil {
+		return Metadata{}, err
 	}
 	m, ok := r.rows[id]
 	if !ok || m.Status != "ready" || m.ApplicationID != appID {
@@ -144,6 +150,15 @@ func TestServiceUploadListDownloadAndRepeatedType(t *testing.T) {
 		t.Fatalf("incorrect metadata: %+v", first)
 	}
 	for _, scope := range []Scope{clientScope, employeeScope} {
+		if scope.Role == auth.RoleBankEmployee {
+			if _, err := service.List(t.Context(), scope, testAppID); !errors.Is(err, ErrApplicationNotFound) {
+				t.Fatalf("bank draft list: %v", err)
+			}
+			if _, _, err := service.Download(t.Context(), scope, testAppID, first.DocumentID); !errors.Is(err, ErrApplicationNotFound) {
+				t.Fatalf("bank draft download: %v", err)
+			}
+			repo.status = application.Submitted
+		}
 		items, err := service.List(t.Context(), scope, testAppID)
 		if err != nil || len(items) != 2 {
 			t.Fatalf("list: %d %v", len(items), err)

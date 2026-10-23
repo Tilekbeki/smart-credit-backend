@@ -22,23 +22,34 @@ func DefaultConfig() Config {
 }
 
 type Worker struct {
-	queue     Queue
-	processor Processor
-	config    Config
-	logger    *slog.Logger
+	queue        Queue
+	processor    Processor
+	config       Config
+	logger       *slog.Logger
+	scoringQueue ScoringQueue
+	scorer       Scorer
 }
 
-func NewWorker(queue Queue, processor Processor, config Config, logger *slog.Logger) (*Worker, error) {
+func NewWorker(queue Queue, processor Processor, config Config, logger *slog.Logger, options ...WorkerOption) (*Worker, error) {
 	if queue == nil || processor == nil || config.Concurrency < 1 || config.Concurrency > 64 ||
 		config.PollInterval <= 0 || config.LeaseDuration < time.Millisecond ||
 		config.AttemptTimeout <= 0 || config.AttemptTimeout >= config.LeaseDuration ||
 		config.RetryBaseDelay <= 0 || config.RetryBaseDelay > 30*time.Second {
-		return nil, errors.New("invalid preliminary check worker configuration")
+		return nil, errors.New("invalid pipeline worker configuration")
 	}
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &Worker{queue: queue, processor: processor, config: config, logger: logger}, nil
+	worker := &Worker{queue: queue, processor: processor, config: config, logger: logger}
+	for _, option := range options {
+		if option == nil {
+			return nil, errors.New("invalid worker option")
+		}
+		if err := option(worker); err != nil {
+			return nil, err
+		}
+	}
+	return worker, nil
 }
 
 // Run owns a fixed number of processing goroutines. PostgreSQL remains the only
@@ -53,13 +64,15 @@ func (w *Worker) Run(ctx context.Context) error {
 }
 
 func (w *Worker) loop(ctx context.Context) {
+	scoringFirst := false
 	for ctx.Err() == nil {
-		job, err := w.queue.Claim(ctx, w.config.LeaseDuration)
+		job, err := w.claimNext(ctx, scoringFirst)
+		scoringFirst = !scoringFirst
 		if ctx.Err() != nil {
 			return
 		}
 		if err != nil {
-			w.logger.Warn("precheck queue temporarily unavailable")
+			w.logger.Warn("pipeline queue temporarily unavailable")
 			if !waitForPoll(ctx, w.config.PollInterval) {
 				return
 			}
@@ -71,8 +84,27 @@ func (w *Worker) loop(ctx context.Context) {
 			}
 			continue
 		}
-		w.process(ctx, *job)
+		if job.Stage == ScoringStage {
+			w.processScoring(ctx, *job)
+		} else {
+			w.process(ctx, *job)
+		}
 	}
+}
+
+func (w *Worker) claimNext(ctx context.Context, scoringFirst bool) (*Job, error) {
+	if w.scoringQueue == nil {
+		return w.queue.Claim(ctx, w.config.LeaseDuration)
+	}
+	claim, other := w.queue.Claim, w.scoringQueue.ClaimScoring
+	if scoringFirst {
+		claim, other = other, claim
+	}
+	job, err := claim(ctx, w.config.LeaseDuration)
+	if err != nil || job != nil {
+		return job, err
+	}
+	return other(ctx, w.config.LeaseDuration)
 }
 
 func (w *Worker) process(ctx context.Context, job Job) {

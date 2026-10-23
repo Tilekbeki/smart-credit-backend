@@ -1,8 +1,9 @@
-// Package pipeline submits applications and coordinates durable preliminary checks.
+// Package pipeline submits applications and coordinates durable checks and scoring.
 package pipeline
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"smart-credit-backend/internal/company"
 	"smart-credit-backend/internal/credit"
 	"smart-credit-backend/internal/document"
+	"smart-credit-backend/internal/scoring"
 )
 
 var (
@@ -19,6 +21,8 @@ var (
 
 const JobType = "prechecks"
 const AwaitingScoring = "awaiting_scoring"
+const AwaitingDecision = "awaiting_decision"
+const ScoringStage = "scoring"
 const TrustedFinancialSource = "demo_bank_feed"
 
 type FieldError struct {
@@ -71,11 +75,13 @@ type ValidationInput struct {
 }
 
 type Job struct {
-	ID            string
-	ApplicationID string
-	LeaseToken    string
-	Attempt       int
-	Snapshot      FinancialSnapshot
+	ID              string
+	ApplicationID   string
+	LeaseToken      string
+	Attempt         int
+	Snapshot        FinancialSnapshot
+	Stage           string
+	PrecheckResults json.RawMessage
 }
 type Check struct {
 	Code   string `json:"code"`
@@ -113,4 +119,17 @@ type Queue interface {
 }
 type Processor interface {
 	Run(context.Context, FinancialSnapshot) (Results, error)
+}
+
+// ScoringQueue extends the same durable job through its scoring stage. Its
+// methods fence both the lease owner and stage; HTTP runs outside transactions.
+type ScoringQueue interface {
+	ClaimScoring(context.Context, time.Duration) (*Job, error)
+	SaveScoringRequest(context.Context, Job, scoring.Request) error
+	CompleteScoring(context.Context, Job, scoring.Response) error
+	FailScoring(context.Context, Job, string, time.Duration, bool) error
+}
+
+type Scorer interface {
+	Score(context.Context, scoring.Request) (scoring.Response, error)
 }

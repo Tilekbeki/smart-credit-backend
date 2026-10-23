@@ -45,6 +45,9 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.DocumentStoragePath == "" || cfg.ScoringURL == "" {
 		t.Fatal("future integration settings must have defaults")
 	}
+	if cfg.ScoringTimeout != 5*time.Second {
+		t.Fatal("scoring requests must have a bounded default timeout")
+	}
 	if cfg.AppEnv != "production" || cfg.JWTSecretFile != "./data/secrets/jwt-secret" {
 		t.Fatal("local configuration must default to explicit production secrets")
 	}
@@ -69,6 +72,7 @@ func TestLoadOverridesAndIPv6Address(t *testing.T) {
 		"LOG_LEVEL":                "debug",
 		"DOCUMENT_STORAGE_PATH":    "/tmp/custom-documents",
 		"SCORING_URL":              "https://scoring.example.test/v1",
+		"SCORING_TIMEOUT":          "2s",
 		"JWT_SECRET":               "future-auth-secret-at-least-32-bytes",
 		"DEMO_OTP_CODE":            "0123",
 	}))
@@ -86,6 +90,9 @@ func TestLoadOverridesAndIPv6Address(t *testing.T) {
 	}
 	if cfg.LogLevel != slog.LevelDebug || cfg.DocumentStoragePath != "/tmp/custom-documents" || cfg.ScoringURL != "https://scoring.example.test/v1" || cfg.JWTSecret != "future-auth-secret-at-least-32-bytes" || cfg.DemoOTPCode != "0123" {
 		t.Fatal("logging or reserved configuration overrides were not applied")
+	}
+	if cfg.ScoringTimeout != 2*time.Second {
+		t.Fatal("scoring timeout override was not applied")
 	}
 }
 
@@ -117,6 +124,10 @@ func TestLoadRejectsInvalidConfigurationWithoutEchoingValues(t *testing.T) {
 		{name: "scoring query", key: "SCORING_URL", value: "https://scoring.example.test?token=private-token"},
 		{name: "scoring fragment", key: "SCORING_URL", value: "https://scoring.example.test#private-token"},
 		{name: "scoring without host", key: "SCORING_URL", value: "https:///path"},
+		{name: "invalid scoring timeout", key: "SCORING_TIMEOUT", value: "secret-duration"},
+		{name: "zero scoring timeout", key: "SCORING_TIMEOUT", value: "0s"},
+		{name: "negative scoring timeout", key: "SCORING_TIMEOUT", value: "-1s"},
+		{name: "oversized scoring timeout", key: "SCORING_TIMEOUT", value: "61s"},
 		{name: "missing JWT secret", key: "JWT_SECRET", value: ""},
 		{name: "short JWT secret", key: "JWT_SECRET", value: "private-key"},
 		{name: "blank JWT secret", key: "JWT_SECRET", value: strings.Repeat(" ", 32)},

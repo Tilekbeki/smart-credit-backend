@@ -53,8 +53,8 @@ func validateDocumentScope(scope document.Scope, write bool) error {
 	return nil
 }
 
-// A bank employee may read all applications in this demo. Client access always
-// requires both the application owner and the company from authentication.
+// Bank visibility begins after submission. Client access always requires both
+// the application owner and the company from authentication, including drafts.
 func documentScopeValues(scope document.Scope) (bool, any) {
 	if scope.Role == auth.RoleBankEmployee {
 		return true, nil
@@ -67,7 +67,8 @@ func checkedDocumentApplication(ctx context.Context, query interface {
 }, scope document.Scope, id string, write, lock bool) (application.Status, error) {
 	bank, companyID := documentScopeValues(scope)
 	statement := `SELECT a.status FROM applications a WHERE a.id=$1
-		AND ($2::boolean OR (a.owner_id=$3::uuid AND a.company_id=$4::uuid))`
+		AND (($2::boolean AND a.status<>'draft' AND a.submitted_at IS NOT NULL)
+		OR (NOT $2::boolean AND a.owner_id=$3::uuid AND a.company_id=$4::uuid))`
 	if lock {
 		statement += ` FOR UPDATE`
 	}
@@ -211,7 +212,8 @@ func (r *DocumentRepository) List(ctx context.Context, scope document.Scope, app
 	bank, companyID := documentScopeValues(scope)
 	rows, err := tx.Query(ctx, `SELECT `+documentColumns+` FROM documents d
 		JOIN applications a ON a.id=d.application_id WHERE d.application_id=$1 AND d.status='ready'
-		AND ($2::boolean OR (a.owner_id=$3::uuid AND a.company_id=$4::uuid))
+		AND (($2::boolean AND a.status<>'draft' AND a.submitted_at IS NOT NULL)
+		OR (NOT $2::boolean AND a.owner_id=$3::uuid AND a.company_id=$4::uuid))
 		ORDER BY d.created_at, d.id`, applicationID, bank, scope.UserID, companyID)
 	if err != nil {
 		return nil, document.ErrStorage
@@ -257,7 +259,8 @@ func (r *DocumentRepository) Get(ctx context.Context, scope document.Scope, appl
 	bank, companyID := documentScopeValues(scope)
 	result, err := scanDocument(tx.QueryRow(ctx, `SELECT `+documentColumns+` FROM documents d
 		JOIN applications a ON a.id=d.application_id WHERE d.id=$1 AND d.application_id=$2 AND d.status='ready'
-		AND ($3::boolean OR (a.owner_id=$4::uuid AND a.company_id=$5::uuid))`,
+		AND (($3::boolean AND a.status<>'draft' AND a.submitted_at IS NOT NULL)
+		OR (NOT $3::boolean AND a.owner_id=$4::uuid AND a.company_id=$5::uuid))`,
 		documentID, applicationID, bank, scope.UserID, companyID))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return document.Metadata{}, document.ErrNotFound

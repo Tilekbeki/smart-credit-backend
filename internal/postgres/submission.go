@@ -133,8 +133,9 @@ func repeatedSubmission(ctx context.Context, tx pgx.Tx, app application.Applicat
 		return pipeline.SubmitResult{}, application.ErrInvalidStatus
 	}
 	var jobStatus string
-	err := tx.QueryRow(ctx, `SELECT status FROM jobs WHERE application_id=$1 AND type=$2`,
-		app.ApplicationID, pipeline.JobType).Scan(&jobStatus)
+	var prechecksCompleted bool
+	err := tx.QueryRow(ctx, `SELECT status,precheck_results IS NOT NULL FROM jobs WHERE application_id=$1 AND type=$2`,
+		app.ApplicationID, pipeline.JobType).Scan(&jobStatus, &prechecksCompleted)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return pipeline.SubmitResult{}, application.ErrInvalidStatus
 	}
@@ -142,7 +143,7 @@ func repeatedSubmission(ctx context.Context, tx pgx.Tx, app application.Applicat
 		return pipeline.SubmitResult{}, pipeline.ErrStorage
 	}
 	next := pipeline.JobType
-	if jobStatus == pipeline.AwaitingScoring {
+	if prechecksCompleted || jobStatus == pipeline.AwaitingScoring || jobStatus == pipeline.AwaitingDecision {
 		next = pipeline.AwaitingScoring
 	}
 	// This branch has no mutations. Releasing the lock by rollback avoids a
