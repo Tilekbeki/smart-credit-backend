@@ -1,0 +1,57 @@
+openapi: 3.0.3
+info:
+  title: Smart Credit Go backend — infrastructure
+  version: 0.1.0
+  description: Stage 1 exposes probes only. Credit and authentication APIs are not implemented.
+servers:
+  - url: http://localhost:8080
+paths:
+  /health:
+    get:
+      operationId: health
+      summary: Process liveness; does not query PostgreSQL
+      responses:
+        '200':
+          description: The HTTP process is running
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, service]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+                  service:
+                    type: string
+                    enum: [backend]
+  /ready:
+    get:
+      operationId: readiness
+      summary: Checks PostgreSQL connectivity within DB_PING_TIMEOUT
+      responses:
+        '200':
+          description: PostgreSQL is reachable; does not verify migration version
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [ready]
+        '503':
+          description: PostgreSQL is unavailable or the check timed out
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, error]
+                properties:
+                  status:
+                    type: string
+                    enum: [not_ready]
+                  error:
+                    type: string
+                    enum: [database_unavailable]
