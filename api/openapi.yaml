@@ -153,6 +153,8 @@ paths:
       x-roles: []
       summary: List the four seeded synthetic users from PostgreSQL
       description: Three CLIENT profiles and one BANK_EMPLOYEE profile. Authentication is not required.
+        bankRelationship distinguishes the seeded Alfa-account journey from the external-account journey;
+        it is null for the employee. Profiles are synthetic and do not support arbitrary new applicants.
       responses:
         '200':
           description: Available demonstration profiles; phone numbers are synthetic and displayable
@@ -1792,6 +1794,7 @@ components:
       - phone
       - role
       - companyName
+      - bankRelationship
       properties:
         id:
           type: string
@@ -1810,6 +1813,17 @@ components:
           nullable: true
           description: Null for BANK_EMPLOYEE
           example: ИП «Лавка у дома»
+        bankRelationship:
+          type: string
+          nullable: true
+          enum:
+          - alfa_account
+          - external_account
+          - null
+          description: 'Synthetic company relationship: alfa_account means a seeded Alfa settlement
+            account; external_account means no Alfa account in this prototype. Null for BANK_EMPLOYEE.
+            This is separate from whether turnover data is trusted by the bank.'
+          example: alfa_account
     DemoProfilesResponse:
       type: object
       required:
@@ -1983,6 +1997,7 @@ components:
       required:
       - id
       - name
+      - bankRelationship
       - organizationType
       - inn
       - registrationNumber
@@ -1998,6 +2013,15 @@ components:
           format: uuid
         name:
           type: string
+        bankRelationship:
+          type: string
+          enum:
+          - alfa_account
+          - external_account
+          description: 'Synthetic relationship with Alfa-Bank. This does not expose an account number
+            or prove that financial data came from the bank. external_account can still submit an
+            application; a turnover loan may require a bank statement.'
+          example: external_account
         organizationType:
           type: string
           enum:

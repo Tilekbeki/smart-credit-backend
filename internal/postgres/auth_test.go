@@ -122,11 +122,16 @@ func TestAuthRepository(t *testing.T) {
 			if p.Name == "" || p.Phone == "" || !validUUID(p.ID) {
 				t.Fatal("profile fields were not read")
 			}
-			if i < 3 && (p.Role != auth.RoleClient || p.CompanyName == nil || *p.CompanyName == "") {
+			if i < 3 && (p.Role != auth.RoleClient || p.CompanyName == nil || *p.CompanyName == "" || p.BankRelationship == nil) {
 				t.Fatal("client company/role missing")
 			}
 		}
-		if profiles[3].Role != auth.RoleBankEmployee || profiles[3].CompanyName != nil {
+		if *profiles[0].BankRelationship != "alfa_account" ||
+			*profiles[1].BankRelationship != "external_account" ||
+			*profiles[2].BankRelationship != "external_account" {
+			t.Fatal("seeded client account relationship is wrong")
+		}
+		if profiles[3].Role != auth.RoleBankEmployee || profiles[3].CompanyName != nil || profiles[3].BankRelationship != nil {
 			t.Fatal("employee profile must not have a company")
 		}
 		if _, err := repo.RequestOTP(ctx, "20000000-0000-4000-8000-000000000005"); !errors.Is(err, auth.ErrUserNotFound) {

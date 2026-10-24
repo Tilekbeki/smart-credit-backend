@@ -86,6 +86,7 @@ func TestSubmissionRepositoryCommitsFrozenInputsAndJob(t *testing.T) {
 	if snapshot.SchemaVersion != 1 || snapshot.ApplicationID != draft.ApplicationID ||
 		snapshot.UserID != draftOwner.UserID || snapshot.CompanyID != draftOwner.CompanyID ||
 		!reflect.DeepEqual(snapshot.Fields, draft.Fields) || snapshot.Company.Profile.ID != draftOwner.CompanyID ||
+		snapshot.Company.Profile.BankRelationship != "alfa_account" ||
 		snapshot.Company.Profile.Financials.ExistingDebtRub != 500_000 ||
 		snapshot.Company.FinancialDataSource != pipeline.TrustedFinancialSource ||
 		snapshot.Company.RegistrationStatus != "active" || len(snapshot.Documents) != 0 ||

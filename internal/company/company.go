@@ -29,6 +29,7 @@ type Financials struct {
 type Company struct {
 	ID                 string     `json:"id"`
 	Name               string     `json:"name"`
+	BankRelationship   string     `json:"bankRelationship"`
 	OrganizationType   string     `json:"organizationType"`
 	INN                string     `json:"inn"`
 	RegistrationNumber string     `json:"registrationNumber"`

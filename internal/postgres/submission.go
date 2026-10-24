@@ -155,12 +155,12 @@ func repeatedSubmission(ctx context.Context, tx pgx.Tx, app application.Applicat
 func submissionCompany(ctx context.Context, tx pgx.Tx, id string) (pipeline.CompanySnapshot, error) {
 	var result pipeline.CompanySnapshot
 	profile := &result.Profile
-	err := tx.QueryRow(ctx, `SELECT id::text, name, COALESCE(organization_type,''), COALESCE(inn,''),
+	err := tx.QueryRow(ctx, `SELECT id::text, name, bank_relationship, COALESCE(organization_type,''), COALESCE(inn,''),
 		COALESCE(registration_number,''), COALESCE(to_char(registration_date,'YYYY-MM-DD'),''), COALESCE(okved,''),
 		COALESCE(director_name,''), COALESCE(contact_phone,''), COALESCE(contact_email,''), COALESCE(contact_address,''),
 		monthly_revenue, monthly_expenses, existing_debt, monthly_debt_payments, overdue_count,
 		financial_data_source, registration_status FROM companies WHERE id=$1 FOR SHARE`, id).Scan(
-		&profile.ID, &profile.Name, &profile.OrganizationType, &profile.INN,
+		&profile.ID, &profile.Name, &profile.BankRelationship, &profile.OrganizationType, &profile.INN,
 		&profile.RegistrationNumber, &profile.RegistrationDate, &profile.OKVED,
 		&profile.DirectorName, &profile.Contact.Phone, &profile.Contact.Email, &profile.Contact.Address,
 		&profile.Financials.MonthlyRevenueRub, &profile.Financials.MonthlyExpensesRub,

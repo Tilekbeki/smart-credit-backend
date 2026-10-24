@@ -80,10 +80,12 @@ func authRequest(handler http.Handler, method, path, body, token string) *httpte
 
 func TestDemoProfilesUseRepository(t *testing.T) {
 	company := "Учебная компания"
+	alfaAccount := "alfa_account"
+	externalAccount := "external_account"
 	repo := &authRepoStub{profiles: []auth.Profile{
-		{ID: testUserID, Name: "Первый", Phone: "+79990000001", Role: auth.RoleClient, CompanyName: &company},
-		{ID: "20000000-0000-4000-8000-000000000002", Name: "Второй", Phone: "+79990000002", Role: auth.RoleClient, CompanyName: &company},
-		{ID: "20000000-0000-4000-8000-000000000003", Name: "Третий", Phone: "+79990000003", Role: auth.RoleClient, CompanyName: &company},
+		{ID: testUserID, Name: "Первый", Phone: "+79990000001", Role: auth.RoleClient, CompanyName: &company, BankRelationship: &alfaAccount},
+		{ID: "20000000-0000-4000-8000-000000000002", Name: "Второй", Phone: "+79990000002", Role: auth.RoleClient, CompanyName: &company, BankRelationship: &externalAccount},
+		{ID: "20000000-0000-4000-8000-000000000003", Name: "Третий", Phone: "+79990000003", Role: auth.RoleClient, CompanyName: &company, BankRelationship: &externalAccount},
 		{ID: "20000000-0000-4000-8000-000000000004", Name: "Сотрудник", Phone: "+79990000004", Role: auth.RoleBankEmployee},
 	}}
 	h, _, _ := authTestHandler(t, repo)
@@ -96,6 +98,12 @@ func TestDemoProfilesUseRepository(t *testing.T) {
 	}
 	if result.Items[0].CompanyName == nil || result.Items[3].CompanyName != nil || result.Items[3].Role != auth.RoleBankEmployee {
 		t.Fatal("invalid profile company or role")
+	}
+	if result.Items[0].BankRelationship == nil || *result.Items[0].BankRelationship != alfaAccount ||
+		result.Items[1].BankRelationship == nil || *result.Items[1].BankRelationship != externalAccount ||
+		result.Items[2].BankRelationship == nil || *result.Items[2].BankRelationship != externalAccount ||
+		result.Items[3].BankRelationship != nil {
+		t.Fatal("demo profiles must expose the seeded account journeys")
 	}
 }
 

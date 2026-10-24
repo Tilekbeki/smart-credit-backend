@@ -29,7 +29,7 @@ func (r *AuthRepository) ListProfiles(ctx context.Context) ([]auth.Profile, erro
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
 	rows, err := r.pool.Query(ctx, `
-		SELECT u.id::text, u.full_name, u.phone, u.role, c.name
+		SELECT u.id::text, u.full_name, u.phone, u.role, c.name, c.bank_relationship
 		FROM users u LEFT JOIN companies c ON c.id = u.company_id
 		WHERE u.profile_key IN ('shop', 'workshop', 'cafe', 'bank_employee')
 		ORDER BY CASE u.profile_key
@@ -42,7 +42,7 @@ func (r *AuthRepository) ListProfiles(ctx context.Context) ([]auth.Profile, erro
 	profiles := make([]auth.Profile, 0, 4)
 	for rows.Next() {
 		var p auth.Profile
-		if err := rows.Scan(&p.ID, &p.Name, &p.Phone, &p.Role, &p.CompanyName); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &p.Phone, &p.Role, &p.CompanyName, &p.BankRelationship); err != nil {
 			return nil, auth.ErrStorage
 		}
 		profiles = append(profiles, p)
