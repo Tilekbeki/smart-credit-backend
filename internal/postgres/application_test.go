@@ -526,8 +526,8 @@ func TestApplicationDraftMigrationRenamesConfirmation(t *testing.T) {
 	draftStatusFixture(t, pool, draft.ApplicationID, application.Approved)
 	var decisionID, offerID string
 	if err := pool.QueryRow(ctx, `INSERT INTO credit_decisions
-		(application_id,version,source,outcome,approved_amount,reasons,policy_version,decided_by)
-		VALUES ($1,1,'MANUAL','approved',1500000,'[]','synthetic-test',$2) RETURNING id::text`,
+		(application_id,version,source,outcome,approved_amount,reasons,policy_version,decided_by,internal_comment)
+		VALUES ($1,1,'MANUAL','approved',1500000,'[]','synthetic-test',$2,'Synthetic legacy confirmation') RETURNING id::text`,
 		draft.ApplicationID, demoEmployeeID).Scan(&decisionID); err != nil {
 		t.Fatal("cannot create legacy confirmation decision fixture")
 	}

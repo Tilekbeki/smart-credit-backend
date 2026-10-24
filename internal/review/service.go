@@ -34,6 +34,12 @@ func (s *Service) Decision(ctx context.Context, scope application.Scope, id stri
 	if err != nil {
 		return CreditDecision{}, err
 	}
+	return DecisionView(r)
+}
+
+// DecisionView maps one committed or transaction-local snapshot to the public
+// decision DTO. Mutations use this same mapping when saving their replay body.
+func DecisionView(r Record) (CreditDecision, error) {
 	a := r.Application
 	v := CreditDecision{ApplicationID: a.ApplicationID, Status: a.Status, Version: a.Version, Reasons: []string{}, Processing: processing(r)}
 	if r.Job != nil {
@@ -144,6 +150,9 @@ func (s *Service) BankAssessment(ctx context.Context, id string) (BankAssessment
 	}
 	a := r.Application
 	v := BankAssessment{ApplicationID: a.ApplicationID, Status: a.Status, Version: a.Version, ManualReviewReasons: []decision.Reason{}, Recommendations: []Recommendation{}, Processing: processing(r)}
+	if r.Final != nil {
+		v.ManualDecision = r.Final.ManualDecision
+	}
 	if r.Job == nil {
 		return v, nil
 	}

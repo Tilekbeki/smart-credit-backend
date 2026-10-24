@@ -27,15 +27,18 @@ func NewApplicationRepository(pool *pgxpool.Pool, timeout time.Duration) *Applic
 const applicationColumns = `a.id::text, a.owner_id::text, a.company_id::text,
 	p.code, a.goal_id, a.goal_description, a.amount, a.term_months,
 	a.monthly_revenue, a.monthly_expenses, p.name, a.status, a.version,
-	a.created_at, a.updated_at, a.submitted_at`
+	a.created_at, a.updated_at, a.submitted_at,
+	EXISTS(SELECT 1 FROM offers o WHERE o.application_id=a.id AND o.status='active' AND o.is_primary
+	 AND o.decision_id=(SELECT id FROM credit_decisions WHERE application_id=a.id ORDER BY version DESC LIMIT 1))`
 
 func scanApplication(row pgx.Row) (application.Application, error) {
 	var result application.Application
+	var activeOffer bool
 	err := row.Scan(&result.ApplicationID, &result.UserID, &result.CompanyID,
 		&result.ProductID, &result.Purpose, &result.PurposeDescription,
 		&result.RequestedAmountRub, &result.TermMonths, &result.MonthlyRevenueRub,
 		&result.MonthlyExpensesRub, &result.ProductName, &result.Status, &result.Version,
-		&result.CreatedAt, &result.UpdatedAt, &result.SubmittedAt)
+		&result.CreatedAt, &result.UpdatedAt, &result.SubmittedAt, &activeOffer)
 	if err != nil {
 		return application.Application{}, err
 	}
@@ -48,6 +51,8 @@ func scanApplication(row pgx.Row) (application.Application, error) {
 	result.AvailableActions = []string{}
 	if result.Status == application.Draft {
 		result.AvailableActions = []string{"edit", "submit"}
+	} else if (result.Status == application.Approved || result.Status == application.CounterOffer) && activeOffer {
+		result.AvailableActions = []string{"accept", "decline"}
 	}
 	return result, nil
 }

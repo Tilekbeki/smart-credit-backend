@@ -32,41 +32,13 @@ func (e *Engine) Evaluate(input Input) (Result, error) {
 		}
 		return result, nil
 	}
-	fields, product := data.snapshot.Fields, data.product
+	product := data.product
 	facts := company.RegistrationChecks(data.snapshot.Company.Profile, data.snapshot.Company.RegistrationStatus, input.SubmittedAt)
-
-	// Explicit critical policy grounds take precedence over advisory scoring
-	// conflicts. Technical/shape validation has already completed above.
-	critical := []string{}
-	if result.RiskLevel == "HIGH" {
-		critical = append(critical, "Высокий кредитный риск по демонстрационной кредитной политике.")
-	}
-	for _, fact := range facts {
-		if !fact.Passed && criticalRegistrationCheck(fact.Code) {
-			critical = append(critical, fact.Message)
-		}
-	}
-	for _, check := range data.prechecks.CompanyCheck.Checks {
-		if !check.Passed && criticalRegistrationCheck(check.Code) {
-			critical = append(critical, "Не пройдена обязательная проверка регистрационных сведений компании: "+check.Code+".")
-		}
-	}
-	registered, dateErr := time.Parse(time.DateOnly, data.snapshot.Company.Profile.RegistrationDate)
-	if dateErr == nil && !registered.After(input.SubmittedAt.UTC()) && credit.BusinessAgeMonths(registered, input.SubmittedAt) < product.MinBusinessAgeMonths {
-		critical = append(critical, "Возраст бизнеса меньше минимального возраста для продукта.")
-	}
-	if !slices.Contains(product.Purposes, *fields.Purpose) {
-		critical = append(critical, "Цель финансирования не поддерживается выбранным продуктом.")
-	}
-	if *fields.RequestedAmountRub < product.MinAmountRub || *fields.RequestedAmountRub > product.MaxAmountRub {
-		critical = append(critical, "Запрошенная сумма находится вне границ выбранного продукта.")
-	}
-	if *fields.TermMonths < product.MinTermMonths || *fields.TermMonths > product.MaxTermMonths {
-		critical = append(critical, "Запрошенный срок находится вне границ выбранного продукта.")
-	}
+	critical := criticalGrounds(data, input.SubmittedAt)
 	if len(critical) != 0 {
 		return finish(application.Rejected, critical...)
 	}
+	registered, dateErr := time.Parse(time.DateOnly, data.snapshot.Company.Profile.RegistrationDate)
 
 	manual := checkAmbiguities(data.prechecks.CompanyCheck)
 	if profileConflict(data.prechecks.CompanyCheck, facts) {
@@ -129,6 +101,41 @@ func (e *Engine) Evaluate(input Input) (Result, error) {
 	}
 	result.Offer = newOffer(product, amount, data.request.TermMonths, payment)
 	return finish(application.CounterOffer, "Исходная сумма превышает допустимую финансовую нагрузку.", "Предложена меньшая сумма в пределах продукта и доступного бюджета.")
+}
+
+// Critical grounds are shared by automatic policy and manual proposals so an
+// employee can resolve advisory uncertainty without bypassing mandatory rules.
+func criticalGrounds(data evaluationData, submittedAt time.Time) []string {
+	fields, product := data.snapshot.Fields, data.product
+	facts := company.RegistrationChecks(data.snapshot.Company.Profile, data.snapshot.Company.RegistrationStatus, submittedAt)
+	critical := []string{}
+	if riskLevel(data.response.Score) == "HIGH" {
+		critical = append(critical, "Высокий кредитный риск по демонстрационной кредитной политике.")
+	}
+	for _, fact := range facts {
+		if !fact.Passed && criticalRegistrationCheck(fact.Code) {
+			critical = append(critical, fact.Message)
+		}
+	}
+	for _, check := range data.prechecks.CompanyCheck.Checks {
+		if !check.Passed && criticalRegistrationCheck(check.Code) {
+			critical = append(critical, "Не пройдена обязательная проверка регистрационных сведений компании: "+check.Code+".")
+		}
+	}
+	registered, dateErr := time.Parse(time.DateOnly, data.snapshot.Company.Profile.RegistrationDate)
+	if dateErr == nil && !registered.After(submittedAt.UTC()) && credit.BusinessAgeMonths(registered, submittedAt) < product.MinBusinessAgeMonths {
+		critical = append(critical, "Возраст бизнеса меньше минимального возраста для продукта.")
+	}
+	if !slices.Contains(product.Purposes, *fields.Purpose) {
+		critical = append(critical, "Цель финансирования не поддерживается выбранным продуктом.")
+	}
+	if *fields.RequestedAmountRub < product.MinAmountRub || *fields.RequestedAmountRub > product.MaxAmountRub {
+		critical = append(critical, "Запрошенная сумма находится вне границ выбранного продукта.")
+	}
+	if *fields.TermMonths < product.MinTermMonths || *fields.TermMonths > product.MaxTermMonths {
+		critical = append(critical, "Запрошенный срок находится вне границ выбранного продукта.")
+	}
+	return critical
 }
 
 func newOffer(product credit.Product, amount int64, term int, payment int64) *Offer {

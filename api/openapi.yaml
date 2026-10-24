@@ -16,9 +16,9 @@ info:
     manual_review. Final automatic decisions and applicable offers are persisted atomically; manual_review
     stores the assessment without a fictitious final decision. Private application documents can be uploaded by their CLIENT owner and read by their owner
     or BANK_EMPLOYEE after successful submit. Drafts are private to their CLIENT owner.
-    API v1 freezes 23 implemented and three planned operations; planned operations are marked
-    x-implementation-status: planned and have no handlers. Client decision details, current offers and read-only bank views are implemented;
-    offer actions and manual bank decisions remain planned.
+    All 26 API v1 operations are implemented, including manual bank decisions and client offer actions.
+    Internal employee comments are visible only in the bank assessment. CLIENT can confirm or decline
+    the current active offer; signed means demonstration confirmation without loan disbursement.
     Scoring integration follows the local JSON Schema; the real Python service and its Docker artifact
     are not supplied by this repository and have not been verified. Monetary amounts use integer rubles,
     annualRatePercent uses percent, and
@@ -50,21 +50,21 @@ x-application-lifecycle:
     - rejected
     actor: BANK_EMPLOYEE
     via: POST /api/v1/bank/applications/{applicationId}/decisions
-    implementation: planned
+    implementation: implemented
   - from:
     - approved
     - counter_offer
     to: signed
     actor: CLIENT
     via: POST /api/v1/applications/{applicationId}/accept
-    implementation: planned
+    implementation: implemented
   - from:
     - approved
     - counter_offer
     to: closed
     actor: CLIENT
     via: POST /api/v1/applications/{applicationId}/decline
-    implementation: planned
+    implementation: implemented
   terminalStates:
   - rejected
   - signed
@@ -609,7 +609,8 @@ paths:
       description: CLIENT only, owner and company must match the current user. Missing
         and foreign UUIDs both return 404 application_not_found without disclosing existence.
         Includes permitted company details and the selected product summary. Draft availableActions
-        is [edit, submit]; other states have no editing actions. Submit still validates completeness and documents.
+        is [edit, submit]; approved/counter_offer expose [accept, decline] only while the current offer is active.
+        Other client states expose []. Submit still validates completeness and documents.
       security:
       - BearerAuth: []
       responses:
@@ -1212,19 +1213,21 @@ paths:
     parameters:
     - $ref: '#/components/parameters/DecisionApplicationId'
     post:
-      x-implementation-status: planned
+      x-implementation-status: implemented
       security:
       - BearerAuth: []
       operationId: acceptApplicationOffer
       summary: Accept the current active primary offer
-      description: 'PLANNED: no HTTP handler exists yet. CLIENT owner and company only. Allowed in approved/counter_offer
+      description: 'CLIENT owner and company only. Allowed in approved/counter_offer
         with a current active primary offer. Changes application to signed and offer to accepted atomically
         with an event. Credit decision is preserved. signed is demonstration confirmation only, without
         disbursement or a legally binding bank agreement. Repeating the same completed action on the same
-        offer succeeds without another event/version increment, including after idempotency retention expires.
+        offer succeeds without another event/version increment, including after idempotency retention expires,
+        only when durable audit confirms the actor, offer, operation and original/result version.
         Opposite actions or stale/different offers return 409. State/version/offer checks and mutations
         use one transaction and application row locking. Same Idempotency-Key and body replay the original
-        result; changed body gives 409. Authorization is checked before replay. Keys live 24 hours; transactional
+        result before stale-version validation; changed body gives 409 idempotency_conflict. Authorization and
+        ownership are checked before replay. Keys live 24 hours; transactional
         state guards remain afterwards.'
       x-roles:
       - CLIENT
@@ -1290,19 +1293,21 @@ paths:
     parameters:
     - $ref: '#/components/parameters/DecisionApplicationId'
     post:
-      x-implementation-status: planned
+      x-implementation-status: implemented
       security:
       - BearerAuth: []
       operationId: declineApplicationOffer
       summary: Decline the current active primary offer
-      description: 'PLANNED: no HTTP handler exists yet. CLIENT owner and company only. Allowed in approved/counter_offer
+      description: 'CLIENT owner and company only. Allowed in approved/counter_offer
         with a current active primary offer. Changes application to closed and offer to withdrawn atomically
         with an event. Credit decision is preserved. signed is demonstration confirmation only, without
         disbursement or a legally binding bank agreement. Repeating the same completed action on the same
-        offer succeeds without another event/version increment, including after idempotency retention expires.
+        offer succeeds without another event/version increment, including after idempotency retention expires,
+        only when durable audit confirms the actor, offer, operation and original/result version.
         Opposite actions or stale/different offers return 409. State/version/offer checks and mutations
         use one transaction and application row locking. Same Idempotency-Key and body replay the original
-        result; changed body gives 409. Authorization is checked before replay. Keys live 24 hours; transactional
+        result before stale-version validation; changed body gives 409 idempotency_conflict. Authorization and
+        ownership are checked before replay. Keys live 24 hours; transactional
         state guards remain afterwards.'
       x-roles:
       - CLIENT
@@ -1593,20 +1598,22 @@ paths:
     parameters:
     - $ref: '#/components/parameters/BankApplicationId'
     post:
-      x-implementation-status: planned
+      x-implementation-status: implemented
       security:
       - BearerAuth: []
       operationId: createManualCreditDecision
       summary: Record an employee decision for a manual-review application
-      description: 'PLANNED: no HTTP handler exists yet. BANK_EMPLOYEE only. Server-side access excludes
+      description: 'BANK_EMPLOYEE only. Server-side access excludes
         drafts regardless of knowing their UUID. Bank visibility starts only after successful submit. Only
         manual_review may be decided. A draft is hidden with 404 application_not_found, before state validation.
         Current application version and a trimmed 1..1000-character internal comment are required. approved
         preserves submitted amount/term; counter_offer amount cannot exceed requested amount, both conditions
         satisfy frozen product limits, and at least one changes. Frozen rate and product are unchanged;
-        backend calculates the payment. rejected requires offer=null. Employee identity comes from authentication,
+        backend calculates the payment and validates it against the frozen financial budget and hard product limits.
+        All decisions require the offer property; rejected requires offer=null. Employee identity comes from authentication,
         not JSON. Application/decision/offer/event/idempotency result commit in one transaction with application
-        locking. Same key/body replays original 201; changed body gives 409. Keys live 24 hours; state/version
+        locking. Same key and canonical typed body replay original 201 before stale-version validation; changed body
+        gives 409 idempotency_conflict. Keys live 24 hours; state/version
         constraints still prevent repeating the decision after expiry. Manual approval does not redefine
         the scoring result or original risk assessment.'
       x-roles:
@@ -1741,9 +1748,11 @@ components:
       in: header
       required: true
       description: UUID generated once per logical new POST operation. Scoped by authenticated user, operation
-        and application. Same canonical body/key replays original status/body; changed body returns 409 idempotency_conflict.
-        Retention is 24 hours. Access is rechecked before replay; state/transaction guards prevent duplicate
-        actions after expiry. Existing submit does not require this header.
+        and application. Canonical typed JSON is hashed; formatting and object-key ordering do not change identity.
+        Same canonical body/key replays original status/body before stale-version validation; changed body
+        returns 409 idempotency_conflict. Retention is 24 hours. Access and ownership are rechecked before
+        replay; state/transaction guards prevent duplicate actions after expiry. Manual decisions then conflict;
+        a completed identical offer action requires matching durable audit and original/result version. Existing submit does not require this header.
       schema:
         type: string
         format: uuid
@@ -2303,7 +2312,8 @@ components:
       - closed
       description: Create and PATCH work with draft. Submit advances draft to submitted;
         the worker advances it to processing, saves scoring and applies Go policy to produce approved,
-        rejected, counter_offer or manual_review. signed and closed require later planned actions;
+        rejected, counter_offer or manual_review. A bank employee resolves manual_review; CLIENT accept/decline
+        transitions an active approved/counter_offer proposal to signed/closed respectively;
         technical errors are stored separately and never imply a credit refusal.
     ApplicationDraftInput:
       type: object
@@ -2538,8 +2548,11 @@ components:
             enum:
             - edit
             - submit
-          description: '[edit, submit] for draft; [] otherwise. submit availability does not imply
-            successful validation; completeness and mandatory documents are checked by POST submit.'
+            - accept
+            - decline
+          description: '[edit, submit] for draft; [accept, decline] in approved/counter_offer only with
+            a current active offer; [] otherwise. Submit availability does not imply successful validation;
+            completeness and mandatory documents are checked by POST submit.'
     ApplicationSubmitResponse:
       type: object
       additionalProperties: false
@@ -2731,7 +2744,8 @@ components:
             draft_created, draft_updated, APPLICATION_SUBMITTED, PROCESSING_STARTED,
             COMPANY_CHECK_COMPLETED, CREDIT_HISTORY_CHECK_COMPLETED, PRECHECKS_COMPLETED,
             SCORING_STARTED, SCORING_COMPLETED, DECISION_PROCESSING_STARTED, APPLICATION_APPROVED,
-            APPLICATION_REJECTED, COUNTER_OFFER_CREATED or MANUAL_REVIEW_REQUIRED. System events
+            APPLICATION_REJECTED, COUNTER_OFFER_CREATED, MANUAL_REVIEW_REQUIRED, MANUAL_DECISION_APPROVED,
+            MANUAL_DECISION_REJECTED, MANUAL_COUNTER_OFFER_CREATED, OFFER_ACCEPTED or OFFER_DECLINED. System events
             contain no financial results, score or private decision details.
         sequence:
           type: integer
@@ -2746,7 +2760,7 @@ components:
           type: string
           nullable: true
           format: uuid
-          description: Acting user for draft/submission events; null for system processing events.
+          description: Acting user for draft/submission, manual decision and client offer-action events; null for system processing events.
         title:
           type: string
           example: Черновик создан
@@ -3015,8 +3029,9 @@ components:
           type: integer
           format: int64
           minimum: 1
-          description: Current application revision. A repeat of the same completed offer action succeeds
-            without another mutation.
+          description: Current application revision. Exact idempotent replay precedes stale-version validation.
+            A completed same-offer action may repeat with its original or resulting revision if durable audit
+            confirms the actor, offer and operation; any unrelated revision conflicts.
         offerId:
           type: string
           format: uuid

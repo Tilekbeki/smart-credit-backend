@@ -146,12 +146,13 @@ type Assessment struct {
 	AssessedAt    time.Time       `json:"assessedAt"`
 }
 type Final struct {
-	Outcome    string    `json:"outcome"`
-	Reasons    []string  `json:"reasons"`
-	RiskLevel  *string   `json:"riskLevel"`
-	AssessedAt time.Time `json:"assessedAt"`
-	ReviewedBy *string   `json:"reviewedBy"`
-	Offer      *Offer    `json:"offer"`
+	Outcome        string          `json:"outcome"`
+	Reasons        []string        `json:"reasons"`
+	RiskLevel      *string         `json:"riskLevel"`
+	AssessedAt     time.Time       `json:"assessedAt"`
+	ReviewedBy     *string         `json:"reviewedBy"`
+	Offer          *Offer          `json:"offer"`
+	ManualDecision *ManualDecision `json:"manualDecision"`
 }
 type Repository interface {
 	Read(context.Context, *application.Scope, string) (Record, error)

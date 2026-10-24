@@ -38,6 +38,8 @@ const reviewArtifacts = `,
   FROM jobs j WHERE j.application_id=a.id AND j.type=$4),
  (SELECT jsonb_build_object('outcome',d.outcome,'reasons',d.reasons,'riskLevel',d.risk_category,
   'assessedAt',d.created_at,'reviewedBy',d.decided_by,
+  'manualDecision',CASE WHEN d.source='MANUAL' AND d.internal_comment IS NOT NULL THEN
+   jsonb_build_object('decision',d.outcome,'comment',d.internal_comment,'reviewedBy',d.decided_by,'reviewedAt',d.created_at) END,
   'offer',(SELECT jsonb_build_object('offerId',o.id,'applicationId',o.application_id,
    'productId',a.product_snapshot->>'id','amountRub',o.amount,'termMonths',o.term_months,
    'annualRatePercent',o.annual_rate_percent,'monthlyPaymentRub',o.monthly_payment,'expiresAt',NULL,'status',o.status)
@@ -88,25 +90,34 @@ func scanReview(row pgx.Row, artifacts bool) (review.Record, error) {
 	}
 	if r.Final != nil {
 		r.Final.AssessedAt = r.Final.AssessedAt.UTC()
+		if r.Final.ManualDecision != nil {
+			r.Final.ManualDecision.ReviewedAt = r.Final.ManualDecision.ReviewedAt.UTC()
+		}
 	}
 	return r, nil
 }
 
 func (r *ReviewRepository) Read(ctx context.Context, scope *application.Scope, id string) (review.Record, error) {
+	ctx, cancel := context.WithTimeout(ctx, r.timeout)
+	defer cancel()
+	return readReview(ctx, r.pool, scope, id)
+}
+
+func readReview(ctx context.Context, query interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}, scope *application.Scope, id string) (review.Record, error) {
 	if !validUUID(id) {
 		return review.Record{}, application.ErrInvalidInput
 	}
 	if scope != nil && !validApplicationScope(*scope) {
 		return review.Record{}, application.ErrNotFound
 	}
-	ctx, cancel := context.WithTimeout(ctx, r.timeout)
-	defer cancel()
 	var owner, companyID *string
 	if scope != nil {
 		owner = &scope.UserID
 		companyID = &scope.CompanyID
 	}
-	result, err := scanReview(r.pool.QueryRow(ctx, `SELECT `+reviewColumns+reviewArtifacts+` FROM applications a
+	result, err := scanReview(query.QueryRow(ctx, `SELECT `+reviewColumns+reviewArtifacts+` FROM applications a
  WHERE a.id=$1 AND (($2::uuid IS NOT NULL AND a.owner_id=$2 AND a.company_id=$3) OR
  ($2::uuid IS NULL AND a.status<>'draft' AND a.submitted_at IS NOT NULL))`, id, owner, companyID, pipeline.JobType), true)
 	if errors.Is(err, pgx.ErrNoRows) {

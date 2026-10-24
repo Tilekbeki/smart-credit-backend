@@ -13,12 +13,9 @@ Python-прототип не является контрактом React-при�
 
 ## Доступность операций
 
-`IMPLEMENTED` — можно подключать к работающему Go backend сейчас.
-`PLANNED` — согласованный контракт; обработчик ещё отсутствует, frontend
-использует mock. Наличие операции в OpenAPI не означает её реализацию.
-В спецификации запланированные операции имеют
-`x-implementation-status: planned`. Сейчас это 23 реализованных и 3
-запланированных операций.
+Все **26 операций реализованы**; запланированных обработчиков нет. В OpenAPI у
+каждой операции стоит `x-implementation-status: implemented`. Frontend может
+подключать чтение, ручные решения и действия с предложениями к Go backend.
 
 | Метод | Путь | Доступ | Статус |
 | --- | --- | --- | --- |
@@ -42,12 +39,12 @@ Python-прототип не является контрактом React-при�
 | GET | `/api/v1/applications/{applicationId}/documents/{documentId}` | CLIENT — свои; BANK_EMPLOYEE — только отправленные | IMPLEMENTED |
 | POST | `/api/v1/applications/{applicationId}/submit` | CLIENT, своя заявка | IMPLEMENTED |
 | GET | `/api/v1/applications/{applicationId}/decision` | CLIENT, своя заявка | IMPLEMENTED |
-| POST | `/api/v1/applications/{applicationId}/accept` | CLIENT, своя заявка | PLANNED |
-| POST | `/api/v1/applications/{applicationId}/decline` | CLIENT, своя заявка | PLANNED |
+| POST | `/api/v1/applications/{applicationId}/accept` | CLIENT, своя заявка | IMPLEMENTED |
+| POST | `/api/v1/applications/{applicationId}/decline` | CLIENT, своя заявка | IMPLEMENTED |
 | GET | `/api/v1/bank/applications` | BANK_EMPLOYEE | IMPLEMENTED |
 | GET | `/api/v1/bank/applications/{applicationId}` | BANK_EMPLOYEE | IMPLEMENTED |
 | GET | `/api/v1/bank/applications/{applicationId}/assessment` | BANK_EMPLOYEE | IMPLEMENTED |
-| POST | `/api/v1/bank/applications/{applicationId}/decisions` | BANK_EMPLOYEE, manual_review | PLANNED |
+| POST | `/api/v1/bank/applications/{applicationId}/decisions` | BANK_EMPLOYEE, manual_review | IMPLEMENTED |
 
 ## Запуск и подключение
 
@@ -181,8 +178,9 @@ query-параметры дают `400`. Ответ: `{items,total,limit,offset}
 UUID известен. Сотрудник не может использовать клиентские create/list/get/
 patch/timeline/submit маршруты: другая роль получает `403`.
 
-`Application.availableActions` содержит `["edit", "submit"]` для draft и `[]`
-для остальных состояний. Действие submit доступно и для неполной анкеты:
+`Application.availableActions` содержит `["edit", "submit"]` для draft,
+`["accept", "decline"]` в approved/counter_offer с актуальным активным предложением,
+иначе `[]`. signed/closed действий не предоставляют. Действие submit доступно и для неполной анкеты:
 полнота данных и обязательные документы проверяются сервером при POST /submit.
 
 ## Документы
@@ -372,7 +370,7 @@ reasons с пояснениями. Все финальные варианты и
 Решение принимает Go policy; decision и approved_amount Python scoring
 являются рекомендацией. Сырые scoring factors клиенту не передаются.
 
-## Accept / decline — PLANNED
+## Accept / decline — IMPLEMENTED
 
 Оба POST принимают `{ "version": 8, "offerId": "UUID" }` и обязательный
 Idempotency-Key. Только CLIENT-владелец в approved/counter_offer может выполнить
@@ -384,11 +382,13 @@ Idempotency-Key. Только CLIENT-владелец в approved/counter_offer 
 - signed — демонстрационное подтверждение условий, без выдачи денег
   и юридически значимого банковского договора.
 - Повтор того же подтверждённого действия с тем же предложением — `200`,
-  без повторного события и изменения версии, даже после истечения ключа.
+  без повторного события и изменения версии, даже после истечения ключа, если
+  журнал однозначно подтверждает пользователя, предложение, действие и исходную
+  либо результирующую версию. Произвольная иная версия даёт `409 version_conflict`.
 - Противоположное действие после завершения, старое предложение либо
   конфликт версии — `409`. При гонке accept/decline выполняется одно действие.
 
-## Банковский кабинет — IMPLEMENTED (чтение)
+## Банковский кабинет — IMPLEMENTED
 
 Только BANK_EMPLOYEE. Список `/api/v1/bank/applications` принимает status,
 companyId, limit и offset. Правила limit/offset и сортировка совпадают с
@@ -428,7 +428,7 @@ manualReviewReasons, recommendations, manualDecision, processing.
 `404 application_not_found`. Ограничения проверяет backend, скрытие карточки
 на frontend не заменяет авторизацию. Сотрудник не редактирует клиентский draft.
 
-Ручное решение — **PLANNED**, POST `/api/v1/bank/applications/{applicationId}/decisions`:
+Ручное решение — **IMPLEMENTED**, POST `/api/v1/bank/applications/{applicationId}/decisions`:
 
 ```json
 {
@@ -440,12 +440,18 @@ manualReviewReasons, recommendations, manualDecision, processing.
 ```
 
 Только manual_review, обязателен Idempotency-Key. Комментарий после trim —
-1..1000 символов. Для approved offer обязателен и повторяет исходные сумму/срок.
+1..1000 символов. Поле offer обязательно для каждого решения. Для approved оно повторяет исходные сумму/срок.
 Для counter_offer сумма не больше исходной и находится в границах продукта;
 срок также в границах продукта, хотя бы одно условие отличается. Продукт и
-ставка фиксированы, платёж рассчитывает backend. Для rejected offer=null.
+ставка фиксированы, платёж рассчитывает backend и проверяет по бюджету из
+исторических финансовых данных. Жёсткие ограничения продукта не обходятся
+ручным решением. Для rejected offer=null.
 Некорректные условия — `422`; иной доступный банковский статус — `409`.
 Успех — `201 CreditDecision`; reviewedBy определяется backend по JWT-пользователю.
+Комментарий сохраняется отдельно от публичных причин: его видит только сотрудник
+в `BankAssessment.manualDecision`. Клиентские GET и timeline его не раскрывают.
+Время `manualDecision.reviewedAt` совпадает с `CreditDecision.assessedAt`.
+Сохранённые score/riskLevel и рекомендации автоматической policy не переписываются.
 
 ## Жизненный цикл
 
@@ -454,9 +460,9 @@ manualReviewReasons, recommendations, manualDecision, processing.
 | draft | submitted | CLIENT, submit выбранного черновика | IMPLEMENTED |
 | submitted | processing | Worker | IMPLEMENTED |
 | processing | approved / counter_offer / rejected / manual_review | Go policy | IMPLEMENTED |
-| manual_review | approved / counter_offer / rejected | BANK_EMPLOYEE | PLANNED |
-| approved / counter_offer | signed | CLIENT, accept | PLANNED |
-| approved / counter_offer | closed | CLIENT, decline | PLANNED |
+| manual_review | approved / counter_offer / rejected | BANK_EMPLOYEE | IMPLEMENTED |
+| approved / counter_offer | signed | CLIENT, accept | IMPLEMENTED |
+| approved / counter_offer | closed | CLIENT, decline | IMPLEMENTED |
 
 draft — приватное редактирование; submitted — заявка отправлена; processing —
 автоматические проверки; manual_review — ожидание сотрудника; approved — исходные
@@ -473,11 +479,14 @@ UUID. Frontend создаёт ключ один раз на логическое
 Исправленное пользователем действие получает новый ключ.
 
 Ключ хранится 24 часа в области пользователя, операции и applicationId.
-Одинаковые ключ/тело возвращают исходные HTTP-код и JSON; другое тело с тем же
-ключом — `409 idempotency_conflict`. Проверка доступа предшествует replay.
+Каноническое типизированное тело хешируется: порядок JSON-полей и пробелы не
+меняют запрос. Одинаковые ключ/тело возвращают исходные HTTP-код и JSON; другое
+тело с тем же ключом — `409 idempotency_conflict`. Проверка роли и владельца
+предшествует replay; replay предшествует проверке устаревшей version.
 После TTL состояние, версия, транзакции и журнал действий по-прежнему исключают
 повторный эффект. Повтор accept/decline того же выполненного действия возвращает
-200; повтор manual decision с новым/истёкшим ключом после выхода из manual_review
+200 только при подтверждении исходного действия аудитом и допустимой версии;
+повтор manual decision с новым/истёкшим ключом после выхода из manual_review
 возвращает 409 и не создаёт второе решение. После replay перечитайте актуальное
 состояние при необходимости: сохранённый ответ отражает исходную операцию.
 
@@ -493,7 +502,7 @@ const response = await fetch(`/api/v1/applications/${decision.applicationId}/acc
     "Idempotency-Key": key,
   },
   body,
-}); // PLANNED: выполняйте против mock до появления обработчика
+});
 ```
 
 ## Ошибки
@@ -526,7 +535,7 @@ Submit и будущая валидация ручного решения мог
 | 401 | unauthorized; повторный вход |
 | 403 | forbidden; роль/доступ к компании |
 | 404 | application_not_found/document_not_found/product_not_found; не раскрывает чужие заявки и draft банку |
-| 409 | version_conflict, invalid_status; planned: offer_not_active, idempotency_conflict; также ошибки использованного/заменённого OTP |
+| 409 | version_conflict, invalid_status, offer_not_active, idempotency_conflict; также ошибки использованного/заменённого OTP |
 | 410 | otp_expired |
 | 413 | request_too_large |
 | 415 | unsupported_media_type/unsupported_file_type |
@@ -576,8 +585,8 @@ curl --fail --silent "$BASE_URL/api/v1/applications?status=draft" \
 [Postman Collection](postman/smart-credit-stage2-postman-collection.json).
 Запустите коллекцию сверху вниз в Collection Runner. Working directory для
 файлов — `api/postman`. Профили, JWT, UUID, версии и проверки передаются
-автоматически; коллекция не вызывает PLANNED маршруты и не обращается к scoring
-напрямую. По умолчанию expectScoringResult=false и expectDecisionResult=false:
+автоматически; коллекция проверяет все 26 публичных операций и не обращается
+к scoring напрямую. По умолчанию expectScoringResult=false и expectDecisionResult=false:
 коллекция ждёт prechecks и не требует недоступный scoring. При настроенном
 совместимом тестовом сервисе expectScoringResult=true включает ожидание
 SCORING_COMPLETED. Дополнительно expectDecisionResult=true включает ожидание
@@ -595,18 +604,17 @@ expectScoringResult=true. Polling ограничен 30 секундами на 
 ## Передача frontend и оставшиеся задачи backend
 
 Передайте вместе этот документ, openapi.yaml и существующую Postman Collection
-с fixtures. Для генерации клиента различайте IMPLEMENTED/PLANNED через extension.
-Решение и предложение доступны через GET decision; отправленные заявки, их
-историческая карточка и оценка — через три GET банковского кабинета. Для трёх
-PLANNED POST пока используйте mock. Не подключайте вместо Go одноимённые
-маршруты старого Python backend.
+с fixtures. Все 26 операций IMPLEMENTED. Решение и предложение доступны через
+GET decision; отправленные заявки, историческая карточка и оценка — через три
+GET банковского кабинета. Подключайте ручные decisions и клиентские accept/decline
+к Go backend с Idempotency-Key. Не подключайте вместо Go одноимённые маршруты
+старого Python backend.
 
 Оставшиеся задачи: воспроизводимая поставка настоящего Python scoring и
-контрактная проверка против него, три PLANNED POST, транзакционные
-accept/decline/manual decisions, хранилище внутренних комментариев сотрудника,
-аудит действия с конкретным предложением.
+контрактная проверка против него. Ручные решения, accept/decline, внутренние
+комментарии и аудит конкретного предложения реализованы транзакционно.
 Go Decision Engine и сохранение нормализованной оценки уже реализованы; публичные
-DTO API Freeze v1 сохранены; в Application.availableActions добавлен согласованный submit. Изменения БД выполняются только новыми миграциями.
+DTO API Freeze v1 сохранены; в Application.availableActions добавлены согласованные submit/accept/decline. Изменения БД выполняются только новыми миграциями.
 Настоящий Python scoring не проверен; тестовые ответы не поставляются как
 production-заглушка. Следующий этап здесь не реализуется.
 
@@ -618,7 +626,8 @@ scoring_received_at, riskLevel и manualReviewReasons — результат Go 
 До завершения policy риск может быть null даже при уже сохранённом score.
 recommendations содержат только сохранённые рекомендации Go policy без offerId;
 при manual_review, когда конкретные условия не предложены, массив пуст.
-manualDecision=null: ручные решения ещё не реализованы.
+manualDecision=null до ручного решения; после него возвращаются внутренний
+комментарий, reviewedBy из JWT и время окончательного решения.
 
 Для draft decision/offer/score/riskLevel/assessedAt/processing равны null.
 Для submitted/processing decision и offer равны null. processing.stage —
@@ -632,7 +641,7 @@ state=failed, заявка остаётся processing. Публичного ret
 и страницы. Фильтр companyId — UUID. Повторные/неизвестные параметры, status=draft,
 limit вне 1..100 и отрицательный offset дают 400. Даже при offset за последней
 строкой total сохраняется, items=[]. Банк получает decide только в manual_review;
-сам POST решения остаётся PLANNED. Карточка и список используют снимки submit,
+POST решения доступен только сотруднику и только в этом статусе. Карточка и список используют снимки submit,
 изменения текущей компании или продукта не меняют исторические данные.
 
 Для проверки четырёх исходов в Collection Runner включите одновременно
@@ -654,3 +663,36 @@ limit вне 1..100 и отрицательный offset дают 400. Даже 
 Остальные поля ответа должны соответствовать локальной scoring-response.schema.json.
 Эта таблица — тестовые fixtures, не правила определения score в приложении.
 Рабочий Docker Compose не содержит scoring-заглушки.
+
+
+### Ручные решения и предложения на этапе 7.2
+
+Для полного автоматического сценария Newman включите также `expectActionResults=true`.
+Он требует одновременно `expectScoringResult=true`, `expectDecisionResult=true`
+и `expectReadOutcomes=true`; ошибочная комбинация флагов завершает проверку ошибкой.
+Без доступного тестового scoring флаг остаётся false: зависимые успешные сценарии
+пропускаются, а проверки JWT, ролей, приватности и обязательных заголовков работают.
+
+Коллекция создаёт три дополнительные независимые заявки с суммой 1400000,
+выручкой 2400000, расходами 1500000 и сроком 12 месяцев. Тестовый scoring из
+таблицы выше должен возвращать MEDIUM/score=65 для **каждой** такой заявки.
+Коллекция сама сохраняет JWT, UUID, версии, offerId и UUID-ключи, проводит три
+ручных решения, accept/decline, точные replay, конфликты и проверку истории.
+Данные предыдущего прогона не переиспользуются.
+
+| Роль и состояние | Доступные изменения |
+| --- | --- |
+| CLIENT, собственный draft | edit, submit |
+| CLIENT, собственный approved/counter_offer, актуальный active offer | accept, decline |
+| CLIENT, signed/closed/rejected/manual_review/processing | нет |
+| BANK_EMPLOYEE, manual_review | decide: approved/rejected/counter_offer |
+| BANK_EMPLOYEE, другое отправленное состояние | только чтение |
+| BANK_EMPLOYEE, draft | 404, включая documents и decisions |
+
+Timeline сохраняет публичные события `MANUAL_DECISION_APPROVED`,
+`MANUAL_DECISION_REJECTED`, `MANUAL_COUNTER_OFFER_CREATED`, `OFFER_ACCEPTED`,
+`OFFER_DECLINED`. Их actorId определяется JWT; повторы не создают события.
+Идентификатор предложения и тип действия сохраняются во внутреннем аудите,
+публичный Timeline DTO не расширяется. `signed` подтверждает демонстрационные
+условия: реальная выдача, юридически значимый договор и электронная подпись
+в MVP отсутствуют.
