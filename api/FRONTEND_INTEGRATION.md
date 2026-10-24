@@ -17,7 +17,7 @@ Python-прототип не является контрактом React-при�
 `PLANNED` — согласованный контракт; обработчик ещё отсутствует, frontend
 использует mock. Наличие операции в OpenAPI не означает её реализацию.
 В спецификации запланированные операции имеют
-`x-implementation-status: planned`. Сейчас это 19 реализованных и 7
+`x-implementation-status: planned`. Сейчас это 23 реализованных и 3
 запланированных операций.
 
 | Метод | Путь | Доступ | Статус |
@@ -41,12 +41,12 @@ Python-прототип не является контрактом React-при�
 | GET | `/api/v1/applications/{applicationId}/documents` | CLIENT — свои; BANK_EMPLOYEE — только отправленные | IMPLEMENTED |
 | GET | `/api/v1/applications/{applicationId}/documents/{documentId}` | CLIENT — свои; BANK_EMPLOYEE — только отправленные | IMPLEMENTED |
 | POST | `/api/v1/applications/{applicationId}/submit` | CLIENT, своя заявка | IMPLEMENTED |
-| GET | `/api/v1/applications/{applicationId}/decision` | CLIENT, своя заявка | PLANNED |
+| GET | `/api/v1/applications/{applicationId}/decision` | CLIENT, своя заявка | IMPLEMENTED |
 | POST | `/api/v1/applications/{applicationId}/accept` | CLIENT, своя заявка | PLANNED |
 | POST | `/api/v1/applications/{applicationId}/decline` | CLIENT, своя заявка | PLANNED |
-| GET | `/api/v1/bank/applications` | BANK_EMPLOYEE | PLANNED |
-| GET | `/api/v1/bank/applications/{applicationId}` | BANK_EMPLOYEE | PLANNED |
-| GET | `/api/v1/bank/applications/{applicationId}/assessment` | BANK_EMPLOYEE | PLANNED |
+| GET | `/api/v1/bank/applications` | BANK_EMPLOYEE | IMPLEMENTED |
+| GET | `/api/v1/bank/applications/{applicationId}` | BANK_EMPLOYEE | IMPLEMENTED |
+| GET | `/api/v1/bank/applications/{applicationId}/assessment` | BANK_EMPLOYEE | IMPLEMENTED |
 | POST | `/api/v1/bank/applications/{applicationId}/decisions` | BANK_EMPLOYEE, manual_review | PLANNED |
 
 ## Запуск и подключение
@@ -181,10 +181,9 @@ query-параметры дают `400`. Ответ: `{items,total,limit,offset}
 UUID известен. Сотрудник не может использовать клиентские create/list/get/
 patch/timeline/submit маршруты: другая роль получает `403`.
 
-**Известное несоответствие:** существующий `Application.availableActions`
-содержит только `["edit"]` для draft и `[]` для остальных состояний. Submit уже
-реализован, но пока не входит в этот массив. Не считайте массив полным перечнем
-доступных действий; его расширение — отдельная задача backend.
+`Application.availableActions` содержит `["edit", "submit"]` для draft и `[]`
+для остальных состояний. Действие submit доступно и для неполной анкеты:
+полнота данных и обязательные документы проверяются сервером при POST /submit.
 
 ## Документы
 
@@ -265,8 +264,8 @@ awaiting_decision. Тот же worker применяет Go Decision Engine к �
 окончательное кредитное решение не создаётся. При недоступности scoring
 выполняются ограниченные повторы; техническая ошибка не превращается в rejected.
 
-Опрос текущего Application и timeline доступен, но подробная стадия, результаты
-scoring и исчерпание повторов через публичный API пока не выдаются.
+Состояние обработки доступно через GET decision и банковский assessment:
+processing содержит безопасные stage/state/retryAt/message без сырых ошибок.
 В timeline порядок задаётся sequence; actorId=null у системных событий.
 SCORING_STARTED означает начало обработки scoring, SCORING_COMPLETED — надёжное
 сохранение результата, а не кредитное решение. Каждое событие появляется один
@@ -277,12 +276,12 @@ COUNTER_OFFER_CREATED (counter_offer), MANUAL_REVIEW_REQUIRED (manual_review).
 Все события Decision Engine системные, actorId=null. Финансовые данные, score,
 factors и технические причины ошибок в timeline не публикуются.
 
-## Решение и предложение — PLANNED
+## Решение и предложение — IMPLEMENTED
 
-GET `/api/v1/applications/{applicationId}/decision` будет возвращать `200` для
+GET `/api/v1/applications/{applicationId}/decision` возвращает `200` для
 любого состояния собственной заявки, включая draft и отсутствие решения.
-До реализации этого маршрута используйте mock, а не ожидайте такой JSON
-от существующего GET application.
+Только CLIENT-владелец в своей компании; другая роль получает 403, чужая или
+несуществующая заявка — 404 application_not_found. GET не изменяет БД.
 
 Поля CreditDecision: applicationId, status, version, decision, score, riskLevel,
 reasons, assessedAt, reviewedBy, offer, processing. decision имеет значения
@@ -330,7 +329,7 @@ failed. retryAt и message nullable. Техническая ошибка не п
   "decision": null,
   "score": 62,
   "riskLevel": "MEDIUM",
-  "reasons": [],
+  "reasons": ["Средний кредитный риск требует решения сотрудника банка."],
   "assessedAt": null,
   "reviewedBy": null,
   "offer": null,
@@ -344,13 +343,13 @@ failed. retryAt и message nullable. Техническая ошибка не п
 {
   "applicationId": "40000000-0000-4000-8000-000000000001",
   "status": "counter_offer",
-  "version": 8,
+  "version": 4,
   "decision": "counter_offer",
-  "score": 62,
-  "riskLevel": "MEDIUM",
+  "score": 90,
+  "riskLevel": "LOW",
   "reasons": ["Предложена меньшая сумма кредита."],
   "assessedAt": "2026-10-24T10:05:00Z",
-  "reviewedBy": "20000000-0000-4000-8000-000000000004",
+  "reviewedBy": null,
   "offer": {
     "offerId": "60000000-0000-4000-8000-000000000001",
     "applicationId": "40000000-0000-4000-8000-000000000001",
@@ -389,7 +388,7 @@ Idempotency-Key. Только CLIENT-владелец в approved/counter_offer 
 - Противоположное действие после завершения, старое предложение либо
   конфликт версии — `409`. При гонке accept/decline выполняется одно действие.
 
-## Банковский кабинет — PLANNED
+## Банковский кабинет — IMPLEMENTED (чтение)
 
 Только BANK_EMPLOYEE. Список `/api/v1/bank/applications` принимает status,
 companyId, limit и offset. Правила limit/offset и сортировка совпадают с
@@ -429,7 +428,7 @@ manualReviewReasons, recommendations, manualDecision, processing.
 `404 application_not_found`. Ограничения проверяет backend, скрытие карточки
 на frontend не заменяет авторизацию. Сотрудник не редактирует клиентский draft.
 
-Ручное решение — POST `/api/v1/bank/applications/{applicationId}/decisions`:
+Ручное решение — **PLANNED**, POST `/api/v1/bank/applications/{applicationId}/decisions`:
 
 ```json
 {
@@ -589,22 +588,69 @@ expectScoringResult=true. Polling ограничен 30 секундами на 
 как 409 invalid_status; в submitted/processing он остаётся 202. Легитимный
 асинхронный прогресс не считается изменением заявки из-за повторного submit.
 Сохранённые score, risk level, причины, решения и предложения проверяются
-непосредственно PostgreSQL-интеграционными тестами: decision API пока PLANNED.
+через decision/assessment API и PostgreSQL-интеграционные тесты. Новые сценарии
+проверяют JSON DTO, приватность draft, роли, фильтры, пагинацию и total.
+Синтетический scoring используется только в тестовом окружении.
 
 ## Передача frontend и оставшиеся задачи backend
 
 Передайте вместе этот документ, openapi.yaml и существующую Postman Collection
 с fixtures. Для генерации клиента различайте IMPLEMENTED/PLANNED через extension.
-Финальные статусы и события уже доступны через существующие application/timeline
-API; для подробностей решения, предложений и банковского кабинета пока нужны
-mock. Не подключайте вместо Go
-одноимённые маршруты старого Python backend.
+Решение и предложение доступны через GET decision; отправленные заявки, их
+историческая карточка и оценка — через три GET банковского кабинета. Для трёх
+PLANNED POST пока используйте mock. Не подключайте вместо Go одноимённые
+маршруты старого Python backend.
 
 Оставшиеся задачи: воспроизводимая поставка настоящего Python scoring и
-контрактная проверка против него, семь PLANNED обработчиков, транзакционные
+контрактная проверка против него, три PLANNED POST, транзакционные
 accept/decline/manual decisions, хранилище внутренних комментариев сотрудника,
-аудит действия с конкретным предложением, расширение Application.availableActions.
+аудит действия с конкретным предложением.
 Go Decision Engine и сохранение нормализованной оценки уже реализованы; публичные
-DTO API Freeze v1 не менялись. Изменения БД выполняются только новыми миграциями.
+DTO API Freeze v1 сохранены; в Application.availableActions добавлен согласованный submit. Изменения БД выполняются только новыми миграциями.
 Настоящий Python scoring не проверен; тестовые ответы не поставляются как
 production-заглушка. Следующий этап здесь не реализуется.
+
+### Чтение результатов на этапе 7.1
+
+GET не запускает повторно проверки, scoring или Go policy. companyCheck и
+creditHistory берутся из jobs.precheck_results, scoring — сохранённые score и
+scoring_received_at, riskLevel и manualReviewReasons — результат Go policy.
+До завершения policy риск может быть null даже при уже сохранённом score.
+recommendations содержат только сохранённые рекомендации Go policy без offerId;
+при manual_review, когда конкретные условия не предложены, массив пуст.
+manualDecision=null: ручные решения ещё не реализованы.
+
+Для draft decision/offer/score/riskLevel/assessedAt/processing равны null.
+Для submitted/processing decision и offer равны null. processing.stage —
+prechecks/scoring/decision; state — waiting/running/retrying/failed. retryAt
+показывает назначенный будущий повтор, иначе null. При исчерпании попыток
+state=failed, заявка остаётся processing. Публичного retry API нет.
+В manual_review processing и decision равны null; reasons объясняет передачу
+сотруднику, assessedAt остаётся null до окончательного решения.
+
+Банковский список использует SQL-фильтры и один согласованный снимок для total
+и страницы. Фильтр companyId — UUID. Повторные/неизвестные параметры, status=draft,
+limit вне 1..100 и отрицательный offset дают 400. Даже при offset за последней
+строкой total сохраняется, items=[]. Банк получает decide только в manual_review;
+сам POST решения остаётся PLANNED. Карточка и список используют снимки submit,
+изменения текущей компании или продукта не меняют исторические данные.
+
+Для проверки четырёх исходов в Collection Runner включите одновременно
+`expectScoringResult=true`, `expectDecisionResult=true`, `expectReadOutcomes=true`.
+Это режим только для совместимого тестового scoring. Коллекция сама создаёт
+четыре независимые заявки, отправляет их и ожидает результат до 30 секунд.
+Режим по умолчанию не требует scoring и проверяет незавершённую обработку.
+
+Фиксированные ответы тестового scoring для этого режима (выручка 2400000,
+срок 12 месяцев, overdue_count=0; operating_cash_flow=выручка−расходы):
+
+| Запрошено | Расходы | Score | scoring.decision | scoring.approved_amount | Исход Go |
+| --- | --- | --- | --- | --- | --- |
+| 1100000 | 1500000 | 90 | approved | 1100000 | approved |
+| 1200000 | 1500000 | 20 | rejected | 0 | rejected |
+| 1300000 | 2100000 | 90 | counter_offer | 500000 | counter_offer |
+| 1400000 | 1500000 | 65 | approved | 1400000 | manual_review |
+
+Остальные поля ответа должны соответствовать локальной scoring-response.schema.json.
+Эта таблица — тестовые fixtures, не правила определения score в приложении.
+Рабочий Docker Compose не содержит scoring-заглушки.

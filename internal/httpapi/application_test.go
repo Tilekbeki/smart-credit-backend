@@ -24,7 +24,7 @@ type applicationRepoStub struct {
 
 func (s *applicationRepoStub) Create(_ context.Context, scope application.Scope, f application.Fields) (application.Application, error) {
 	s.writes++
-	s.record = application.Application{ApplicationID: testApplicationID, UserID: scope.UserID, CompanyID: scope.CompanyID, Fields: f, Status: application.Draft, Version: 1, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC(), AvailableActions: []string{"edit"}}
+	s.record = application.Application{ApplicationID: testApplicationID, UserID: scope.UserID, CompanyID: scope.CompanyID, Fields: f, Status: application.Draft, Version: 1, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC(), AvailableActions: []string{"edit", "submit"}}
 	return s.record, s.err
 }
 func (s *applicationRepoStub) Get(_ context.Context, scope application.Scope, id string) (application.Application, error) {
@@ -74,7 +74,7 @@ func applicationTestHandler(t *testing.T, repo *applicationRepoStub, role auth.R
 }
 
 func draftHTTPFixture() *applicationRepoStub {
-	return &applicationRepoStub{record: application.Application{ApplicationID: testApplicationID, UserID: testUserID, CompanyID: ownCompanyID, Status: application.Draft, Version: 1, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC(), AvailableActions: []string{"edit"}}}
+	return &applicationRepoStub{record: application.Application{ApplicationID: testApplicationID, UserID: testUserID, CompanyID: ownCompanyID, Status: application.Draft, Version: 1, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC(), AvailableActions: []string{"edit", "submit"}}}
 }
 
 func TestApplicationHTTPDraftFlow(t *testing.T) {
@@ -90,7 +90,7 @@ func TestApplicationHTTPDraftFlow(t *testing.T) {
 	}
 	w = authRequest(h, "GET", "/api/v1/applications/"+testApplicationID, "", token)
 	var detail application.Detail
-	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &detail) != nil || detail.Company.ID != ownCompanyID || detail.Product != nil || len(detail.AvailableActions) != 1 || detail.AvailableActions[0] != "edit" {
+	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &detail) != nil || detail.Company.ID != ownCompanyID || detail.Product != nil || len(detail.AvailableActions) != 2 || detail.AvailableActions[0] != "edit" {
 		t.Fatal("get own draft details")
 	}
 	w = authRequest(h, "PATCH", "/api/v1/applications/"+testApplicationID, `{"version":1,"productId":"turnover","purpose":"stock","requestedAmountRub":150000,"monthlyRevenueRub":0}`, token)

@@ -47,7 +47,7 @@ func scanApplication(row pgx.Row) (application.Application, error) {
 	}
 	result.AvailableActions = []string{}
 	if result.Status == application.Draft {
-		result.AvailableActions = []string{"edit"}
+		result.AvailableActions = []string{"edit", "submit"}
 	}
 	return result, nil
 }

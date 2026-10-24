@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "Smart Credit — Backend Stages 2–6.3 (OTP, drafts, documents, decision pipeline)",
-    "description": "Единая коллекция Smart Credit, Postman Collection v2.1. Запустите docker compose up -d --build, затем всю коллекцию сверху вниз в Collection Runner. baseUrl по умолчанию http://localhost:8080; demoOtpCode по умолчанию 1234. Все профили, companyId, OTP challenges и JWT передаются автоматически; первый запрос очищает результаты предыдущего запуска. Сохранены сценарии OTP/JWT обеих ролей. Новые сценарии проверяют собственную и чужую компанию, каталог и карточки продуктов, подбор финансирования, точные финансовые расчёты, границы и ошибки. Для проверки чужой компании автоматически авторизуется второй обнаруженный CLIENT. Расчёты проверяются независимой аннуитетной формулой JavaScript на синтетических значениях; точная арифметика и границы округления дополнительно проверяются Go-тестами. Рекомендация не является кредитным решением; scoring не вызывается. Не экспортируйте коллекцию с заполненными токенами и не используйте реальные персональные данные. Этап 4: пустой и частичный черновик, редактирование, null/отсутствующие поля, сохранение и обновление applicationId/version, история, SQL-пагинация и фильтры, конфликт версий, изоляция другого CLIENT, ограничения ролей и валидация. Два новых черновика создаются на каждой итерации; тесты не требуют пустой БД. В сценариях этапа 4 submit, документы и scoring не вызываются. Остальные этапы коллекции выполняются далее. Этап 5: документы загружаются к новому черновику, UUID и JWT передаются автоматически. Маленькие синтетические файлы находятся в fixtures/ рядом с коллекцией. Для Newman укажите --working-dir api/postman из корня backend; в Postman настройте Working directory на api/postman и разрешите чтение тестовых файлов. Превышение размера и опасные имена проверяются динамическим multipart без большого файла в репозитории. Все файлы синтетические, без банковских данных. Этап 6.1: отправка заполненных заявок, детальные ошибки 422, обязательные документы и серверный доверенный источник финансов, повторный submit, запрет изменений после отправки. Ограниченный автоматический polling timeline ожидает PRECHECKS_COMPLETED (до 20 проверок с интервалом 250 мс); заявка остаётся processing; успешный scoring по умолчанию не предполагается. Все новые заявки, версии и третий профиль передаются автоматически. Внутренние результаты проверок и очередь не публикуются. Две итерации Runner создают независимые заявки; никакая ручная очистка не нужна. API Freeze v1: черновики приватны для предпринимателя. BANK_EMPLOYEE получает 404 application_not_found при чтении списка документов или скачивании документа draft; после успешного submit банк получает метаданные и файл. CLIENT продолжает читать собственные draft, чужие заявки и документы возвращают 404. Проверяется независимость нескольких черновиков turnover: отправка выбранного не отправляет остальные, оставшийся черновик доступен для редактирования без изменения отправленной заявки. Семь маршрутов decision/accept/decline и bank/applications зафиксированы в api/openapi.yaml как PLANNED и не вызываются этой коллекцией до реализации; интеграционные правила описаны в api/FRONTEND_INTEGRATION.md. Этап 6.2: expectScoringResult=false по умолчанию сохраняет проверки prechecks и processing без заявления об успешном scoring. Только для backend с доступным совместимым scoring задайте expectScoringResult=true: polling до 30 секунд на заявку ожидает SCORING_COMPLETED, проверяет порядок, уникальность и сохранение событий после повторного submit. nextStage сохраняет frozen значение awaiting_scoring и не доказывает наличие результата. Результат score/factors проверяется PostgreSQL-интеграционными тестами, нового публичного endpoint нет. Коллекция никогда не вызывает scoring напрямую; тестовый HTTP-сервис не подтверждает совместимость с реальным Python scoring. Этап 6.3: существующие application/timeline API отражают исходы approved/rejected/counter_offer/manual_review. expectDecisionResult=false по умолчанию; true требует expectScoringResult=true и настроенный совместимый тестовый HTTP scoring. Коллекция тогда ждёт итоговое событие policy; score, risk level и сохранённые offers проверяются PostgreSQL-тестами. Семь PLANNED endpoints пока не вызываются.",
+    "name": "Smart Credit — Backend Stage 7.1 (read APIs + OTP/JWT)",
+    "description": "Единая коллекция Smart Credit, Postman Collection v2.1. Запустите docker compose up -d --build, затем всю коллекцию сверху вниз в Collection Runner. baseUrl по умолчанию http://localhost:8080; demoOtpCode по умолчанию 1234. Все профили, companyId, OTP challenges и JWT передаются автоматически; первый запрос очищает результаты предыдущего запуска. Сохранены сценарии OTP/JWT обеих ролей. Новые сценарии проверяют собственную и чужую компанию, каталог и карточки продуктов, подбор финансирования, точные финансовые расчёты, границы и ошибки. Для проверки чужой компании автоматически авторизуется второй обнаруженный CLIENT. Расчёты проверяются независимой аннуитетной формулой JavaScript на синтетических значениях; точная арифметика и границы округления дополнительно проверяются Go-тестами. Рекомендация не является кредитным решением; scoring не вызывается. Не экспортируйте коллекцию с заполненными токенами и не используйте реальные персональные данные. Этап 4: пустой и частичный черновик, редактирование, null/отсутствующие поля, сохранение и обновление applicationId/version, история, SQL-пагинация и фильтры, конфликт версий, изоляция другого CLIENT, ограничения ролей и валидация. Два новых черновика создаются на каждой итерации; тесты не требуют пустой БД. В сценариях этапа 4 submit, документы и scoring не вызываются. Остальные этапы коллекции выполняются далее. Этап 5: документы загружаются к новому черновику, UUID и JWT передаются автоматически. Маленькие синтетические файлы находятся в fixtures/ рядом с коллекцией. Для Newman укажите --working-dir api/postman из корня backend; в Postman настройте Working directory на api/postman и разрешите чтение тестовых файлов. Превышение размера и опасные имена проверяются динамическим multipart без большого файла в репозитории. Все файлы синтетические, без банковских данных. Этап 6.1: отправка заполненных заявок, детальные ошибки 422, обязательные документы и серверный доверенный источник финансов, повторный submit, запрет изменений после отправки. Ограниченный автоматический polling timeline ожидает PRECHECKS_COMPLETED (до 20 проверок с интервалом 250 мс); заявка остаётся processing; успешный scoring по умолчанию не предполагается. Все новые заявки, версии и третий профиль передаются автоматически. Внутренние результаты проверок и очередь не публикуются. Две итерации Runner создают независимые заявки; никакая ручная очистка не нужна. API Freeze v1: черновики приватны для предпринимателя. BANK_EMPLOYEE получает 404 application_not_found при чтении списка документов или скачивании документа draft; после успешного submit банк получает метаданные и файл. CLIENT продолжает читать собственные draft, чужие заявки и документы возвращают 404. Проверяется независимость нескольких черновиков turnover: отправка выбранного не отправляет остальные, оставшийся черновик доступен для редактирования без изменения отправленной заявки. Чтение decision и три банковских GET реализованы; только accept/decline/manual decisions остаются PLANNED и не вызываются; интеграционные правила описаны в api/FRONTEND_INTEGRATION.md. Этап 6.2: expectScoringResult=false по умолчанию сохраняет проверки prechecks и processing без заявления об успешном scoring. Только для backend с доступным совместимым scoring задайте expectScoringResult=true: polling до 30 секунд на заявку ожидает SCORING_COMPLETED, проверяет порядок, уникальность и сохранение событий после повторного submit. nextStage сохраняет frozen значение awaiting_scoring и не доказывает наличие результата. Сырые factors не публикуются; сохранённые результаты проверяются PostgreSQL-тестами и API чтения. Коллекция никогда не вызывает scoring напрямую; тестовый HTTP-сервис не подтверждает совместимость с реальным Python scoring. Этап 6.3: существующие application/timeline API отражают исходы approved/rejected/counter_offer/manual_review. expectDecisionResult=false по умолчанию; true требует expectScoringResult=true и настроенный совместимый тестовый HTTP scoring. Коллекция тогда ждёт итоговое событие policy; score, risk level и сохранённые offers проверяются PostgreSQL-тестами. Семь PLANNED endpoints пока не вызываются. Этап 7.1: четыре API чтения, CLIENT/BANK_EMPLOYEE, 404 для draft, 400 для status=draft, фильтры, сортировка, total и пагинация. Ответы проверяются JSON Schema, полученными из OpenAPI v1. Четыре дополнительные независимые синтетические заявки создаются обычными API. expectReadOutcomes=false по умолчанию; true требует expectScoringResult=true и expectDecisionResult=true, включает ожидание approved/rejected/counter_offer/manual_review от тестового scoring с согласованными фиксированными ответами. Настоящий scoring этой проверкой не подменяется. Ручной перенос JWT и ID не нужен.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -324,6 +324,76 @@
       "key": "untrustedTimelineJSON",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "expectReadOutcomes",
+      "value": "false",
+      "type": "string"
+    },
+    {
+      "key": "bankReadPageJSON",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "readApprovedId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "readApprovedVersion",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "readApprovedPoll",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "readRejectedId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "readRejectedVersion",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "readRejectedPoll",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "readCounterId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "readCounterVersion",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "readCounterPoll",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "readManualId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "readManualVersion",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "readManualPoll",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -355,7 +425,7 @@
             "type": "text/javascript",
             "exec": [
               "// Run on every Collection Runner iteration, preserving baseUrl and demoOtpCode.",
-              "const resetKeys = [\"clientProfileId\", \"bankProfileId\", \"otpRequestId\", \"accessToken\", \"clientOtpRequestId\", \"bankOtpRequestId\", \"clientAccessToken\", \"bankAccessToken\", \"clientCompanyId\", \"clientName\", \"clientPhone\", \"bankName\", \"bankPhone\", \"previousClientOtpRequestId\", \"otherClientProfileId\", \"otherClientOtpRequestId\", \"otherClientAccessToken\", \"otherCompanyId\", \"ownCompanyJSON\", \"creditProductsJSON\", \"applicationId\", \"applicationVersion\", \"previousApplicationVersion\", \"secondApplicationId\", \"applicationCreatedAt\", \"applicationUpdatedAt\", \"applicationListTotal\", \"documentApplicationId\", \"pdfDocumentId\", \"pdfMetadataJSON\", \"pngDocumentId\", \"pngMetadataJSON\", \"jpegDocumentId\", \"jpegMetadataJSON\", \"repeatedDocumentId\", \"repeatedMetadataJSON\", \"submitApplicationId\", \"submitVersion\", \"submitSubmittedAt\", \"submitPollAttempts\", \"submitTimelineJSON\", \"investmentApplicationId\", \"investmentVersion\", \"investmentSubmittedAt\", \"investmentPollAttempts\", \"thirdClientProfileId\", \"thirdClientOtpRequestId\", \"thirdClientAccessToken\", \"thirdCompanyId\", \"untrustedApplicationId\", \"untrustedVersion\", \"untrustedSubmittedAt\", \"untrustedPollAttempts\", \"incompleteApplicationId\", \"incompleteVersion\", \"investmentDocumentId\", \"investmentDocumentMetadataJSON\", \"submittedApplicationJSON\", \"investmentTimelineJSON\", \"untrustedTimelineJSON\"];",
+              "const resetKeys = [\"clientProfileId\", \"bankProfileId\", \"otpRequestId\", \"accessToken\", \"clientOtpRequestId\", \"bankOtpRequestId\", \"clientAccessToken\", \"bankAccessToken\", \"clientCompanyId\", \"clientName\", \"clientPhone\", \"bankName\", \"bankPhone\", \"previousClientOtpRequestId\", \"otherClientProfileId\", \"otherClientOtpRequestId\", \"otherClientAccessToken\", \"otherCompanyId\", \"ownCompanyJSON\", \"creditProductsJSON\", \"applicationId\", \"applicationVersion\", \"previousApplicationVersion\", \"secondApplicationId\", \"applicationCreatedAt\", \"applicationUpdatedAt\", \"applicationListTotal\", \"documentApplicationId\", \"pdfDocumentId\", \"pdfMetadataJSON\", \"pngDocumentId\", \"pngMetadataJSON\", \"jpegDocumentId\", \"jpegMetadataJSON\", \"repeatedDocumentId\", \"repeatedMetadataJSON\", \"submitApplicationId\", \"submitVersion\", \"submitSubmittedAt\", \"submitPollAttempts\", \"submitTimelineJSON\", \"investmentApplicationId\", \"investmentVersion\", \"investmentSubmittedAt\", \"investmentPollAttempts\", \"thirdClientProfileId\", \"thirdClientOtpRequestId\", \"thirdClientAccessToken\", \"thirdCompanyId\", \"untrustedApplicationId\", \"untrustedVersion\", \"untrustedSubmittedAt\", \"untrustedPollAttempts\", \"incompleteApplicationId\", \"incompleteVersion\", \"investmentDocumentId\", \"investmentDocumentMetadataJSON\", \"submittedApplicationJSON\", \"investmentTimelineJSON\", \"untrustedTimelineJSON\", \"bankReadPageJSON\", \"readApprovedId\", \"readApprovedVersion\", \"readApprovedPoll\", \"readRejectedId\", \"readRejectedVersion\", \"readRejectedPoll\", \"readCounterId\", \"readCounterVersion\", \"readCounterPoll\", \"readManualId\", \"readManualVersion\", \"readManualPoll\"];",
               "resetKeys.forEach(key => { pm.collectionVariables.set(key, \"\"); pm.variables.set(key, \"\"); });"
             ]
           }
@@ -3120,7 +3190,7 @@
               "  pm.expect(r).to.have.all.keys(\"applicationId\", \"userId\", \"companyId\", \"productId\", \"productName\", \"purpose\", \"purposeDescription\", \"requestedAmountRub\", \"termMonths\", \"monthlyRevenueRub\", \"monthlyExpensesRub\", \"status\", \"version\", \"createdAt\", \"updatedAt\", \"submittedAt\", \"availableActions\");",
               "  pm.expect(r.applicationId).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
               "  pm.expect(r.userId).to.eql(pm.collectionVariables.get(\"clientProfileId\")); pm.expect(r.companyId).to.eql(pm.collectionVariables.get(\"clientCompanyId\"));",
-              "  pm.expect(r.status).to.eql(\"draft\"); pm.expect(r.availableActions).to.deep.eql([\"edit\"]); pm.expect(r.submittedAt).to.eql(null);",
+              "  pm.expect(r.status).to.eql(\"draft\"); pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\"]); pm.expect(r.submittedAt).to.eql(null);",
               "  pm.expect(Number.isSafeInteger(r.version)).to.eql(true); pm.expect(r.version).to.be.at.least(1);",
               "  pm.expect(Number.isFinite(Date.parse(r.createdAt))).to.eql(true); pm.expect(Number.isFinite(Date.parse(r.updatedAt))).to.eql(true);",
               "});",
@@ -3174,7 +3244,7 @@
               "pm.test(\"Own saved draft includes permitted company and public product summary\", () => {",
               " pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"applicationId\")); pm.expect(r.version).to.eql(Number(pm.collectionVariables.get(\"applicationVersion\")));",
               " pm.expect(r.userId).to.eql(pm.collectionVariables.get(\"clientProfileId\")); pm.expect(r.companyId).to.eql(pm.collectionVariables.get(\"clientCompanyId\"));",
-              " pm.expect(r.company).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"ownCompanyJSON\"))); pm.expect(r.availableActions).to.deep.eql([\"edit\"]);",
+              " pm.expect(r.company).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"ownCompanyJSON\"))); pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\"]);",
               " pm.expect(r.createdAt).to.eql(pm.collectionVariables.get(\"applicationCreatedAt\")); pm.expect(r.updatedAt).to.eql(pm.collectionVariables.get(\"applicationUpdatedAt\"));",
               " if (r.productId === null) pm.expect(r.product).to.eql(null);",
               " else { pm.expect(r.product).to.have.all.keys(\"id\", \"name\"); pm.expect(r.product.id).to.eql(r.productId); pm.expect(r.product.name).to.eql(r.productName); }",
@@ -3235,7 +3305,7 @@
               "  pm.expect(r).to.have.all.keys(\"applicationId\", \"userId\", \"companyId\", \"productId\", \"productName\", \"purpose\", \"purposeDescription\", \"requestedAmountRub\", \"termMonths\", \"monthlyRevenueRub\", \"monthlyExpensesRub\", \"status\", \"version\", \"createdAt\", \"updatedAt\", \"submittedAt\", \"availableActions\");",
               "  pm.expect(r.applicationId).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
               "  pm.expect(r.userId).to.eql(pm.collectionVariables.get(\"clientProfileId\")); pm.expect(r.companyId).to.eql(pm.collectionVariables.get(\"clientCompanyId\"));",
-              "  pm.expect(r.status).to.eql(\"draft\"); pm.expect(r.availableActions).to.deep.eql([\"edit\"]); pm.expect(r.submittedAt).to.eql(null);",
+              "  pm.expect(r.status).to.eql(\"draft\"); pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\"]); pm.expect(r.submittedAt).to.eql(null);",
               "  pm.expect(Number.isSafeInteger(r.version)).to.eql(true); pm.expect(r.version).to.be.at.least(1);",
               "  pm.expect(Number.isFinite(Date.parse(r.createdAt))).to.eql(true); pm.expect(Number.isFinite(Date.parse(r.updatedAt))).to.eql(true);",
               "});",
@@ -3292,7 +3362,7 @@
               "pm.test(\"Own saved draft includes permitted company and public product summary\", () => {",
               " pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"applicationId\")); pm.expect(r.version).to.eql(Number(pm.collectionVariables.get(\"applicationVersion\")));",
               " pm.expect(r.userId).to.eql(pm.collectionVariables.get(\"clientProfileId\")); pm.expect(r.companyId).to.eql(pm.collectionVariables.get(\"clientCompanyId\"));",
-              " pm.expect(r.company).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"ownCompanyJSON\"))); pm.expect(r.availableActions).to.deep.eql([\"edit\"]);",
+              " pm.expect(r.company).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"ownCompanyJSON\"))); pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\"]);",
               " pm.expect(r.createdAt).to.eql(pm.collectionVariables.get(\"applicationCreatedAt\")); pm.expect(r.updatedAt).to.eql(pm.collectionVariables.get(\"applicationUpdatedAt\"));",
               " if (r.productId === null) pm.expect(r.product).to.eql(null);",
               " else { pm.expect(r.product).to.have.all.keys(\"id\", \"name\"); pm.expect(r.product.id).to.eql(r.productId); pm.expect(r.product.name).to.eql(r.productName); }",
@@ -3354,7 +3424,7 @@
               "  pm.expect(r).to.have.all.keys(\"applicationId\", \"userId\", \"companyId\", \"productId\", \"productName\", \"purpose\", \"purposeDescription\", \"requestedAmountRub\", \"termMonths\", \"monthlyRevenueRub\", \"monthlyExpensesRub\", \"status\", \"version\", \"createdAt\", \"updatedAt\", \"submittedAt\", \"availableActions\");",
               "  pm.expect(r.applicationId).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
               "  pm.expect(r.userId).to.eql(pm.collectionVariables.get(\"clientProfileId\")); pm.expect(r.companyId).to.eql(pm.collectionVariables.get(\"clientCompanyId\"));",
-              "  pm.expect(r.status).to.eql(\"draft\"); pm.expect(r.availableActions).to.deep.eql([\"edit\"]); pm.expect(r.submittedAt).to.eql(null);",
+              "  pm.expect(r.status).to.eql(\"draft\"); pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\"]); pm.expect(r.submittedAt).to.eql(null);",
               "  pm.expect(Number.isSafeInteger(r.version)).to.eql(true); pm.expect(r.version).to.be.at.least(1);",
               "  pm.expect(Number.isFinite(Date.parse(r.createdAt))).to.eql(true); pm.expect(Number.isFinite(Date.parse(r.updatedAt))).to.eql(true);",
               "});",
@@ -3527,7 +3597,7 @@
               "  pm.expect(r).to.have.all.keys(\"applicationId\", \"userId\", \"companyId\", \"productId\", \"productName\", \"purpose\", \"purposeDescription\", \"requestedAmountRub\", \"termMonths\", \"monthlyRevenueRub\", \"monthlyExpensesRub\", \"status\", \"version\", \"createdAt\", \"updatedAt\", \"submittedAt\", \"availableActions\");",
               "  pm.expect(r.applicationId).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
               "  pm.expect(r.userId).to.eql(pm.collectionVariables.get(\"clientProfileId\")); pm.expect(r.companyId).to.eql(pm.collectionVariables.get(\"clientCompanyId\"));",
-              "  pm.expect(r.status).to.eql(\"draft\"); pm.expect(r.availableActions).to.deep.eql([\"edit\"]); pm.expect(r.submittedAt).to.eql(null);",
+              "  pm.expect(r.status).to.eql(\"draft\"); pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\"]); pm.expect(r.submittedAt).to.eql(null);",
               "  pm.expect(Number.isSafeInteger(r.version)).to.eql(true); pm.expect(r.version).to.be.at.least(1);",
               "  pm.expect(Number.isFinite(Date.parse(r.createdAt))).to.eql(true); pm.expect(Number.isFinite(Date.parse(r.updatedAt))).to.eql(true);",
               "});",
@@ -6429,7 +6499,7 @@
               "pm.test(\"Own saved draft includes permitted company and public product summary\", () => {",
               " pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"applicationId\")); pm.expect(r.version).to.eql(Number(pm.collectionVariables.get(\"applicationVersion\")));",
               " pm.expect(r.userId).to.eql(pm.collectionVariables.get(\"clientProfileId\")); pm.expect(r.companyId).to.eql(pm.collectionVariables.get(\"clientCompanyId\"));",
-              " pm.expect(r.company).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"ownCompanyJSON\"))); pm.expect(r.availableActions).to.deep.eql([\"edit\"]);",
+              " pm.expect(r.company).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"ownCompanyJSON\"))); pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\"]);",
               " pm.expect(r.createdAt).to.eql(pm.collectionVariables.get(\"applicationCreatedAt\")); pm.expect(r.updatedAt).to.eql(pm.collectionVariables.get(\"applicationUpdatedAt\"));",
               " if (r.productId === null) pm.expect(r.product).to.eql(null);",
               " else { pm.expect(r.product).to.have.all.keys(\"id\", \"name\"); pm.expect(r.product.id).to.eql(r.productId); pm.expect(r.product.name).to.eql(r.productName); }",
@@ -8845,7 +8915,7 @@
             "exec": [
               "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
               "const r=pm.response.json();",
-              "pm.test(\"Only attachments changed\", () => { pm.expect(r.status).to.eql(\"draft\"); pm.expect(r.version).to.eql(1); pm.expect(r.submittedAt).to.eql(null); pm.expect(r.availableActions).to.deep.eql([\"edit\"]); });"
+              "pm.test(\"Only attachments changed\", () => { pm.expect(r.status).to.eql(\"draft\"); pm.expect(r.version).to.eql(1); pm.expect(r.submittedAt).to.eql(null); pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\"]); });"
             ]
           }
         }
@@ -8980,7 +9050,7 @@
             "exec": [
               "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
               "const r=pm.response.json();",
-              "pm.test(\"No status, version or submission timestamp changed\",()=>{pm.expect(r.status).to.eql(\"draft\");pm.expect(r.submittedAt).to.eql(null);pm.expect(r.version).to.eql(Number(pm.collectionVariables.get(\"incompleteVersion\")));pm.expect(r.availableActions).to.deep.eql([\"edit\"]);});"
+              "pm.test(\"No status, version or submission timestamp changed\",()=>{pm.expect(r.status).to.eql(\"draft\");pm.expect(r.submittedAt).to.eql(null);pm.expect(r.version).to.eql(Number(pm.collectionVariables.get(\"incompleteVersion\")));pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\"]);});"
             ]
           }
         }
@@ -10054,7 +10124,7 @@
             "exec": [
               "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
               "const r=pm.response.json();",
-              "pm.test(\"No status, version or submission timestamp changed\",()=>{pm.expect(r.status).to.eql(\"draft\");pm.expect(r.submittedAt).to.eql(null);pm.expect(r.version).to.eql(Number(pm.collectionVariables.get(\"investmentVersion\")));pm.expect(r.availableActions).to.deep.eql([\"edit\"]);});"
+              "pm.test(\"No status, version or submission timestamp changed\",()=>{pm.expect(r.status).to.eql(\"draft\");pm.expect(r.submittedAt).to.eql(null);pm.expect(r.version).to.eql(Number(pm.collectionVariables.get(\"investmentVersion\")));pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\"]);});"
             ]
           }
         }
@@ -10537,7 +10607,7 @@
             "exec": [
               "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
               "const r=pm.response.json();",
-              "pm.test(\"No status, version or submission timestamp changed\",()=>{pm.expect(r.status).to.eql(\"draft\");pm.expect(r.submittedAt).to.eql(null);pm.expect(r.version).to.eql(Number(pm.collectionVariables.get(\"untrustedVersion\")));pm.expect(r.availableActions).to.deep.eql([\"edit\"]);});"
+              "pm.test(\"No status, version or submission timestamp changed\",()=>{pm.expect(r.status).to.eql(\"draft\");pm.expect(r.submittedAt).to.eql(null);pm.expect(r.version).to.eql(Number(pm.collectionVariables.get(\"untrustedVersion\")));pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\"]);});"
             ]
           }
         }
@@ -11079,7 +11149,7 @@
               "pm.test(\"Own saved draft includes permitted company and public product summary\", () => {",
               " pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"applicationId\")); pm.expect(r.version).to.eql(Number(pm.collectionVariables.get(\"applicationVersion\")));",
               " pm.expect(r.userId).to.eql(pm.collectionVariables.get(\"clientProfileId\")); pm.expect(r.companyId).to.eql(pm.collectionVariables.get(\"clientCompanyId\"));",
-              " pm.expect(r.company).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"ownCompanyJSON\"))); pm.expect(r.availableActions).to.deep.eql([\"edit\"]);",
+              " pm.expect(r.company).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"ownCompanyJSON\"))); pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\"]);",
               " pm.expect(r.createdAt).to.eql(pm.collectionVariables.get(\"applicationCreatedAt\")); pm.expect(r.updatedAt).to.eql(pm.collectionVariables.get(\"applicationUpdatedAt\"));",
               " if (r.productId === null) pm.expect(r.product).to.eql(null);",
               " else { pm.expect(r.product).to.have.all.keys(\"id\", \"name\"); pm.expect(r.product.id).to.eql(r.productId); pm.expect(r.product.name).to.eql(r.productName); }",
@@ -11399,6 +11469,2888 @@
           }
         }
       ]
+    },
+    {
+      "name": "221 · Read API — own draft has no fabricated assessment",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{incompleteApplicationId}}/decision",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{incompleteApplicationId}}",
+            "decision"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "pm.test(\"Decision identity, nullable results and final semantics\",()=>{",
+              " pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"incompleteApplicationId\"));",
+              " if([\"draft\",\"submitted\",\"processing\",\"manual_review\"].includes(r.status)){pm.expect(r.decision).to.eql(null);pm.expect(r.offer).to.eql(null);pm.expect(r.assessedAt).to.eql(null);}",
+              " if(r.status===\"draft\"){[\"score\",\"riskLevel\",\"processing\",\"reviewedBy\"].forEach(k=>pm.expect(r[k]).to.eql(null));pm.expect(r.reasons).to.deep.eql([]);}",
+              " if(r.status===\"manual_review\"){pm.expect(r.processing).to.eql(null);pm.expect(r.reasons.length).to.be.above(0);}",
+              " if([\"approved\",\"counter_offer\",\"rejected\"].includes(r.status)){pm.expect(r.decision).to.eql(r.status);pm.expect(r.processing).to.eql(null);pm.expect(r.reasons.length).to.be.above(0);pm.expect(Number.isFinite(Date.parse(r.assessedAt))).to.eql(true);}",
+              " if([\"approved\",\"counter_offer\"].includes(r.status)){pm.expect(r.offer).to.be.an(\"object\");pm.expect(r.offer.applicationId).to.eql(r.applicationId);pm.expect(r.offer.status).to.eql(\"active\");pm.expect(r.offer.expiresAt).to.eql(null);const catalog=JSON.parse(pm.collectionVariables.get(\"creditProductsJSON\"));pm.expect(r.offer.annualRatePercent).to.eql(catalog.find(p=>p.id===r.offer.productId).annualRatePercent);}",
+              " if(r.status===\"rejected\")pm.expect(r.offer).to.eql(null);",
+              " if([\"submitted\",\"processing\"].includes(r.status)){pm.expect(r.processing).to.be.an(\"object\");pm.expect(r.processing.message).to.be.a(\"string\").and.not.empty;}",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "222 · Read API — read submitted decision submitApplicationId",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{submitApplicationId}}/decision",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{submitApplicationId}}",
+            "decision"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "pm.test(\"Decision identity, nullable results and final semantics\",()=>{",
+              " pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"submitApplicationId\"));",
+              " if([\"draft\",\"submitted\",\"processing\",\"manual_review\"].includes(r.status)){pm.expect(r.decision).to.eql(null);pm.expect(r.offer).to.eql(null);pm.expect(r.assessedAt).to.eql(null);}",
+              " if(r.status===\"draft\"){[\"score\",\"riskLevel\",\"processing\",\"reviewedBy\"].forEach(k=>pm.expect(r[k]).to.eql(null));pm.expect(r.reasons).to.deep.eql([]);}",
+              " if(r.status===\"manual_review\"){pm.expect(r.processing).to.eql(null);pm.expect(r.reasons.length).to.be.above(0);}",
+              " if([\"approved\",\"counter_offer\",\"rejected\"].includes(r.status)){pm.expect(r.decision).to.eql(r.status);pm.expect(r.processing).to.eql(null);pm.expect(r.reasons.length).to.be.above(0);pm.expect(Number.isFinite(Date.parse(r.assessedAt))).to.eql(true);}",
+              " if([\"approved\",\"counter_offer\"].includes(r.status)){pm.expect(r.offer).to.be.an(\"object\");pm.expect(r.offer.applicationId).to.eql(r.applicationId);pm.expect(r.offer.status).to.eql(\"active\");pm.expect(r.offer.expiresAt).to.eql(null);const catalog=JSON.parse(pm.collectionVariables.get(\"creditProductsJSON\"));pm.expect(r.offer.annualRatePercent).to.eql(catalog.find(p=>p.id===r.offer.productId).annualRatePercent);}",
+              " if(r.status===\"rejected\")pm.expect(r.offer).to.eql(null);",
+              " if([\"submitted\",\"processing\"].includes(r.status)){pm.expect(r.processing).to.be.an(\"object\");pm.expect(r.processing.message).to.be.a(\"string\").and.not.empty;}",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "223 · Read API — read submitted decision investmentApplicationId",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{investmentApplicationId}}/decision",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{investmentApplicationId}}",
+            "decision"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "pm.test(\"Decision identity, nullable results and final semantics\",()=>{",
+              " pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"investmentApplicationId\"));",
+              " if([\"draft\",\"submitted\",\"processing\",\"manual_review\"].includes(r.status)){pm.expect(r.decision).to.eql(null);pm.expect(r.offer).to.eql(null);pm.expect(r.assessedAt).to.eql(null);}",
+              " if(r.status===\"draft\"){[\"score\",\"riskLevel\",\"processing\",\"reviewedBy\"].forEach(k=>pm.expect(r[k]).to.eql(null));pm.expect(r.reasons).to.deep.eql([]);}",
+              " if(r.status===\"manual_review\"){pm.expect(r.processing).to.eql(null);pm.expect(r.reasons.length).to.be.above(0);}",
+              " if([\"approved\",\"counter_offer\",\"rejected\"].includes(r.status)){pm.expect(r.decision).to.eql(r.status);pm.expect(r.processing).to.eql(null);pm.expect(r.reasons.length).to.be.above(0);pm.expect(Number.isFinite(Date.parse(r.assessedAt))).to.eql(true);}",
+              " if([\"approved\",\"counter_offer\"].includes(r.status)){pm.expect(r.offer).to.be.an(\"object\");pm.expect(r.offer.applicationId).to.eql(r.applicationId);pm.expect(r.offer.status).to.eql(\"active\");pm.expect(r.offer.expiresAt).to.eql(null);const catalog=JSON.parse(pm.collectionVariables.get(\"creditProductsJSON\"));pm.expect(r.offer.annualRatePercent).to.eql(catalog.find(p=>p.id===r.offer.productId).annualRatePercent);}",
+              " if(r.status===\"rejected\")pm.expect(r.offer).to.eql(null);",
+              " if([\"submitted\",\"processing\"].includes(r.status)){pm.expect(r.processing).to.be.an(\"object\");pm.expect(r.processing.message).to.be.a(\"string\").and.not.empty;}",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "224 · Read API — read submitted decision untrustedApplicationId",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{thirdClientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{untrustedApplicationId}}/decision",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{untrustedApplicationId}}",
+            "decision"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "pm.test(\"Decision identity, nullable results and final semantics\",()=>{",
+              " pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"untrustedApplicationId\"));",
+              " if([\"draft\",\"submitted\",\"processing\",\"manual_review\"].includes(r.status)){pm.expect(r.decision).to.eql(null);pm.expect(r.offer).to.eql(null);pm.expect(r.assessedAt).to.eql(null);}",
+              " if(r.status===\"draft\"){[\"score\",\"riskLevel\",\"processing\",\"reviewedBy\"].forEach(k=>pm.expect(r[k]).to.eql(null));pm.expect(r.reasons).to.deep.eql([]);}",
+              " if(r.status===\"manual_review\"){pm.expect(r.processing).to.eql(null);pm.expect(r.reasons.length).to.be.above(0);}",
+              " if([\"approved\",\"counter_offer\",\"rejected\"].includes(r.status)){pm.expect(r.decision).to.eql(r.status);pm.expect(r.processing).to.eql(null);pm.expect(r.reasons.length).to.be.above(0);pm.expect(Number.isFinite(Date.parse(r.assessedAt))).to.eql(true);}",
+              " if([\"approved\",\"counter_offer\"].includes(r.status)){pm.expect(r.offer).to.be.an(\"object\");pm.expect(r.offer.applicationId).to.eql(r.applicationId);pm.expect(r.offer.status).to.eql(\"active\");pm.expect(r.offer.expiresAt).to.eql(null);const catalog=JSON.parse(pm.collectionVariables.get(\"creditProductsJSON\"));pm.expect(r.offer.annualRatePercent).to.eql(catalog.find(p=>p.id===r.offer.productId).annualRatePercent);}",
+              " if(r.status===\"rejected\")pm.expect(r.offer).to.eql(null);",
+              " if([\"submitted\",\"processing\"].includes(r.status)){pm.expect(r.processing).to.be.an(\"object\");pm.expect(r.processing.message).to.be.a(\"string\").and.not.empty;}",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "225 · Read API — decision requires JWT",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{submitApplicationId}}/decision",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{submitApplicationId}}",
+            "decision"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\",()=>pm.response.to.have.status(401));",
+              "const r=pm.response.json();",
+              "pm.test(\"Safe exact error DTO\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"unauthorized\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "226 · Read API — decision forbids employee",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{submitApplicationId}}/decision",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{submitApplicationId}}",
+            "decision"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\",()=>pm.response.to.have.status(403));",
+              "const r=pm.response.json();",
+              "pm.test(\"Safe exact error DTO\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"forbidden\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "227 · Read API — decision hides foreign owner",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{otherClientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{submitApplicationId}}/decision",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{submitApplicationId}}",
+            "decision"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\",()=>pm.response.to.have.status(404));",
+              "const r=pm.response.json();",
+              "pm.test(\"Safe exact error DTO\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"application_not_found\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "228 · Read API — decision hides missing UUID",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/ffffffff-ffff-4fff-8fff-ffffffffffff/decision",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "ffffffff-ffff-4fff-8fff-ffffffffffff",
+            "decision"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\",()=>pm.response.to.have.status(404));",
+              "const r=pm.response.json();",
+              "pm.test(\"Safe exact error DTO\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"application_not_found\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "229 · Read API — decision rejects malformed UUID",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/not-a-uuid/decision",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "not-a-uuid",
+            "decision"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\",()=>pm.response.to.have.status(400));",
+              "const r=pm.response.json();",
+              "pm.test(\"Safe exact error DTO\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_request\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "230 · Read API — bank list excludes drafts and sorts by creation and UUID",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications?limit=100",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "100"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "pm.test(\"Drafts absent, current submissions included, deterministic sort\",()=>{",
+              " const ids=r.items.map(a=>a.applicationId);",
+              " [\"submitApplicationId\",\"investmentApplicationId\",\"untrustedApplicationId\"].forEach(k=>pm.expect(ids).to.include(pm.collectionVariables.get(k)));",
+              " [\"incompleteApplicationId\",\"secondApplicationId\",\"documentApplicationId\"].forEach(k=>pm.expect(ids).not.to.include(pm.collectionVariables.get(k)));",
+              " r.items.forEach((a,i)=>{pm.expect(a.status).not.to.eql(\"draft\");pm.expect(a.manualReviewRequired).to.eql(a.status===\"manual_review\");pm.expect(a.availableActions).to.deep.eql(a.status===\"manual_review\"?[\"decide\"]:[]);if(i){const prev=r.items[i-1];pm.expect(Date.parse(prev.createdAt)>=Date.parse(a.createdAt)).to.eql(true);if(prev.createdAt===a.createdAt)pm.expect(prev.applicationId>a.applicationId).to.eql(true);}});",
+              " pm.expect(r.total).to.be.at.least(r.items.length);",
+              "});",
+              "if(pm.response.code===200)pm.collectionVariables.set(\"bankReadPageJSON\",JSON.stringify(r));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "231 · Read API — bank pagination preserves filtered total",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications?limit=1&offset=1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "1"
+            },
+            {
+              "key": "offset",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "const baseline=JSON.parse(pm.collectionVariables.get(\"bankReadPageJSON\"));",
+              "pm.test(\"One row, stable second UUID and total\",()=>{pm.expect(r.total).to.eql(baseline.total);pm.expect(r.limit).to.eql(1);pm.expect(r.offset).to.eql(1);pm.expect(r.items).to.have.length(1);pm.expect(r.items[0].applicationId).to.eql(baseline.items[1].applicationId);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "232 · Read API — offset past last row retains total",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications?offset=2147483647",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications"
+          ],
+          "query": [
+            {
+              "key": "offset",
+              "value": "2147483647"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "pm.test(\"Empty page with real total\",()=>{pm.expect(r.items).to.deep.eql([]);pm.expect(r.total).to.eql(JSON.parse(pm.collectionVariables.get(\"bankReadPageJSON\")).total);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "233 · Read API — companyId filter clientCompanyId",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications?limit=100&companyId={{clientCompanyId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "100"
+            },
+            {
+              "key": "companyId",
+              "value": "{{clientCompanyId}}"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "pm.test(\"Only filtered company, total before pagination\",()=>{r.items.forEach(a=>pm.expect(a.company.id).to.eql(pm.collectionVariables.get(\"clientCompanyId\")));const all=JSON.parse(pm.collectionVariables.get(\"bankReadPageJSON\"));if(all.total===all.items.length)pm.expect(r.total).to.eql(all.items.filter(a=>a.company.id===pm.collectionVariables.get(\"clientCompanyId\")).length);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "234 · Read API — companyId filter thirdCompanyId",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications?limit=100&companyId={{thirdCompanyId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "100"
+            },
+            {
+              "key": "companyId",
+              "value": "{{thirdCompanyId}}"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "pm.test(\"Only filtered company, total before pagination\",()=>{r.items.forEach(a=>pm.expect(a.company.id).to.eql(pm.collectionVariables.get(\"thirdCompanyId\")));const all=JSON.parse(pm.collectionVariables.get(\"bankReadPageJSON\"));if(all.total===all.items.length)pm.expect(r.total).to.eql(all.items.filter(a=>a.company.id===pm.collectionVariables.get(\"thirdCompanyId\")).length);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "235 · Read API — status filter is applied in PostgreSQL",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications?limit=100&status=rejected",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "100"
+            },
+            {
+              "key": "status",
+              "value": "rejected"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "pm.test(\"Status filter\",()=>r.items.forEach(a=>pm.expect(a.status).to.eql(\"rejected\")));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "236 · Read API — reject invalid bank filter status=draft",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications?status=draft",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications"
+          ],
+          "query": [
+            {
+              "key": "status",
+              "value": "draft"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\",()=>pm.response.to.have.status(400));",
+              "const r=pm.response.json();",
+              "pm.test(\"Safe exact error DTO\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_request\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "237 · Read API — reject invalid bank filter status=unknown",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications?status=unknown",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications"
+          ],
+          "query": [
+            {
+              "key": "status",
+              "value": "unknown"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\",()=>pm.response.to.have.status(400));",
+              "const r=pm.response.json();",
+              "pm.test(\"Safe exact error DTO\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_request\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "238 · Read API — reject invalid bank filter limit=0",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications?limit=0",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "0"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\",()=>pm.response.to.have.status(400));",
+              "const r=pm.response.json();",
+              "pm.test(\"Safe exact error DTO\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_request\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "239 · Read API — reject invalid bank filter limit=101",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications?limit=101",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "101"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\",()=>pm.response.to.have.status(400));",
+              "const r=pm.response.json();",
+              "pm.test(\"Safe exact error DTO\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_request\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "240 · Read API — reject invalid bank filter offset=-1",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications?offset=-1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications"
+          ],
+          "query": [
+            {
+              "key": "offset",
+              "value": "-1"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\",()=>pm.response.to.have.status(400));",
+              "const r=pm.response.json();",
+              "pm.test(\"Safe exact error DTO\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_request\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "241 · Read API — reject invalid bank filter companyId=not-a-uuid",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications?companyId=not-a-uuid",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications"
+          ],
+          "query": [
+            {
+              "key": "companyId",
+              "value": "not-a-uuid"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\",()=>pm.response.to.have.status(400));",
+              "const r=pm.response.json();",
+              "pm.test(\"Safe exact error DTO\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_request\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "242 · Read API — reject invalid bank filter status=processing&status=rejected",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications?status=processing&status=rejected",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications"
+          ],
+          "query": [
+            {
+              "key": "status",
+              "value": "processing"
+            },
+            {
+              "key": "status",
+              "value": "rejected"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\",()=>pm.response.to.have.status(400));",
+              "const r=pm.response.json();",
+              "pm.test(\"Safe exact error DTO\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_request\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "243 · Read API — reject invalid bank filter companyId={{clientCompanyId}}&companyId={{thirdCompanyId}}",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications?companyId={{clientCompanyId}}&companyId={{thirdCompanyId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications"
+          ],
+          "query": [
+            {
+              "key": "companyId",
+              "value": "{{clientCompanyId}}"
+            },
+            {
+              "key": "companyId",
+              "value": "{{thirdCompanyId}}"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\",()=>pm.response.to.have.status(400));",
+              "const r=pm.response.json();",
+              "pm.test(\"Safe exact error DTO\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_request\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "244 · Read API — reject invalid bank filter unexpected=true",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications?unexpected=true",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications"
+          ],
+          "query": [
+            {
+              "key": "unexpected",
+              "value": "true"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\",()=>pm.response.to.have.status(400));",
+              "const r=pm.response.json();",
+              "pm.test(\"Safe exact error DTO\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_request\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "245 · Read API — bank API forbids CLIENT ",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\",()=>pm.response.to.have.status(403));",
+              "const r=pm.response.json();",
+              "pm.test(\"Safe exact error DTO\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"forbidden\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "246 · Read API — bank API requires JWT ",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\",()=>pm.response.to.have.status(401));",
+              "const r=pm.response.json();",
+              "pm.test(\"Safe exact error DTO\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"unauthorized\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "247 · Read API — bank API forbids CLIENT /{{submitApplicationId}}",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications/{{submitApplicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications",
+            "{{submitApplicationId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\",()=>pm.response.to.have.status(403));",
+              "const r=pm.response.json();",
+              "pm.test(\"Safe exact error DTO\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"forbidden\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "248 · Read API — bank API requires JWT /{{submitApplicationId}}",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications/{{submitApplicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications",
+            "{{submitApplicationId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\",()=>pm.response.to.have.status(401));",
+              "const r=pm.response.json();",
+              "pm.test(\"Safe exact error DTO\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"unauthorized\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "249 · Read API — bank API forbids CLIENT /{{submitApplicationId}}/assessment",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications/{{submitApplicationId}}/assessment",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications",
+            "{{submitApplicationId}}",
+            "assessment"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\",()=>pm.response.to.have.status(403));",
+              "const r=pm.response.json();",
+              "pm.test(\"Safe exact error DTO\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"forbidden\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "250 · Read API — bank API requires JWT /{{submitApplicationId}}/assessment",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications/{{submitApplicationId}}/assessment",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications",
+            "{{submitApplicationId}}",
+            "assessment"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\",()=>pm.response.to.have.status(401));",
+              "const r=pm.response.json();",
+              "pm.test(\"Safe exact error DTO\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"unauthorized\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "251 · Read API — bank hides draft incompleteApplicationId",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications/{{incompleteApplicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications",
+            "{{incompleteApplicationId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\",()=>pm.response.to.have.status(404));",
+              "const r=pm.response.json();",
+              "pm.test(\"Safe exact error DTO\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"application_not_found\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "252 · Read API — bank hides draft incompleteApplicationId/assessment",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications/{{incompleteApplicationId}}/assessment",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications",
+            "{{incompleteApplicationId}}",
+            "assessment"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\",()=>pm.response.to.have.status(404));",
+              "const r=pm.response.json();",
+              "pm.test(\"Safe exact error DTO\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"application_not_found\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "253 · Read API — bank hides draft secondApplicationId",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications/{{secondApplicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications",
+            "{{secondApplicationId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\",()=>pm.response.to.have.status(404));",
+              "const r=pm.response.json();",
+              "pm.test(\"Safe exact error DTO\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"application_not_found\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "254 · Read API — bank hides draft secondApplicationId/assessment",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications/{{secondApplicationId}}/assessment",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications",
+            "{{secondApplicationId}}",
+            "assessment"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\",()=>pm.response.to.have.status(404));",
+              "const r=pm.response.json();",
+              "pm.test(\"Safe exact error DTO\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"application_not_found\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "255 · Read API — bank hides draft documentApplicationId",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications/{{documentApplicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications",
+            "{{documentApplicationId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\",()=>pm.response.to.have.status(404));",
+              "const r=pm.response.json();",
+              "pm.test(\"Safe exact error DTO\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"application_not_found\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "256 · Read API — bank hides draft documentApplicationId/assessment",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications/{{documentApplicationId}}/assessment",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications",
+            "{{documentApplicationId}}",
+            "assessment"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\",()=>pm.response.to.have.status(404));",
+              "const r=pm.response.json();",
+              "pm.test(\"Safe exact error DTO\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"application_not_found\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "257 · Read API — bank missing UUID ",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications/ffffffff-ffff-4fff-8fff-ffffffffffff",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications",
+            "ffffffff-ffff-4fff-8fff-ffffffffffff"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\",()=>pm.response.to.have.status(404));",
+              "const r=pm.response.json();",
+              "pm.test(\"Safe exact error DTO\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"application_not_found\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "258 · Read API — bank missing UUID /assessment",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications/ffffffff-ffff-4fff-8fff-ffffffffffff/assessment",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications",
+            "ffffffff-ffff-4fff-8fff-ffffffffffff",
+            "assessment"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\",()=>pm.response.to.have.status(404));",
+              "const r=pm.response.json();",
+              "pm.test(\"Safe exact error DTO\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"application_not_found\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "259 · Read API — bank reads frozen detail submitApplicationId",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications/{{submitApplicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications",
+            "{{submitApplicationId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "pm.test(\"Frozen bank card and employee actions\",()=>{pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"submitApplicationId\"));pm.expect(r.status).not.to.eql(\"draft\");pm.expect(r.product.id).to.eql(r.productId);pm.expect(r.productTerms.id).to.eql(r.productId);pm.expect(r.productTerms.name).to.eql(r.productName);pm.expect(r.company.id).to.eql(r.companyId);pm.expect(r.manualReviewRequired).to.eql(r.status===\"manual_review\");pm.expect(r.availableActions).to.deep.eql(r.status===\"manual_review\"?[\"decide\"]:[]);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "260 · Read API — bank reads persisted assessment submitApplicationId",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications/{{submitApplicationId}}/assessment",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications",
+            "{{submitApplicationId}}",
+            "assessment"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "pm.test(\"Saved assessment and safe infrastructure boundary\",()=>{pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"submitApplicationId\"));pm.expect(r.manualDecision).to.eql(null);if(r.status===\"manual_review\"){pm.expect(r.manualReviewReasons.length).to.be.above(0);pm.expect(r.processing).to.eql(null);}r.recommendations.forEach(rec=>{pm.expect(rec).not.to.have.property(\"offerId\");if(rec.offer)pm.expect(rec.offer).to.have.all.keys(\"amountRub\",\"termMonths\");});if(pm.variables.get(\"expectScoringResult\")===\"true\"){pm.expect(r.scoring).to.be.an(\"object\");}pm.expect(JSON.stringify(r)).not.to.match(/postgres:\\/\\/|lease_token|storage_key|http:\\/\\/scoring/);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "261 · Read API — bank reads frozen detail investmentApplicationId",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications/{{investmentApplicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications",
+            "{{investmentApplicationId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "pm.test(\"Frozen bank card and employee actions\",()=>{pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"investmentApplicationId\"));pm.expect(r.status).not.to.eql(\"draft\");pm.expect(r.product.id).to.eql(r.productId);pm.expect(r.productTerms.id).to.eql(r.productId);pm.expect(r.productTerms.name).to.eql(r.productName);pm.expect(r.company.id).to.eql(r.companyId);pm.expect(r.manualReviewRequired).to.eql(r.status===\"manual_review\");pm.expect(r.availableActions).to.deep.eql(r.status===\"manual_review\"?[\"decide\"]:[]);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "262 · Read API — bank reads persisted assessment investmentApplicationId",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications/{{investmentApplicationId}}/assessment",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications",
+            "{{investmentApplicationId}}",
+            "assessment"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "pm.test(\"Saved assessment and safe infrastructure boundary\",()=>{pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"investmentApplicationId\"));pm.expect(r.manualDecision).to.eql(null);if(r.status===\"manual_review\"){pm.expect(r.manualReviewReasons.length).to.be.above(0);pm.expect(r.processing).to.eql(null);}r.recommendations.forEach(rec=>{pm.expect(rec).not.to.have.property(\"offerId\");if(rec.offer)pm.expect(rec.offer).to.have.all.keys(\"amountRub\",\"termMonths\");});if(pm.variables.get(\"expectScoringResult\")===\"true\"){pm.expect(r.scoring).to.be.an(\"object\");}pm.expect(JSON.stringify(r)).not.to.match(/postgres:\\/\\/|lease_token|storage_key|http:\\/\\/scoring/);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "263 · Read API — bank reads frozen detail untrustedApplicationId",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications/{{untrustedApplicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications",
+            "{{untrustedApplicationId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "pm.test(\"Frozen bank card and employee actions\",()=>{pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"untrustedApplicationId\"));pm.expect(r.status).not.to.eql(\"draft\");pm.expect(r.product.id).to.eql(r.productId);pm.expect(r.productTerms.id).to.eql(r.productId);pm.expect(r.productTerms.name).to.eql(r.productName);pm.expect(r.company.id).to.eql(r.companyId);pm.expect(r.manualReviewRequired).to.eql(r.status===\"manual_review\");pm.expect(r.availableActions).to.deep.eql(r.status===\"manual_review\"?[\"decide\"]:[]);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "264 · Read API — bank reads persisted assessment untrustedApplicationId",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications/{{untrustedApplicationId}}/assessment",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications",
+            "{{untrustedApplicationId}}",
+            "assessment"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "pm.test(\"Saved assessment and safe infrastructure boundary\",()=>{pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"untrustedApplicationId\"));pm.expect(r.manualDecision).to.eql(null);if(r.status===\"manual_review\"){pm.expect(r.manualReviewReasons.length).to.be.above(0);pm.expect(r.processing).to.eql(null);}r.recommendations.forEach(rec=>{pm.expect(rec).not.to.have.property(\"offerId\");if(rec.offer)pm.expect(rec.offer).to.have.all.keys(\"amountRub\",\"termMonths\");});if(pm.variables.get(\"expectScoringResult\")===\"true\"){pm.expect(r.scoring).to.be.an(\"object\");}pm.expect(JSON.stringify(r)).not.to.match(/postgres:\\/\\/|lease_token|storage_key|http:\\/\\/scoring/);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "265 · Read API — create independent approval fixture",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"productId\": \"turnover\",\n  \"purpose\": \"stock\",\n  \"requestedAmountRub\": 1100000,\n  \"termMonths\": 12,\n  \"monthlyRevenueRub\": 2400000,\n  \"monthlyExpensesRub\": 1500000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
+              "const r=pm.response.json();",
+              "pm.test(\"Fresh private draft\",()=>{pm.expect(r.status).to.eql(\"draft\");pm.expect(r.availableActions).to.deep.eql([\"edit\",\"submit\"]);});if(pm.response.code===201){pm.collectionVariables.set(\"readApprovedId\",r.applicationId);pm.collectionVariables.set(\"readApprovedVersion\",r.version);pm.collectionVariables.set(\"readApprovedPoll\",0);}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "266 · Read API — submit approval fixture",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{readApprovedId}}/submit",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{readApprovedId}}",
+            "submit"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 202\",()=>pm.response.to.have.status(202));",
+              "const r=pm.response.json();",
+              "pm.test(\"Queued asynchronous processing\",()=>pm.expect(r.status).to.be.oneOf([\"submitted\",\"processing\"]));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "267 · Read API — read approval fixture until policy completes",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{readApprovedId}}/decision",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{readApprovedId}}",
+            "decision"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "pm.test(\"Decision identity, nullable results and final semantics\",()=>{",
+              " pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"readApprovedId\"));",
+              " if([\"draft\",\"submitted\",\"processing\",\"manual_review\"].includes(r.status)){pm.expect(r.decision).to.eql(null);pm.expect(r.offer).to.eql(null);pm.expect(r.assessedAt).to.eql(null);}",
+              " if(r.status===\"draft\"){[\"score\",\"riskLevel\",\"processing\",\"reviewedBy\"].forEach(k=>pm.expect(r[k]).to.eql(null));pm.expect(r.reasons).to.deep.eql([]);}",
+              " if(r.status===\"manual_review\"){pm.expect(r.processing).to.eql(null);pm.expect(r.reasons.length).to.be.above(0);}",
+              " if([\"approved\",\"counter_offer\",\"rejected\"].includes(r.status)){pm.expect(r.decision).to.eql(r.status);pm.expect(r.processing).to.eql(null);pm.expect(r.reasons.length).to.be.above(0);pm.expect(Number.isFinite(Date.parse(r.assessedAt))).to.eql(true);}",
+              " if([\"approved\",\"counter_offer\"].includes(r.status)){pm.expect(r.offer).to.be.an(\"object\");pm.expect(r.offer.applicationId).to.eql(r.applicationId);pm.expect(r.offer.status).to.eql(\"active\");pm.expect(r.offer.expiresAt).to.eql(null);const catalog=JSON.parse(pm.collectionVariables.get(\"creditProductsJSON\"));pm.expect(r.offer.annualRatePercent).to.eql(catalog.find(p=>p.id===r.offer.productId).annualRatePercent);}",
+              " if(r.status===\"rejected\")pm.expect(r.offer).to.eql(null);",
+              " if([\"submitted\",\"processing\"].includes(r.status)){pm.expect(r.processing).to.be.an(\"object\");pm.expect(r.processing.message).to.be.a(\"string\").and.not.empty;}",
+              "});",
+              "const expectOutcome=String(pm.variables.get(\"expectReadOutcomes\"))===\"true\";",
+              "if(expectOutcome){",
+              " pm.test(\"Outcome fixtures require scoring and decision polling\",()=>{pm.expect(String(pm.variables.get(\"expectScoringResult\"))).to.eql(\"true\");pm.expect(String(pm.variables.get(\"expectDecisionResult\"))).to.eql(\"true\");});",
+              " const final=[\"approved\",\"rejected\",\"counter_offer\",\"manual_review\"].includes(r.status);",
+              " const n=Number(pm.collectionVariables.get(\"readApprovedPoll\")||0)+1;pm.collectionVariables.set(\"readApprovedPoll\",n);",
+              " if(!final && n<120){setTimeout(()=>{},250);pm.execution.setNextRequest(pm.info.requestId);}else{pm.test(\"Expected deterministic policy outcome\",()=>pm.expect(r.status).to.eql(\"approved\"));}",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "268 · Read API — bank detail approval fixture",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications/{{readApprovedId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications",
+            "{{readApprovedId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "pm.test(\"Frozen bank card and employee actions\",()=>{pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"readApprovedId\"));pm.expect(r.status).not.to.eql(\"draft\");pm.expect(r.product.id).to.eql(r.productId);pm.expect(r.productTerms.id).to.eql(r.productId);pm.expect(r.productTerms.name).to.eql(r.productName);pm.expect(r.company.id).to.eql(r.companyId);pm.expect(r.manualReviewRequired).to.eql(r.status===\"manual_review\");pm.expect(r.availableActions).to.deep.eql(r.status===\"manual_review\"?[\"decide\"]:[]);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "269 · Read API — bank assessment approval fixture",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications/{{readApprovedId}}/assessment",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications",
+            "{{readApprovedId}}",
+            "assessment"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "pm.test(\"Saved assessment and safe infrastructure boundary\",()=>{pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"readApprovedId\"));pm.expect(r.manualDecision).to.eql(null);if(r.status===\"manual_review\"){pm.expect(r.manualReviewReasons.length).to.be.above(0);pm.expect(r.processing).to.eql(null);}r.recommendations.forEach(rec=>{pm.expect(rec).not.to.have.property(\"offerId\");if(rec.offer)pm.expect(rec.offer).to.have.all.keys(\"amountRub\",\"termMonths\");});if(pm.variables.get(\"expectScoringResult\")===\"true\"){pm.expect(r.scoring).to.be.an(\"object\");}pm.expect(JSON.stringify(r)).not.to.match(/postgres:\\/\\/|lease_token|storage_key|http:\\/\\/scoring/);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "270 · Read API — create independent rejection fixture",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"productId\": \"turnover\",\n  \"purpose\": \"stock\",\n  \"requestedAmountRub\": 1200000,\n  \"termMonths\": 12,\n  \"monthlyRevenueRub\": 2400000,\n  \"monthlyExpensesRub\": 1500000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
+              "const r=pm.response.json();",
+              "pm.test(\"Fresh private draft\",()=>{pm.expect(r.status).to.eql(\"draft\");pm.expect(r.availableActions).to.deep.eql([\"edit\",\"submit\"]);});if(pm.response.code===201){pm.collectionVariables.set(\"readRejectedId\",r.applicationId);pm.collectionVariables.set(\"readRejectedVersion\",r.version);pm.collectionVariables.set(\"readRejectedPoll\",0);}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "271 · Read API — submit rejection fixture",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{readRejectedId}}/submit",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{readRejectedId}}",
+            "submit"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 202\",()=>pm.response.to.have.status(202));",
+              "const r=pm.response.json();",
+              "pm.test(\"Queued asynchronous processing\",()=>pm.expect(r.status).to.be.oneOf([\"submitted\",\"processing\"]));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "272 · Read API — read rejection fixture until policy completes",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{readRejectedId}}/decision",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{readRejectedId}}",
+            "decision"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "pm.test(\"Decision identity, nullable results and final semantics\",()=>{",
+              " pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"readRejectedId\"));",
+              " if([\"draft\",\"submitted\",\"processing\",\"manual_review\"].includes(r.status)){pm.expect(r.decision).to.eql(null);pm.expect(r.offer).to.eql(null);pm.expect(r.assessedAt).to.eql(null);}",
+              " if(r.status===\"draft\"){[\"score\",\"riskLevel\",\"processing\",\"reviewedBy\"].forEach(k=>pm.expect(r[k]).to.eql(null));pm.expect(r.reasons).to.deep.eql([]);}",
+              " if(r.status===\"manual_review\"){pm.expect(r.processing).to.eql(null);pm.expect(r.reasons.length).to.be.above(0);}",
+              " if([\"approved\",\"counter_offer\",\"rejected\"].includes(r.status)){pm.expect(r.decision).to.eql(r.status);pm.expect(r.processing).to.eql(null);pm.expect(r.reasons.length).to.be.above(0);pm.expect(Number.isFinite(Date.parse(r.assessedAt))).to.eql(true);}",
+              " if([\"approved\",\"counter_offer\"].includes(r.status)){pm.expect(r.offer).to.be.an(\"object\");pm.expect(r.offer.applicationId).to.eql(r.applicationId);pm.expect(r.offer.status).to.eql(\"active\");pm.expect(r.offer.expiresAt).to.eql(null);const catalog=JSON.parse(pm.collectionVariables.get(\"creditProductsJSON\"));pm.expect(r.offer.annualRatePercent).to.eql(catalog.find(p=>p.id===r.offer.productId).annualRatePercent);}",
+              " if(r.status===\"rejected\")pm.expect(r.offer).to.eql(null);",
+              " if([\"submitted\",\"processing\"].includes(r.status)){pm.expect(r.processing).to.be.an(\"object\");pm.expect(r.processing.message).to.be.a(\"string\").and.not.empty;}",
+              "});",
+              "const expectOutcome=String(pm.variables.get(\"expectReadOutcomes\"))===\"true\";",
+              "if(expectOutcome){",
+              " pm.test(\"Outcome fixtures require scoring and decision polling\",()=>{pm.expect(String(pm.variables.get(\"expectScoringResult\"))).to.eql(\"true\");pm.expect(String(pm.variables.get(\"expectDecisionResult\"))).to.eql(\"true\");});",
+              " const final=[\"approved\",\"rejected\",\"counter_offer\",\"manual_review\"].includes(r.status);",
+              " const n=Number(pm.collectionVariables.get(\"readRejectedPoll\")||0)+1;pm.collectionVariables.set(\"readRejectedPoll\",n);",
+              " if(!final && n<120){setTimeout(()=>{},250);pm.execution.setNextRequest(pm.info.requestId);}else{pm.test(\"Expected deterministic policy outcome\",()=>pm.expect(r.status).to.eql(\"rejected\"));}",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "273 · Read API — bank detail rejection fixture",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications/{{readRejectedId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications",
+            "{{readRejectedId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "pm.test(\"Frozen bank card and employee actions\",()=>{pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"readRejectedId\"));pm.expect(r.status).not.to.eql(\"draft\");pm.expect(r.product.id).to.eql(r.productId);pm.expect(r.productTerms.id).to.eql(r.productId);pm.expect(r.productTerms.name).to.eql(r.productName);pm.expect(r.company.id).to.eql(r.companyId);pm.expect(r.manualReviewRequired).to.eql(r.status===\"manual_review\");pm.expect(r.availableActions).to.deep.eql(r.status===\"manual_review\"?[\"decide\"]:[]);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "274 · Read API — bank assessment rejection fixture",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications/{{readRejectedId}}/assessment",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications",
+            "{{readRejectedId}}",
+            "assessment"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "pm.test(\"Saved assessment and safe infrastructure boundary\",()=>{pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"readRejectedId\"));pm.expect(r.manualDecision).to.eql(null);if(r.status===\"manual_review\"){pm.expect(r.manualReviewReasons.length).to.be.above(0);pm.expect(r.processing).to.eql(null);}r.recommendations.forEach(rec=>{pm.expect(rec).not.to.have.property(\"offerId\");if(rec.offer)pm.expect(rec.offer).to.have.all.keys(\"amountRub\",\"termMonths\");});if(pm.variables.get(\"expectScoringResult\")===\"true\"){pm.expect(r.scoring).to.be.an(\"object\");}pm.expect(JSON.stringify(r)).not.to.match(/postgres:\\/\\/|lease_token|storage_key|http:\\/\\/scoring/);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "275 · Read API — create independent counter offer fixture",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"productId\": \"turnover\",\n  \"purpose\": \"stock\",\n  \"requestedAmountRub\": 1300000,\n  \"termMonths\": 12,\n  \"monthlyRevenueRub\": 2400000,\n  \"monthlyExpensesRub\": 2100000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
+              "const r=pm.response.json();",
+              "pm.test(\"Fresh private draft\",()=>{pm.expect(r.status).to.eql(\"draft\");pm.expect(r.availableActions).to.deep.eql([\"edit\",\"submit\"]);});if(pm.response.code===201){pm.collectionVariables.set(\"readCounterId\",r.applicationId);pm.collectionVariables.set(\"readCounterVersion\",r.version);pm.collectionVariables.set(\"readCounterPoll\",0);}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "276 · Read API — submit counter offer fixture",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{readCounterId}}/submit",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{readCounterId}}",
+            "submit"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 202\",()=>pm.response.to.have.status(202));",
+              "const r=pm.response.json();",
+              "pm.test(\"Queued asynchronous processing\",()=>pm.expect(r.status).to.be.oneOf([\"submitted\",\"processing\"]));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "277 · Read API — read counter offer fixture until policy completes",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{readCounterId}}/decision",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{readCounterId}}",
+            "decision"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "pm.test(\"Decision identity, nullable results and final semantics\",()=>{",
+              " pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"readCounterId\"));",
+              " if([\"draft\",\"submitted\",\"processing\",\"manual_review\"].includes(r.status)){pm.expect(r.decision).to.eql(null);pm.expect(r.offer).to.eql(null);pm.expect(r.assessedAt).to.eql(null);}",
+              " if(r.status===\"draft\"){[\"score\",\"riskLevel\",\"processing\",\"reviewedBy\"].forEach(k=>pm.expect(r[k]).to.eql(null));pm.expect(r.reasons).to.deep.eql([]);}",
+              " if(r.status===\"manual_review\"){pm.expect(r.processing).to.eql(null);pm.expect(r.reasons.length).to.be.above(0);}",
+              " if([\"approved\",\"counter_offer\",\"rejected\"].includes(r.status)){pm.expect(r.decision).to.eql(r.status);pm.expect(r.processing).to.eql(null);pm.expect(r.reasons.length).to.be.above(0);pm.expect(Number.isFinite(Date.parse(r.assessedAt))).to.eql(true);}",
+              " if([\"approved\",\"counter_offer\"].includes(r.status)){pm.expect(r.offer).to.be.an(\"object\");pm.expect(r.offer.applicationId).to.eql(r.applicationId);pm.expect(r.offer.status).to.eql(\"active\");pm.expect(r.offer.expiresAt).to.eql(null);const catalog=JSON.parse(pm.collectionVariables.get(\"creditProductsJSON\"));pm.expect(r.offer.annualRatePercent).to.eql(catalog.find(p=>p.id===r.offer.productId).annualRatePercent);}",
+              " if(r.status===\"rejected\")pm.expect(r.offer).to.eql(null);",
+              " if([\"submitted\",\"processing\"].includes(r.status)){pm.expect(r.processing).to.be.an(\"object\");pm.expect(r.processing.message).to.be.a(\"string\").and.not.empty;}",
+              "});",
+              "const expectOutcome=String(pm.variables.get(\"expectReadOutcomes\"))===\"true\";",
+              "if(expectOutcome){",
+              " pm.test(\"Outcome fixtures require scoring and decision polling\",()=>{pm.expect(String(pm.variables.get(\"expectScoringResult\"))).to.eql(\"true\");pm.expect(String(pm.variables.get(\"expectDecisionResult\"))).to.eql(\"true\");});",
+              " const final=[\"approved\",\"rejected\",\"counter_offer\",\"manual_review\"].includes(r.status);",
+              " const n=Number(pm.collectionVariables.get(\"readCounterPoll\")||0)+1;pm.collectionVariables.set(\"readCounterPoll\",n);",
+              " if(!final && n<120){setTimeout(()=>{},250);pm.execution.setNextRequest(pm.info.requestId);}else{pm.test(\"Expected deterministic policy outcome\",()=>pm.expect(r.status).to.eql(\"counter_offer\"));}",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "278 · Read API — bank detail counter offer fixture",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications/{{readCounterId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications",
+            "{{readCounterId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "pm.test(\"Frozen bank card and employee actions\",()=>{pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"readCounterId\"));pm.expect(r.status).not.to.eql(\"draft\");pm.expect(r.product.id).to.eql(r.productId);pm.expect(r.productTerms.id).to.eql(r.productId);pm.expect(r.productTerms.name).to.eql(r.productName);pm.expect(r.company.id).to.eql(r.companyId);pm.expect(r.manualReviewRequired).to.eql(r.status===\"manual_review\");pm.expect(r.availableActions).to.deep.eql(r.status===\"manual_review\"?[\"decide\"]:[]);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "279 · Read API — bank assessment counter offer fixture",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications/{{readCounterId}}/assessment",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications",
+            "{{readCounterId}}",
+            "assessment"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "pm.test(\"Saved assessment and safe infrastructure boundary\",()=>{pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"readCounterId\"));pm.expect(r.manualDecision).to.eql(null);if(r.status===\"manual_review\"){pm.expect(r.manualReviewReasons.length).to.be.above(0);pm.expect(r.processing).to.eql(null);}r.recommendations.forEach(rec=>{pm.expect(rec).not.to.have.property(\"offerId\");if(rec.offer)pm.expect(rec.offer).to.have.all.keys(\"amountRub\",\"termMonths\");});if(pm.variables.get(\"expectScoringResult\")===\"true\"){pm.expect(r.scoring).to.be.an(\"object\");}pm.expect(JSON.stringify(r)).not.to.match(/postgres:\\/\\/|lease_token|storage_key|http:\\/\\/scoring/);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "280 · Read API — create independent manual review fixture",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"productId\": \"turnover\",\n  \"purpose\": \"stock\",\n  \"requestedAmountRub\": 1400000,\n  \"termMonths\": 12,\n  \"monthlyRevenueRub\": 2400000,\n  \"monthlyExpensesRub\": 1500000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
+              "const r=pm.response.json();",
+              "pm.test(\"Fresh private draft\",()=>{pm.expect(r.status).to.eql(\"draft\");pm.expect(r.availableActions).to.deep.eql([\"edit\",\"submit\"]);});if(pm.response.code===201){pm.collectionVariables.set(\"readManualId\",r.applicationId);pm.collectionVariables.set(\"readManualVersion\",r.version);pm.collectionVariables.set(\"readManualPoll\",0);}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "281 · Read API — submit manual review fixture",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{readManualId}}/submit",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{readManualId}}",
+            "submit"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 202\",()=>pm.response.to.have.status(202));",
+              "const r=pm.response.json();",
+              "pm.test(\"Queued asynchronous processing\",()=>pm.expect(r.status).to.be.oneOf([\"submitted\",\"processing\"]));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "282 · Read API — read manual review fixture until policy completes",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{readManualId}}/decision",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{readManualId}}",
+            "decision"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "pm.test(\"Decision identity, nullable results and final semantics\",()=>{",
+              " pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"readManualId\"));",
+              " if([\"draft\",\"submitted\",\"processing\",\"manual_review\"].includes(r.status)){pm.expect(r.decision).to.eql(null);pm.expect(r.offer).to.eql(null);pm.expect(r.assessedAt).to.eql(null);}",
+              " if(r.status===\"draft\"){[\"score\",\"riskLevel\",\"processing\",\"reviewedBy\"].forEach(k=>pm.expect(r[k]).to.eql(null));pm.expect(r.reasons).to.deep.eql([]);}",
+              " if(r.status===\"manual_review\"){pm.expect(r.processing).to.eql(null);pm.expect(r.reasons.length).to.be.above(0);}",
+              " if([\"approved\",\"counter_offer\",\"rejected\"].includes(r.status)){pm.expect(r.decision).to.eql(r.status);pm.expect(r.processing).to.eql(null);pm.expect(r.reasons.length).to.be.above(0);pm.expect(Number.isFinite(Date.parse(r.assessedAt))).to.eql(true);}",
+              " if([\"approved\",\"counter_offer\"].includes(r.status)){pm.expect(r.offer).to.be.an(\"object\");pm.expect(r.offer.applicationId).to.eql(r.applicationId);pm.expect(r.offer.status).to.eql(\"active\");pm.expect(r.offer.expiresAt).to.eql(null);const catalog=JSON.parse(pm.collectionVariables.get(\"creditProductsJSON\"));pm.expect(r.offer.annualRatePercent).to.eql(catalog.find(p=>p.id===r.offer.productId).annualRatePercent);}",
+              " if(r.status===\"rejected\")pm.expect(r.offer).to.eql(null);",
+              " if([\"submitted\",\"processing\"].includes(r.status)){pm.expect(r.processing).to.be.an(\"object\");pm.expect(r.processing.message).to.be.a(\"string\").and.not.empty;}",
+              "});",
+              "const expectOutcome=String(pm.variables.get(\"expectReadOutcomes\"))===\"true\";",
+              "if(expectOutcome){",
+              " pm.test(\"Outcome fixtures require scoring and decision polling\",()=>{pm.expect(String(pm.variables.get(\"expectScoringResult\"))).to.eql(\"true\");pm.expect(String(pm.variables.get(\"expectDecisionResult\"))).to.eql(\"true\");});",
+              " const final=[\"approved\",\"rejected\",\"counter_offer\",\"manual_review\"].includes(r.status);",
+              " const n=Number(pm.collectionVariables.get(\"readManualPoll\")||0)+1;pm.collectionVariables.set(\"readManualPoll\",n);",
+              " if(!final && n<120){setTimeout(()=>{},250);pm.execution.setNextRequest(pm.info.requestId);}else{pm.test(\"Expected deterministic policy outcome\",()=>pm.expect(r.status).to.eql(\"manual_review\"));}",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "283 · Read API — bank detail manual review fixture",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications/{{readManualId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications",
+            "{{readManualId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "pm.test(\"Frozen bank card and employee actions\",()=>{pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"readManualId\"));pm.expect(r.status).not.to.eql(\"draft\");pm.expect(r.product.id).to.eql(r.productId);pm.expect(r.productTerms.id).to.eql(r.productId);pm.expect(r.productTerms.name).to.eql(r.productName);pm.expect(r.company.id).to.eql(r.companyId);pm.expect(r.manualReviewRequired).to.eql(r.status===\"manual_review\");pm.expect(r.availableActions).to.deep.eql(r.status===\"manual_review\"?[\"decide\"]:[]);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "284 · Read API — bank assessment manual review fixture",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bank/applications/{{readManualId}}/assessment",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bank",
+            "applications",
+            "{{readManualId}}",
+            "assessment"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json();",
+              "pm.test(\"Saved assessment and safe infrastructure boundary\",()=>{pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"readManualId\"));pm.expect(r.manualDecision).to.eql(null);if(r.status===\"manual_review\"){pm.expect(r.manualReviewReasons.length).to.be.above(0);pm.expect(r.processing).to.eql(null);}r.recommendations.forEach(rec=>{pm.expect(rec).not.to.have.property(\"offerId\");if(rec.offer)pm.expect(rec.offer).to.have.all.keys(\"amountRub\",\"termMonths\");});if(pm.variables.get(\"expectScoringResult\")===\"true\"){pm.expect(r.scoring).to.be.an(\"object\");}pm.expect(JSON.stringify(r)).not.to.match(/postgres:\\/\\/|lease_token|storage_key|http:\\/\\/scoring/);});"
+            ]
+          }
+        }
+      ]
     }
   ],
   "event": [
@@ -11408,7 +14360,7 @@
         "type": "text/javascript",
         "exec": [
           "// Local values prevent stale environment/global variables from shadowing run results.",
-          "const transientKeys = [\"clientProfileId\", \"bankProfileId\", \"otpRequestId\", \"accessToken\", \"clientOtpRequestId\", \"bankOtpRequestId\", \"clientAccessToken\", \"bankAccessToken\", \"clientCompanyId\", \"clientName\", \"clientPhone\", \"bankName\", \"bankPhone\", \"previousClientOtpRequestId\", \"otherClientProfileId\", \"otherClientOtpRequestId\", \"otherClientAccessToken\", \"otherCompanyId\", \"ownCompanyJSON\", \"creditProductsJSON\", \"applicationId\", \"applicationVersion\", \"previousApplicationVersion\", \"secondApplicationId\", \"applicationCreatedAt\", \"applicationUpdatedAt\", \"applicationListTotal\", \"documentApplicationId\", \"pdfDocumentId\", \"pdfMetadataJSON\", \"pngDocumentId\", \"pngMetadataJSON\", \"jpegDocumentId\", \"jpegMetadataJSON\", \"repeatedDocumentId\", \"repeatedMetadataJSON\", \"submitApplicationId\", \"submitVersion\", \"submitSubmittedAt\", \"submitPollAttempts\", \"submitTimelineJSON\", \"investmentApplicationId\", \"investmentVersion\", \"investmentSubmittedAt\", \"investmentPollAttempts\", \"thirdClientProfileId\", \"thirdClientOtpRequestId\", \"thirdClientAccessToken\", \"thirdCompanyId\", \"untrustedApplicationId\", \"untrustedVersion\", \"untrustedSubmittedAt\", \"untrustedPollAttempts\", \"incompleteApplicationId\", \"incompleteVersion\", \"investmentDocumentId\", \"investmentDocumentMetadataJSON\", \"submittedApplicationJSON\", \"investmentTimelineJSON\", \"untrustedTimelineJSON\"];",
+          "const transientKeys = [\"clientProfileId\", \"bankProfileId\", \"otpRequestId\", \"accessToken\", \"clientOtpRequestId\", \"bankOtpRequestId\", \"clientAccessToken\", \"bankAccessToken\", \"clientCompanyId\", \"clientName\", \"clientPhone\", \"bankName\", \"bankPhone\", \"previousClientOtpRequestId\", \"otherClientProfileId\", \"otherClientOtpRequestId\", \"otherClientAccessToken\", \"otherCompanyId\", \"ownCompanyJSON\", \"creditProductsJSON\", \"applicationId\", \"applicationVersion\", \"previousApplicationVersion\", \"secondApplicationId\", \"applicationCreatedAt\", \"applicationUpdatedAt\", \"applicationListTotal\", \"documentApplicationId\", \"pdfDocumentId\", \"pdfMetadataJSON\", \"pngDocumentId\", \"pngMetadataJSON\", \"jpegDocumentId\", \"jpegMetadataJSON\", \"repeatedDocumentId\", \"repeatedMetadataJSON\", \"submitApplicationId\", \"submitVersion\", \"submitSubmittedAt\", \"submitPollAttempts\", \"submitTimelineJSON\", \"investmentApplicationId\", \"investmentVersion\", \"investmentSubmittedAt\", \"investmentPollAttempts\", \"thirdClientProfileId\", \"thirdClientOtpRequestId\", \"thirdClientAccessToken\", \"thirdCompanyId\", \"untrustedApplicationId\", \"untrustedVersion\", \"untrustedSubmittedAt\", \"untrustedPollAttempts\", \"incompleteApplicationId\", \"incompleteVersion\", \"investmentDocumentId\", \"investmentDocumentMetadataJSON\", \"submittedApplicationJSON\", \"investmentTimelineJSON\", \"untrustedTimelineJSON\", \"bankReadPageJSON\", \"readApprovedId\", \"readApprovedVersion\", \"readApprovedPoll\", \"readRejectedId\", \"readRejectedVersion\", \"readRejectedPoll\", \"readCounterId\", \"readCounterVersion\", \"readCounterPoll\", \"readManualId\", \"readManualVersion\", \"readManualPoll\"];",
           "transientKeys.forEach(key => pm.variables.set(key, pm.collectionVariables.get(key) || \"\"));",
           "const configuredCode = String(pm.variables.get(\"demoOtpCode\") || \"1234\");",
           "pm.variables.set(\"demoOtpCode\", configuredCode);",
@@ -11503,6 +14455,24 @@
           "  if(started){const scoring=timeline.find(e=>e.eventType===\"SCORING_COMPLETED\");pm.expect(scoring).to.be.an(\"object\");pm.expect(started.sequence).to.be.above(scoring.sequence);pm.expect(started.actorId).to.eql(null);pm.expect(started.status).to.eql(\"processing\");}",
           "  outcomes.forEach(e=>{pm.expect(started).to.be.an(\"object\");pm.expect(e.sequence).to.be.above(started.sequence);pm.expect(e.actorId).to.eql(null);pm.expect(e.status).to.eql(finalStatus[e.eventType]);pm.expect(e).to.have.all.keys(\"eventId\",\"eventType\",\"sequence\",\"status\",\"createdAt\",\"actorId\",\"title\");pm.expect(e).not.to.have.any.keys(\"score\",\"riskLevel\",\"factors\",\"offer\",\"scoringUrl\",\"error\");});",
           " });",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Frozen DTOs derived from OpenAPI: nullable converted; numeric format annotations omitted for Ajv.",
+          "const readContracts={\"CreditDecision\":{\"$schema\":\"http://json-schema.org/draft-07/schema#\",\"$ref\":\"#/definitions/CreditDecision\",\"definitions\":{\"CreditDecision\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"applicationId\",\"status\",\"version\",\"decision\",\"score\",\"riskLevel\",\"reasons\",\"assessedAt\",\"reviewedBy\",\"offer\",\"processing\"],\"properties\":{\"applicationId\":{\"type\":\"string\",\"format\":\"uuid\"},\"status\":{\"$ref\":\"#/definitions/ApplicationStatus\"},\"version\":{\"type\":\"integer\",\"minimum\":1},\"decision\":{\"$ref\":\"#/definitions/CreditOutcome\"},\"score\":{\"type\":[\"integer\",\"null\"],\"minimum\":0,\"maximum\":100},\"riskLevel\":{\"$ref\":\"#/definitions/RiskLevel\"},\"reasons\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"assessedAt\":{\"type\":[\"string\",\"null\"],\"format\":\"date-time\"},\"reviewedBy\":{\"type\":[\"string\",\"null\"],\"format\":\"uuid\"},\"offer\":{\"$ref\":\"#/definitions/CreditOffer\"},\"processing\":{\"$ref\":\"#/definitions/Processing\"}}},\"Processing\":{\"type\":[\"object\",\"null\"],\"additionalProperties\":false,\"required\":[\"stage\",\"state\",\"retryAt\",\"message\"],\"properties\":{\"stage\":{\"type\":\"string\",\"enum\":[\"prechecks\",\"scoring\",\"decision\"]},\"state\":{\"type\":\"string\",\"enum\":[\"waiting\",\"running\",\"retrying\",\"failed\"]},\"retryAt\":{\"type\":[\"string\",\"null\"],\"format\":\"date-time\"},\"message\":{\"type\":[\"string\",\"null\"]}}},\"CreditOffer\":{\"type\":[\"object\",\"null\"],\"additionalProperties\":false,\"required\":[\"offerId\",\"applicationId\",\"productId\",\"amountRub\",\"termMonths\",\"annualRatePercent\",\"monthlyPaymentRub\",\"expiresAt\",\"status\"],\"properties\":{\"offerId\":{\"type\":\"string\",\"format\":\"uuid\"},\"applicationId\":{\"type\":\"string\",\"format\":\"uuid\"},\"productId\":{\"type\":\"string\",\"enum\":[\"turnover\",\"investment\"]},\"amountRub\":{\"type\":\"integer\",\"minimum\":1},\"termMonths\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":120},\"annualRatePercent\":{\"type\":\"number\",\"minimum\":0},\"monthlyPaymentRub\":{\"type\":\"integer\",\"minimum\":1},\"expiresAt\":{\"type\":[\"string\",\"null\"],\"format\":\"date-time\"},\"status\":{\"type\":\"string\",\"enum\":[\"active\",\"accepted\",\"withdrawn\"]}}},\"RiskLevel\":{\"type\":[\"string\",\"null\"],\"enum\":[\"LOW\",\"MEDIUM\",\"HIGH\",null]},\"CreditOutcome\":{\"type\":[\"string\",\"null\"],\"enum\":[\"approved\",\"counter_offer\",\"rejected\",null]},\"ApplicationStatus\":{\"type\":\"string\",\"enum\":[\"draft\",\"submitted\",\"processing\",\"manual_review\",\"approved\",\"rejected\",\"counter_offer\",\"signed\",\"closed\"]}}},\"BankApplicationPage\":{\"$schema\":\"http://json-schema.org/draft-07/schema#\",\"$ref\":\"#/definitions/BankApplicationPage\",\"definitions\":{\"BankApplicationPage\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"items\",\"total\",\"limit\",\"offset\"],\"properties\":{\"items\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/BankApplication\"}},\"total\":{\"type\":\"integer\",\"minimum\":0},\"limit\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":100},\"offset\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":2147483647}}},\"BankApplication\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"applicationId\",\"company\",\"product\",\"requestedAmountRub\",\"termMonths\",\"status\",\"version\",\"createdAt\",\"updatedAt\",\"submittedAt\",\"manualReviewRequired\",\"availableActions\"],\"properties\":{\"applicationId\":{\"type\":\"string\",\"format\":\"uuid\"},\"company\":{\"$ref\":\"#/definitions/BankCompanySummary\"},\"product\":{\"$ref\":\"#/definitions/BankProductSummary\"},\"requestedAmountRub\":{\"type\":\"integer\",\"minimum\":1},\"termMonths\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":120},\"status\":{\"$ref\":\"#/definitions/BankApplicationStatus\"},\"version\":{\"type\":\"integer\",\"minimum\":1},\"createdAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"updatedAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"submittedAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"manualReviewRequired\":{\"type\":\"boolean\"},\"availableActions\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"enum\":[\"decide\"]}}}},\"BankApplicationStatus\":{\"type\":\"string\",\"enum\":[\"submitted\",\"processing\",\"manual_review\",\"approved\",\"counter_offer\",\"rejected\",\"signed\",\"closed\"]},\"BankProductSummary\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"id\",\"name\"],\"properties\":{\"id\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"}}},\"BankCompanySummary\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"id\",\"name\",\"inn\"],\"properties\":{\"id\":{\"type\":\"string\",\"format\":\"uuid\"},\"name\":{\"type\":\"string\"},\"inn\":{\"type\":\"string\"}}}}},\"BankApplicationDetail\":{\"$schema\":\"http://json-schema.org/draft-07/schema#\",\"$ref\":\"#/definitions/BankApplicationDetail\",\"definitions\":{\"BankApplicationDetail\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"applicationId\",\"userId\",\"companyId\",\"productId\",\"purpose\",\"purposeDescription\",\"requestedAmountRub\",\"termMonths\",\"monthlyRevenueRub\",\"monthlyExpensesRub\",\"productName\",\"status\",\"version\",\"createdAt\",\"updatedAt\",\"submittedAt\",\"availableActions\",\"company\",\"product\",\"productTerms\",\"manualReviewRequired\"],\"properties\":{\"applicationId\":{\"type\":\"string\",\"format\":\"uuid\"},\"userId\":{\"type\":\"string\",\"format\":\"uuid\"},\"companyId\":{\"type\":\"string\",\"format\":\"uuid\"},\"productId\":{\"type\":\"string\",\"pattern\":\"^[a-z][a-z0-9_-]{0,31}$\"},\"purpose\":{\"type\":\"string\",\"enum\":[\"stock\",\"expenses\",\"seasonal\",\"equipment\",\"upgrade\",\"other\"]},\"purposeDescription\":{\"type\":[\"string\",\"null\"],\"maxLength\":300},\"requestedAmountRub\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":1000000000000},\"termMonths\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":120},\"monthlyRevenueRub\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":1000000000000},\"monthlyExpensesRub\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":1000000000000},\"productName\":{\"type\":\"string\"},\"status\":{\"$ref\":\"#/definitions/BankApplicationStatus\"},\"version\":{\"type\":\"integer\",\"minimum\":1},\"createdAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"updatedAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"submittedAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"availableActions\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"enum\":[\"decide\"]}},\"company\":{\"$ref\":\"#/definitions/Company\"},\"product\":{\"$ref\":\"#/definitions/BankProductSummary\"},\"productTerms\":{\"$ref\":\"#/definitions/CreditProduct\"},\"manualReviewRequired\":{\"type\":\"boolean\"}}},\"CreditProduct\":{\"type\":\"object\",\"required\":[\"id\",\"name\",\"purposes\",\"minAmountRub\",\"maxAmountRub\",\"minTermMonths\",\"maxTermMonths\",\"annualRatePercent\",\"minBusinessAgeMonths\",\"version\",\"illustrative\"],\"properties\":{\"id\":{\"type\":\"string\",\"enum\":[\"turnover\",\"investment\"]},\"name\":{\"type\":\"string\"},\"purposes\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"enum\":[\"stock\",\"expenses\",\"seasonal\",\"equipment\",\"upgrade\"]}},\"minAmountRub\":{\"type\":\"integer\",\"minimum\":1},\"maxAmountRub\":{\"type\":\"integer\",\"minimum\":1},\"minTermMonths\":{\"type\":\"integer\",\"minimum\":1},\"maxTermMonths\":{\"type\":\"integer\",\"minimum\":1},\"annualRatePercent\":{\"type\":\"number\",\"minimum\":0},\"minBusinessAgeMonths\":{\"type\":\"integer\",\"minimum\":0},\"version\":{\"type\":\"integer\",\"minimum\":1},\"illustrative\":{\"type\":\"boolean\",\"enum\":[true]}}},\"BankProductSummary\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"id\",\"name\"],\"properties\":{\"id\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"}}},\"Company\":{\"type\":\"object\",\"required\":[\"id\",\"name\",\"organizationType\",\"inn\",\"registrationNumber\",\"registrationDate\",\"okved\",\"directorName\",\"contact\",\"financials\",\"simulation\"],\"properties\":{\"id\":{\"type\":\"string\",\"format\":\"uuid\"},\"name\":{\"type\":\"string\"},\"organizationType\":{\"type\":\"string\",\"enum\":[\"ИП\",\"ООО\"]},\"inn\":{\"type\":\"string\"},\"registrationNumber\":{\"type\":\"string\"},\"registrationDate\":{\"type\":\"string\",\"format\":\"date\"},\"okved\":{\"type\":\"string\"},\"directorName\":{\"type\":\"string\"},\"contact\":{\"$ref\":\"#/definitions/CompanyContact\"},\"financials\":{\"$ref\":\"#/definitions/CompanyFinancials\"},\"simulation\":{\"type\":\"boolean\",\"enum\":[true]}}},\"CompanyFinancials\":{\"type\":\"object\",\"required\":[\"monthlyRevenueRub\",\"monthlyExpensesRub\",\"existingDebtRub\",\"existingMonthlyPaymentsRub\",\"overdueCount\"],\"properties\":{\"monthlyRevenueRub\":{\"type\":\"integer\",\"minimum\":0},\"monthlyExpensesRub\":{\"type\":\"integer\",\"minimum\":0},\"existingDebtRub\":{\"type\":\"integer\",\"minimum\":0},\"existingMonthlyPaymentsRub\":{\"type\":\"integer\",\"minimum\":0},\"overdueCount\":{\"type\":\"integer\",\"minimum\":0}}},\"CompanyContact\":{\"type\":\"object\",\"required\":[\"phone\",\"email\",\"address\"],\"properties\":{\"phone\":{\"type\":\"string\"},\"email\":{\"type\":\"string\",\"format\":\"email\"},\"address\":{\"type\":\"string\"}}},\"BankApplicationStatus\":{\"type\":\"string\",\"enum\":[\"submitted\",\"processing\",\"manual_review\",\"approved\",\"counter_offer\",\"rejected\",\"signed\",\"closed\"]}}},\"BankAssessment\":{\"$schema\":\"http://json-schema.org/draft-07/schema#\",\"$ref\":\"#/definitions/BankAssessment\",\"definitions\":{\"BankAssessment\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"applicationId\",\"status\",\"version\",\"companyCheck\",\"creditHistory\",\"scoring\",\"riskLevel\",\"manualReviewReasons\",\"recommendations\",\"manualDecision\",\"processing\"],\"properties\":{\"applicationId\":{\"type\":\"string\",\"format\":\"uuid\"},\"status\":{\"$ref\":\"#/definitions/BankApplicationStatus\"},\"version\":{\"type\":\"integer\",\"minimum\":1},\"companyCheck\":{\"$ref\":\"#/definitions/CompanyCheck\"},\"creditHistory\":{\"$ref\":\"#/definitions/CreditHistory\"},\"scoring\":{\"$ref\":\"#/definitions/ScoringAssessment\"},\"riskLevel\":{\"$ref\":\"#/definitions/RiskLevel\"},\"manualReviewReasons\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/AssessmentProblem\"}},\"recommendations\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/AssessmentRecommendation\"}},\"manualDecision\":{\"$ref\":\"#/definitions/ManualDecisionAudit\"},\"processing\":{\"$ref\":\"#/definitions/Processing\"}}},\"Processing\":{\"type\":[\"object\",\"null\"],\"additionalProperties\":false,\"required\":[\"stage\",\"state\",\"retryAt\",\"message\"],\"properties\":{\"stage\":{\"type\":\"string\",\"enum\":[\"prechecks\",\"scoring\",\"decision\"]},\"state\":{\"type\":\"string\",\"enum\":[\"waiting\",\"running\",\"retrying\",\"failed\"]},\"retryAt\":{\"type\":[\"string\",\"null\"],\"format\":\"date-time\"},\"message\":{\"type\":[\"string\",\"null\"]}}},\"ManualDecisionAudit\":{\"type\":[\"object\",\"null\"],\"additionalProperties\":false,\"required\":[\"decision\",\"comment\",\"reviewedBy\",\"reviewedAt\"],\"properties\":{\"decision\":{\"type\":\"string\",\"enum\":[\"approved\",\"counter_offer\",\"rejected\"]},\"comment\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":1000},\"reviewedBy\":{\"type\":\"string\",\"format\":\"uuid\"},\"reviewedAt\":{\"type\":\"string\",\"format\":\"date-time\"}}},\"AssessmentRecommendation\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"decision\",\"reasons\",\"offer\"],\"properties\":{\"decision\":{\"type\":\"string\",\"enum\":[\"approved\",\"counter_offer\",\"rejected\"]},\"reasons\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"offer\":{\"type\":[\"object\",\"null\"],\"additionalProperties\":false,\"required\":[\"amountRub\",\"termMonths\"],\"properties\":{\"amountRub\":{\"type\":\"integer\",\"minimum\":1},\"termMonths\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":120}}}}},\"AssessmentProblem\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"code\",\"message\"],\"properties\":{\"code\":{\"type\":\"string\"},\"message\":{\"type\":\"string\"}}},\"RiskLevel\":{\"type\":[\"string\",\"null\"],\"enum\":[\"LOW\",\"MEDIUM\",\"HIGH\",null]},\"ScoringAssessment\":{\"type\":[\"object\",\"null\"],\"additionalProperties\":false,\"required\":[\"score\",\"assessedAt\"],\"properties\":{\"score\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":100},\"assessedAt\":{\"type\":\"string\",\"format\":\"date-time\"}}},\"CreditHistory\":{\"type\":[\"object\",\"null\"],\"additionalProperties\":false,\"required\":[\"existingDebtRub\",\"existingMonthlyPaymentsRub\",\"overdueCount\",\"checkedAt\",\"simulation\"],\"properties\":{\"existingDebtRub\":{\"type\":\"integer\",\"minimum\":0},\"existingMonthlyPaymentsRub\":{\"type\":\"integer\",\"minimum\":0},\"overdueCount\":{\"type\":\"integer\",\"minimum\":0},\"checkedAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"simulation\":{\"type\":\"boolean\",\"enum\":[true]}}},\"CompanyCheck\":{\"type\":[\"object\",\"null\"],\"additionalProperties\":false,\"required\":[\"status\",\"checks\",\"problems\",\"checkedAt\",\"durationMs\",\"simulation\"],\"properties\":{\"status\":{\"type\":\"string\",\"enum\":[\"passed\",\"failed\"]},\"checks\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"code\",\"passed\"],\"properties\":{\"code\":{\"type\":\"string\"},\"passed\":{\"type\":\"boolean\"}}}},\"problems\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/AssessmentProblem\"}},\"checkedAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"durationMs\":{\"type\":\"integer\",\"minimum\":0},\"simulation\":{\"type\":\"boolean\",\"enum\":[true]}}},\"BankApplicationStatus\":{\"type\":\"string\",\"enum\":[\"submitted\",\"processing\",\"manual_review\",\"approved\",\"counter_offer\",\"rejected\",\"signed\",\"closed\"]}}}};",
+          "if(pm.request.method===\"GET\" && pm.response.code===200){",
+          " const path=pm.request.url.toString().split(\"?\")[0];let name=null;",
+          " if(/\\/api\\/v1\\/applications\\/[^/]+\\/decision$/.test(path))name=\"CreditDecision\";",
+          " else if(/\\/api\\/v1\\/bank\\/applications$/.test(path))name=\"BankApplicationPage\";",
+          " else if(/\\/api\\/v1\\/bank\\/applications\\/[^/]+\\/assessment$/.test(path))name=\"BankAssessment\";",
+          " else if(/\\/api\\/v1\\/bank\\/applications\\/[^/]+$/.test(path))name=\"BankApplicationDetail\";",
+          " if(name)pm.test(\"OpenAPI v1 exact \"+name+\" DTO\",()=>pm.response.to.have.jsonSchema(readContracts[name]));",
           "}"
         ]
       }

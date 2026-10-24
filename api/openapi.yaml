@@ -16,9 +16,9 @@ info:
     manual_review. Final automatic decisions and applicable offers are persisted atomically; manual_review
     stores the assessment without a fictitious final decision. Private application documents can be uploaded by their CLIENT owner and read by their owner
     or BANK_EMPLOYEE after successful submit. Drafts are private to their CLIENT owner.
-    API v1 freezes 19 implemented and seven planned operations; planned operations are marked
-    x-implementation-status: planned and have no handlers. Decision Engine is implemented internally;
-    decision details and offers are not yet exposed through these planned endpoints.
+    API v1 freezes 23 implemented and three planned operations; planned operations are marked
+    x-implementation-status: planned and have no handlers. Client decision details, current offers and read-only bank views are implemented;
+    offer actions and manual bank decisions remain planned.
     Scoring integration follows the local JSON Schema; the real Python service and its Docker artifact
     are not supplied by this repository and have not been verified. Monetary amounts use integer rubles,
     annualRatePercent uses percent, and
@@ -69,14 +69,10 @@ x-application-lifecycle:
   - rejected
   - signed
   - closed
-  technicalFailure: Retain submitted/processing. The planned decision API will expose a safe Processing
-    state; current application reads do not expose job errors. awaiting_scoring and awaiting_decision
+  technicalFailure: Retain submitted/processing. Decision and bank assessment APIs expose a safe Processing
+    state without private job errors. awaiting_scoring and awaiting_decision
     are internal job states, never application statuses.
   signedMeaning: MVP demonstration confirmation only; no loan disbursement or legally binding bank agreement.
-x-known-issues:
-- code: application_available_actions_incomplete
-  description: Implemented Application.availableActions is [edit] for draft and [] otherwise. submit is
-    implemented but omitted from this list; expansion is a separate agreed task.
 x-bank-draft-policy:
   visibilityStartsAt: successful submit
   draftListResult: never included; status=draft returns 400 invalid_request
@@ -523,6 +519,7 @@ paths:
                 submittedAt: null
                 availableActions:
                 - edit
+                - submit
         '400':
           $ref: '#/components/responses/InvalidRequest'
         '404':
@@ -612,7 +609,7 @@ paths:
       description: CLIENT only, owner and company must match the current user. Missing
         and foreign UUIDs both return 404 application_not_found without disclosing existence.
         Includes permitted company details and the selected product summary. Draft availableActions
-        is [edit]; other states have no editing actions. Submit is a separate API operation.
+        is [edit, submit]; other states have no editing actions. Submit still validates completeness and documents.
       security:
       - BearerAuth: []
       responses:
@@ -1090,12 +1087,12 @@ paths:
     parameters:
     - $ref: '#/components/parameters/DecisionApplicationId'
     get:
-      x-implementation-status: planned
+      x-implementation-status: implemented
       security:
       - BearerAuth: []
       operationId: getApplicationDecision
       summary: Read the current client-owned credit decision or processing state
-      description: 'PLANNED: no HTTP handler exists yet. CLIENT owner and company must both match. Returns
+      description: 'CLIENT owner and company must both match. Returns
         200 in all nine application states, including a null decision before completion. Missing and foreign
         applications both return 404. manual_review has decision=null and processing=null. signed/closed
         preserve the credit decision; technical errors never mean rejected.'
@@ -1369,12 +1366,12 @@ paths:
           $ref: '#/components/responses/UnsupportedMediaType'
   /api/v1/bank/applications:
     get:
-      x-implementation-status: planned
+      x-implementation-status: implemented
       security:
       - BearerAuth: []
       operationId: listBankApplications
       summary: List submitted applications visible to bank employees
-      description: 'PLANNED: no HTTP handler exists yet. BANK_EMPLOYEE only. Server-side access excludes
+      description: 'BANK_EMPLOYEE only. Server-side access excludes
         drafts regardless of knowing their UUID. Bank visibility starts only after successful submit. With
         no status filter returns all eight bank-visible statuses. status=draft is 400 invalid_request. Optional
         filters are status and companyId; limit/offset pagination follows the client-list convention. Repeated/unknown
@@ -1431,12 +1428,12 @@ paths:
     parameters:
     - $ref: '#/components/parameters/BankApplicationId'
     get:
-      x-implementation-status: planned
+      x-implementation-status: implemented
       security:
       - BearerAuth: []
       operationId: getBankApplication
       summary: Read a submitted application with frozen company/product data
-      description: 'PLANNED: no HTTP handler exists yet. BANK_EMPLOYEE only. Server-side access excludes
+      description: 'BANK_EMPLOYEE only. Server-side access excludes
         drafts regardless of knowing their UUID. Bank visibility starts only after successful submit. A
         draft and a missing application both return 404 application_not_found. Financial/company and product
         data are read from the submitted snapshots. No employee edit, upload or submit operation is provided.
@@ -1524,12 +1521,12 @@ paths:
     parameters:
     - $ref: '#/components/parameters/BankApplicationId'
     get:
-      x-implementation-status: planned
+      x-implementation-status: implemented
       security:
       - BearerAuth: []
       operationId: getBankApplicationAssessment
       summary: Read normalized checks, risk assessment and review recommendations
-      description: 'PLANNED: no HTTP handler exists yet. BANK_EMPLOYEE only. Server-side access excludes
+      description: 'BANK_EMPLOYEE only. Server-side access excludes
         drafts regardless of knowing their UUID. Bank visibility starts only after successful submit. A
         draft and a missing application both return 404 application_not_found. Existing check results are
         reused. Empty assessments use null fields and empty arrays; do not manufacture a zero score. Go
@@ -2540,9 +2537,9 @@ components:
             type: string
             enum:
             - edit
-          description: '[edit] for draft; [] otherwise. Known API v1 mismatch: this implemented
-            list omits submit although the separate submit endpoint exists. It is not yet an
-            exhaustive list of actions; extending it is a separate backend task.'
+            - submit
+          description: '[edit, submit] for draft; [] otherwise. submit availability does not imply
+            successful validation; completeness and mandatory documents are checked by POST submit.'
     ApplicationSubmitResponse:
       type: object
       additionalProperties: false

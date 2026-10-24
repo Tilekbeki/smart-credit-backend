@@ -22,6 +22,7 @@ import (
 	"smart-credit-backend/internal/httpapi"
 	"smart-credit-backend/internal/pipeline"
 	"smart-credit-backend/internal/postgres"
+	"smart-credit-backend/internal/review"
 	"smart-credit-backend/internal/scoring"
 )
 
@@ -69,6 +70,7 @@ func run() error {
 	documentHandler := httpapi.NewDocumentHandler(documents, auth.NewMiddleware(tokens, authRepo, cfg.AuthDBTimeout))
 	submissions := pipeline.NewSubmissionService(postgres.NewApplicationRepository(pool, cfg.AuthDBTimeout), documents, postgres.NewSubmissionRepository(pool, cfg.AuthDBTimeout))
 	submissionHandler := httpapi.NewSubmissionHandler(submissions, auth.NewMiddleware(tokens, authRepo, cfg.AuthDBTimeout))
+	reviewHandler := httpapi.NewReviewHandler(review.NewService(postgres.NewReviewRepository(pool, cfg.AuthDBTimeout)), auth.NewMiddleware(tokens, authRepo, cfg.AuthDBTimeout))
 	scoringClient, err := scoring.NewClient(cfg.ScoringURL, cfg.ScoringTimeout)
 	if err != nil {
 		return errors.New("scoring HTTP client configuration is invalid")
@@ -83,7 +85,7 @@ func run() error {
 	if err != nil {
 		return errors.New("background worker configuration is invalid")
 	}
-	server := httpapi.NewServer(cfg.HTTP, httpapi.NewHandler(pool, logger, cfg.Database.PingTimeout, authHandler, creditHandler.Register, applicationHandler.Register, documentHandler.Register, submissionHandler.Register), logger)
+	server := httpapi.NewServer(cfg.HTTP, httpapi.NewHandler(pool, logger, cfg.Database.PingTimeout, authHandler, creditHandler.Register, applicationHandler.Register, documentHandler.Register, submissionHandler.Register, reviewHandler.Register), logger)
 	listener, err := net.Listen("tcp", server.Addr)
 	if err != nil {
 		return fmt.Errorf("listen HTTP: %w", err)
