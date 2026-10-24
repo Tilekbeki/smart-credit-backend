@@ -43,7 +43,7 @@ type Factors struct {
 
 func ValidateRequest(request Request) error {
 	length := utf8.RuneCountInString(request.ApplicationID)
-	if !utf8.ValidString(request.ApplicationID) || length < 1 || length > 100 {
+	if !utf8.ValidString(request.ApplicationID) || length < 1 || length > 100 || strings.TrimSpace(request.ApplicationID) == "" {
 		return failure("invalid_request", false)
 	}
 	for _, value := range []int64{request.MonthlyRevenue, request.MonthlyExpenses, request.ExistingDebt, request.MonthlyDebtPayments} {
@@ -65,6 +65,11 @@ func ValidateResponse(response Response) error {
 	}
 	if response.Score < 0 || response.Score > 100 || response.ApprovedAmount < 0 || len(response.Reasons) == 0 || response.Factors.OverdueCount < 0 {
 		return failure("invalid_response", false)
+	}
+	for _, reason := range response.Reasons {
+		if reason == "" || !utf8.ValidString(reason) {
+			return failure("invalid_response", false)
+		}
 	}
 	factors := response.Factors
 	for _, value := range []float64{factors.OperatingCashFlow, factors.OperatingMargin, factors.EstimatedNewMonthlyPayment} {

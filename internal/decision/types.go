@@ -10,7 +10,7 @@ import (
 	"smart-credit-backend/internal/application"
 )
 
-const PolicyVersion = "go-demo-v1"
+const PolicyVersion = "go-demo-v2"
 
 var ErrInvalidData = errors.New("invalid persisted decision data")
 

@@ -19,8 +19,10 @@ info:
     All 26 API v1 operations are implemented, including manual bank decisions and client offer actions.
     Internal employee comments are visible only in the bank assessment. CLIENT can confirm or decline
     the current active offer; signed means demonstration confirmation without loan disbursement.
-    Scoring integration follows the local JSON Schema; the real Python service and its Docker artifact
-    are not supplied by this repository and have not been verified. Monetary amounts use integer rubles,
+    Scoring integration follows the local JSON Schema and has been verified with the separate real
+    Python logreg_v1 service. Its source and model artifact remain in the scoring repository; an optional
+    local Compose configuration uses that unchanged checkout. Mandatory financial limits are enforced
+    by Go for automatic and manual proposals. Monetary amounts use integer rubles,
     annualRatePercent uses percent, and
     timestamps use RFC 3339 UTC. Clients may keep unlimited independent drafts, including several
     drafts of the same product; submitting one does not alter the others.'

@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "Smart Credit — Backend API v1 (OTP, applications, decisions)",
-    "description": "Единая коллекция Smart Credit, Postman Collection v2.1. Запустите docker compose up -d --build, затем всю коллекцию сверху вниз в Collection Runner. baseUrl по умолчанию http://localhost:8080; demoOtpCode по умолчанию 1234. Все профили, companyId, OTP challenges и JWT передаются автоматически; первый запрос очищает результаты предыдущего запуска. Сохранены сценарии OTP/JWT обеих ролей. Новые сценарии проверяют собственную и чужую компанию, каталог и карточки продуктов, подбор финансирования, точные финансовые расчёты, границы и ошибки. Для проверки чужой компании автоматически авторизуется второй обнаруженный CLIENT. Расчёты проверяются независимой аннуитетной формулой JavaScript на синтетических значениях; точная арифметика и границы округления дополнительно проверяются Go-тестами. Рекомендация не является кредитным решением; scoring не вызывается. Не экспортируйте коллекцию с заполненными токенами и не используйте реальные персональные данные. Этап 4: пустой и частичный черновик, редактирование, null/отсутствующие поля, сохранение и обновление applicationId/version, история, SQL-пагинация и фильтры, конфликт версий, изоляция другого CLIENT, ограничения ролей и валидация. Два новых черновика создаются на каждой итерации; тесты не требуют пустой БД. В сценариях этапа 4 submit, документы и scoring не вызываются. Остальные этапы коллекции выполняются далее. Этап 5: документы загружаются к новому черновику, UUID и JWT передаются автоматически. Маленькие синтетические файлы находятся в fixtures/ рядом с коллекцией. Для Newman укажите --working-dir api/postman из корня backend; в Postman настройте Working directory на api/postman и разрешите чтение тестовых файлов. Превышение размера и опасные имена проверяются динамическим multipart без большого файла в репозитории. Все файлы синтетические, без банковских данных. Этап 6.1: отправка заполненных заявок, детальные ошибки 422, обязательные документы и серверный доверенный источник финансов, повторный submit, запрет изменений после отправки. Ограниченный автоматический polling timeline ожидает PRECHECKS_COMPLETED (до 20 проверок с интервалом 250 мс); заявка остаётся processing; успешный scoring по умолчанию не предполагается. Все новые заявки, версии и третий профиль передаются автоматически. Внутренние результаты проверок и очередь не публикуются. Две итерации Runner создают независимые заявки; никакая ручная очистка не нужна. API Freeze v1: черновики приватны для предпринимателя. BANK_EMPLOYEE получает 404 application_not_found при чтении списка документов или скачивании документа draft; после успешного submit банк получает метаданные и файл. CLIENT продолжает читать собственные draft, чужие заявки и документы возвращают 404. Проверяется независимость нескольких черновиков turnover: отправка выбранного не отправляет остальные, оставшийся черновик доступен для редактирования без изменения отправленной заявки. Чтение decision и три банковских GET реализованы; accept/decline/manual decisions также реализованы и проверяются; интеграционные правила описаны в api/FRONTEND_INTEGRATION.md. Этап 6.2: expectScoringResult=false по умолчанию сохраняет проверки prechecks и processing без заявления об успешном scoring. Только для backend с доступным совместимым scoring задайте expectScoringResult=true: polling до 30 секунд на заявку ожидает SCORING_COMPLETED, проверяет порядок, уникальность и сохранение событий после повторного submit. nextStage сохраняет frozen значение awaiting_scoring и не доказывает наличие результата. Сырые factors не публикуются; сохранённые результаты проверяются PostgreSQL-тестами и API чтения. Коллекция никогда не вызывает scoring напрямую; тестовый HTTP-сервис не подтверждает совместимость с реальным Python scoring. Этап 6.3: существующие application/timeline API отражают исходы approved/rejected/counter_offer/manual_review. expectDecisionResult=false по умолчанию; true требует expectScoringResult=true и настроенный совместимый тестовый HTTP scoring. Коллекция тогда ждёт итоговое событие policy; score, risk level и сохранённые offers проверяются PostgreSQL-тестами. Все 26 публичных операций реализованы. Этап 7.1: четыре API чтения, CLIENT/BANK_EMPLOYEE, 404 для draft, 400 для status=draft, фильтры, сортировка, total и пагинация. Ответы проверяются JSON Schema, полученными из OpenAPI v1. Четыре дополнительные независимые синтетические заявки создаются обычными API. expectReadOutcomes=false по умолчанию; true требует expectScoringResult=true и expectDecisionResult=true, включает ожидание approved/rejected/counter_offer/manual_review от тестового scoring с согласованными фиксированными ответами. Настоящий scoring этой проверкой не подменяется. Ручной перенос JWT и ID не нужен. Этап 7.2: expectActionResults=false по умолчанию пропускает зависимые от scoring успешные действия; проверки JWT/ролей/приватности/заголовков выполняются всегда. Для полного сценария задайте expectScoringResult=true, expectDecisionResult=true, expectReadOutcomes=true и expectActionResults=true. Тестовый scoring должен возвращать score65 для каждой заявки 1400000 рублей. Коллекция создаёт три независимые manual_review заявки, выполняет approved/rejected/counter_offer, accept/decline, точный replay, конфликты, проверку версий, безопасных клиентских причин, банковского комментария и timeline. JWT, applicationId, offerId, версии и UUID-ключи формируются и передаются автоматически; ручное копирование не требуется. signed означает только демонстрационное подтверждение, без выдачи денег и электронной подписи.",
+    "name": "Smart Credit — API v1",
+    "description": "Единая коллекция 26 API Smart Credit. Запускайте сверху вниз в Collection Runner: профили, JWT, UUID, версии и Idempotency-Key передаются автоматически. Working directory: api/postman. По умолчанию проверяются сценарии без обязательного scoring. Для настоящего logreg_v1 задайте scoringMode=logreg_v1 и expectScoringResult/expectDecisionResult/expectReadOutcomes/expectActionResults=true. В этом режиме меняются только синтетические финансовые данные дополнительных сценариев; ответы scoring не подменяются. scoringMode=fixture сохраняет прежние детерминированные проверки для отдельного тестового HTTP-сервиса. Контракты ответов сверяются с OpenAPI. Код OTP по умолчанию 1234. Не экспортируйте JWT; используйте только синтетические данные. Подробности запуска: docs/development.md и docs/scoring-integration.md.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -598,6 +598,11 @@
     {
       "key": "actionCounterActionResponseJSON",
       "value": "",
+      "type": "string"
+    },
+    {
+      "key": "scoringMode",
+      "value": "fixture",
       "type": "string"
     }
   ],
@@ -13649,6 +13654,15 @@
       },
       "event": [
         {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if(String(pm.variables.get(\"scoringMode\"))===\"logreg_v1\") pm.request.body.update(\"{\\\"productId\\\": \\\"turnover\\\", \\\"purpose\\\": \\\"stock\\\", \\\"requestedAmountRub\\\": 1500000, \\\"termMonths\\\": 12, \\\"monthlyRevenueRub\\\": 2400000, \\\"monthlyExpensesRub\\\": 1500000}\");"
+            ]
+          }
+        },
+        {
           "listen": "test",
           "script": {
             "type": "text/javascript",
@@ -13885,6 +13899,15 @@
         }
       },
       "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if(String(pm.variables.get(\"scoringMode\"))===\"logreg_v1\") pm.request.body.update(\"{\\\"productId\\\": \\\"turnover\\\", \\\"purpose\\\": \\\"stock\\\", \\\"requestedAmountRub\\\": 100000, \\\"termMonths\\\": 12, \\\"monthlyRevenueRub\\\": 600000, \\\"monthlyExpensesRub\\\": 450000}\");"
+            ]
+          }
+        },
         {
           "listen": "test",
           "script": {
@@ -14123,6 +14146,15 @@
       },
       "event": [
         {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if(String(pm.variables.get(\"scoringMode\"))===\"logreg_v1\") pm.request.body.update(\"{\\\"productId\\\": \\\"turnover\\\", \\\"purpose\\\": \\\"stock\\\", \\\"requestedAmountRub\\\": 1500000, \\\"termMonths\\\": 12, \\\"monthlyRevenueRub\\\": 600000, \\\"monthlyExpensesRub\\\": 300000}\");"
+            ]
+          }
+        },
+        {
           "listen": "test",
           "script": {
             "type": "text/javascript",
@@ -14359,6 +14391,15 @@
         }
       },
       "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if(String(pm.variables.get(\"scoringMode\"))===\"logreg_v1\") pm.request.body.update(\"{\\\"productId\\\": \\\"turnover\\\", \\\"purpose\\\": \\\"stock\\\", \\\"requestedAmountRub\\\": 1400000, \\\"termMonths\\\": 12, \\\"monthlyRevenueRub\\\": 10000000, \\\"monthlyExpensesRub\\\": 8800000}\");"
+            ]
+          }
+        },
         {
           "listen": "test",
           "script": {
@@ -16511,7 +16552,8 @@
               "  const required = [\"expectScoringResult\", \"expectDecisionResult\", \"expectReadOutcomes\"];",
               "  pm.test(\"Action fixtures require scoring, policy and four read outcomes\", () => required.forEach(key => pm.expect(String(pm.variables.get(key)), key).to.eql(\"true\")));",
               "  if (required.some(key => String(pm.variables.get(key)) !== \"true\")) pm.execution.skipRequest();",
-              "}"
+              "}",
+              "if(String(pm.variables.get(\"scoringMode\"))===\"logreg_v1\") pm.request.body.update(\"{\\\"productId\\\": \\\"turnover\\\", \\\"purpose\\\": \\\"stock\\\", \\\"requestedAmountRub\\\": 1400000, \\\"termMonths\\\": 12, \\\"monthlyRevenueRub\\\": 10000000, \\\"monthlyExpensesRub\\\": 8800000}\");"
             ]
           }
         },
@@ -16633,7 +16675,7 @@
               "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
               "const r=pm.response.json();const n=Number(pm.collectionVariables.get(\"actionApprovePoll\")||0)+1;pm.collectionVariables.set(\"actionApprovePoll\",n);",
               "if([\"submitted\",\"processing\"].includes(r.status)&&n<120){setTimeout(()=>{},250);pm.execution.setNextRequest(pm.info.requestId);}else{",
-              " pm.test(\"MEDIUM case awaits employee without a fake final decision\",()=>{pm.expect(r.status).to.eql(\"manual_review\");pm.expect(r.score).to.eql(65);pm.expect(r.riskLevel).to.eql(\"MEDIUM\");pm.expect(r.decision).to.eql(null);pm.expect(r.offer).to.eql(null);pm.expect(r.processing).to.eql(null);});",
+              " pm.test(\"MEDIUM case awaits employee without a fake final decision\",()=>{pm.expect(r.status).to.eql(\"manual_review\");pm.expect(r.score).to.eql(String(pm.variables.get(\"scoringMode\"))===\"logreg_v1\" ? 78 : 65);pm.expect(r.riskLevel).to.eql(\"MEDIUM\");pm.expect(r.decision).to.eql(null);pm.expect(r.offer).to.eql(null);pm.expect(r.processing).to.eql(null);});",
               " pm.collectionVariables.set(\"actionApproveVersion\",r.version);pm.collectionVariables.set(\"actionApproveBaseVersion\",r.version);",
               "}"
             ]
@@ -16744,7 +16786,7 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));const r=pm.response.json();pm.test(\"Unchanged pre-decision assessment\",()=>{pm.expect(r.manualDecision).to.eql(null);pm.expect(r.scoring.score).to.eql(65);});pm.collectionVariables.set(\"actionApproveAssessmentJSON\",JSON.stringify(r));"
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));const r=pm.response.json();pm.test(\"Unchanged pre-decision assessment\",()=>{pm.expect(r.manualDecision).to.eql(null);pm.expect(r.scoring.score).to.eql(String(pm.variables.get(\"scoringMode\"))===\"logreg_v1\" ? 78 : 65);});pm.collectionVariables.set(\"actionApproveAssessmentJSON\",JSON.stringify(r));"
             ]
           }
         }
@@ -16800,7 +16842,8 @@
               "  const required = [\"expectScoringResult\", \"expectDecisionResult\", \"expectReadOutcomes\"];",
               "  pm.test(\"Action fixtures require scoring, policy and four read outcomes\", () => required.forEach(key => pm.expect(String(pm.variables.get(key)), key).to.eql(\"true\")));",
               "  if (required.some(key => String(pm.variables.get(key)) !== \"true\")) pm.execution.skipRequest();",
-              "}"
+              "}",
+              "if(String(pm.variables.get(\"scoringMode\"))===\"logreg_v1\") pm.request.body.update(\"{\\\"productId\\\": \\\"turnover\\\", \\\"purpose\\\": \\\"stock\\\", \\\"requestedAmountRub\\\": 1400000, \\\"termMonths\\\": 12, \\\"monthlyRevenueRub\\\": 10000000, \\\"monthlyExpensesRub\\\": 8800000}\");"
             ]
           }
         },
@@ -16922,7 +16965,7 @@
               "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
               "const r=pm.response.json();const n=Number(pm.collectionVariables.get(\"actionRejectPoll\")||0)+1;pm.collectionVariables.set(\"actionRejectPoll\",n);",
               "if([\"submitted\",\"processing\"].includes(r.status)&&n<120){setTimeout(()=>{},250);pm.execution.setNextRequest(pm.info.requestId);}else{",
-              " pm.test(\"MEDIUM case awaits employee without a fake final decision\",()=>{pm.expect(r.status).to.eql(\"manual_review\");pm.expect(r.score).to.eql(65);pm.expect(r.riskLevel).to.eql(\"MEDIUM\");pm.expect(r.decision).to.eql(null);pm.expect(r.offer).to.eql(null);pm.expect(r.processing).to.eql(null);});",
+              " pm.test(\"MEDIUM case awaits employee without a fake final decision\",()=>{pm.expect(r.status).to.eql(\"manual_review\");pm.expect(r.score).to.eql(String(pm.variables.get(\"scoringMode\"))===\"logreg_v1\" ? 78 : 65);pm.expect(r.riskLevel).to.eql(\"MEDIUM\");pm.expect(r.decision).to.eql(null);pm.expect(r.offer).to.eql(null);pm.expect(r.processing).to.eql(null);});",
               " pm.collectionVariables.set(\"actionRejectVersion\",r.version);pm.collectionVariables.set(\"actionRejectBaseVersion\",r.version);",
               "}"
             ]
@@ -17033,7 +17076,7 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));const r=pm.response.json();pm.test(\"Unchanged pre-decision assessment\",()=>{pm.expect(r.manualDecision).to.eql(null);pm.expect(r.scoring.score).to.eql(65);});pm.collectionVariables.set(\"actionRejectAssessmentJSON\",JSON.stringify(r));"
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));const r=pm.response.json();pm.test(\"Unchanged pre-decision assessment\",()=>{pm.expect(r.manualDecision).to.eql(null);pm.expect(r.scoring.score).to.eql(String(pm.variables.get(\"scoringMode\"))===\"logreg_v1\" ? 78 : 65);});pm.collectionVariables.set(\"actionRejectAssessmentJSON\",JSON.stringify(r));"
             ]
           }
         }
@@ -17089,7 +17132,8 @@
               "  const required = [\"expectScoringResult\", \"expectDecisionResult\", \"expectReadOutcomes\"];",
               "  pm.test(\"Action fixtures require scoring, policy and four read outcomes\", () => required.forEach(key => pm.expect(String(pm.variables.get(key)), key).to.eql(\"true\")));",
               "  if (required.some(key => String(pm.variables.get(key)) !== \"true\")) pm.execution.skipRequest();",
-              "}"
+              "}",
+              "if(String(pm.variables.get(\"scoringMode\"))===\"logreg_v1\") pm.request.body.update(\"{\\\"productId\\\": \\\"turnover\\\", \\\"purpose\\\": \\\"stock\\\", \\\"requestedAmountRub\\\": 1400000, \\\"termMonths\\\": 12, \\\"monthlyRevenueRub\\\": 10000000, \\\"monthlyExpensesRub\\\": 8800000}\");"
             ]
           }
         },
@@ -17211,7 +17255,7 @@
               "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
               "const r=pm.response.json();const n=Number(pm.collectionVariables.get(\"actionCounterPoll\")||0)+1;pm.collectionVariables.set(\"actionCounterPoll\",n);",
               "if([\"submitted\",\"processing\"].includes(r.status)&&n<120){setTimeout(()=>{},250);pm.execution.setNextRequest(pm.info.requestId);}else{",
-              " pm.test(\"MEDIUM case awaits employee without a fake final decision\",()=>{pm.expect(r.status).to.eql(\"manual_review\");pm.expect(r.score).to.eql(65);pm.expect(r.riskLevel).to.eql(\"MEDIUM\");pm.expect(r.decision).to.eql(null);pm.expect(r.offer).to.eql(null);pm.expect(r.processing).to.eql(null);});",
+              " pm.test(\"MEDIUM case awaits employee without a fake final decision\",()=>{pm.expect(r.status).to.eql(\"manual_review\");pm.expect(r.score).to.eql(String(pm.variables.get(\"scoringMode\"))===\"logreg_v1\" ? 78 : 65);pm.expect(r.riskLevel).to.eql(\"MEDIUM\");pm.expect(r.decision).to.eql(null);pm.expect(r.offer).to.eql(null);pm.expect(r.processing).to.eql(null);});",
               " pm.collectionVariables.set(\"actionCounterVersion\",r.version);pm.collectionVariables.set(\"actionCounterBaseVersion\",r.version);",
               "}"
             ]
@@ -17322,7 +17366,7 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));const r=pm.response.json();pm.test(\"Unchanged pre-decision assessment\",()=>{pm.expect(r.manualDecision).to.eql(null);pm.expect(r.scoring.score).to.eql(65);});pm.collectionVariables.set(\"actionCounterAssessmentJSON\",JSON.stringify(r));"
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));const r=pm.response.json();pm.test(\"Unchanged pre-decision assessment\",()=>{pm.expect(r.manualDecision).to.eql(null);pm.expect(r.scoring.score).to.eql(String(pm.variables.get(\"scoringMode\"))===\"logreg_v1\" ? 78 : 65);});pm.collectionVariables.set(\"actionCounterAssessmentJSON\",JSON.stringify(r));"
             ]
           }
         }
@@ -18448,7 +18492,7 @@
               "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
               "const r=pm.response.json();const input=JSON.parse(pm.collectionVariables.get(\"actionApproveManualBodyJSON\"));",
               "pm.test(\"Manual decision preserves risk and does not expose the internal comment\",()=>{",
-              " pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"actionApproveId\"));pm.expect(r.status).to.eql(\"approved\");pm.expect(r.decision).to.eql(\"approved\");pm.expect(r.version).to.eql(input.version+1);pm.expect(r.reviewedBy).to.eql(pm.collectionVariables.get(\"bankProfileId\"));pm.expect(r.score).to.eql(65);pm.expect(r.riskLevel).to.eql(\"MEDIUM\");pm.expect(r.processing).to.eql(null);pm.expect(Number.isFinite(Date.parse(r.assessedAt))).to.eql(true);pm.expect(r.reasons.length).to.be.above(0);pm.expect(JSON.stringify(r)).not.to.include(\"Внутренний аудит\");",
+              " pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"actionApproveId\"));pm.expect(r.status).to.eql(\"approved\");pm.expect(r.decision).to.eql(\"approved\");pm.expect(r.version).to.eql(input.version+1);pm.expect(r.reviewedBy).to.eql(pm.collectionVariables.get(\"bankProfileId\"));pm.expect(r.score).to.eql(String(pm.variables.get(\"scoringMode\"))===\"logreg_v1\" ? 78 : 65);pm.expect(r.riskLevel).to.eql(\"MEDIUM\");pm.expect(r.processing).to.eql(null);pm.expect(Number.isFinite(Date.parse(r.assessedAt))).to.eql(true);pm.expect(r.reasons.length).to.be.above(0);pm.expect(JSON.stringify(r)).not.to.include(\"Внутренний аудит\");",
               "});",
               "if(pm.response.code===201){pm.collectionVariables.set(\"actionApproveVersion\",r.version);pm.collectionVariables.set(\"actionApproveManualResponseJSON\",JSON.stringify(r));if(r.offer)pm.collectionVariables.set(\"actionApproveOfferId\",r.offer.offerId);}",
               "pm.test(\"Frozen product, rate and server-computed payment\",()=>{pm.expect(r.offer.status).to.eql(\"active\");pm.expect(r.offer.productId).to.eql(\"turnover\");pm.expect(r.offer.amountRub).to.eql(1400000);pm.expect(r.offer.termMonths).to.eql(12);const product=JSON.parse(pm.collectionVariables.get(\"creditProductsJSON\")).find(p=>p.id===\"turnover\");pm.expect(r.offer.annualRatePercent).to.eql(product.annualRatePercent);const rate=product.annualRatePercent/1200;const factor=rate===0?1/12:rate/(1-Math.pow(1+rate,-12));pm.expect(r.offer.monthlyPaymentRub).to.eql(Math.ceil(1400000*factor));});"
@@ -19023,7 +19067,7 @@
               "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
               "const r=pm.response.json();const input=JSON.parse(pm.collectionVariables.get(\"actionRejectManualBodyJSON\"));",
               "pm.test(\"Manual decision preserves risk and does not expose the internal comment\",()=>{",
-              " pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"actionRejectId\"));pm.expect(r.status).to.eql(\"rejected\");pm.expect(r.decision).to.eql(\"rejected\");pm.expect(r.version).to.eql(input.version+1);pm.expect(r.reviewedBy).to.eql(pm.collectionVariables.get(\"bankProfileId\"));pm.expect(r.score).to.eql(65);pm.expect(r.riskLevel).to.eql(\"MEDIUM\");pm.expect(r.processing).to.eql(null);pm.expect(Number.isFinite(Date.parse(r.assessedAt))).to.eql(true);pm.expect(r.reasons.length).to.be.above(0);pm.expect(JSON.stringify(r)).not.to.include(\"Внутренний аудит\");",
+              " pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"actionRejectId\"));pm.expect(r.status).to.eql(\"rejected\");pm.expect(r.decision).to.eql(\"rejected\");pm.expect(r.version).to.eql(input.version+1);pm.expect(r.reviewedBy).to.eql(pm.collectionVariables.get(\"bankProfileId\"));pm.expect(r.score).to.eql(String(pm.variables.get(\"scoringMode\"))===\"logreg_v1\" ? 78 : 65);pm.expect(r.riskLevel).to.eql(\"MEDIUM\");pm.expect(r.processing).to.eql(null);pm.expect(Number.isFinite(Date.parse(r.assessedAt))).to.eql(true);pm.expect(r.reasons.length).to.be.above(0);pm.expect(JSON.stringify(r)).not.to.include(\"Внутренний аудит\");",
               "});",
               "if(pm.response.code===201){pm.collectionVariables.set(\"actionRejectVersion\",r.version);pm.collectionVariables.set(\"actionRejectManualResponseJSON\",JSON.stringify(r));if(r.offer)pm.collectionVariables.set(\"actionRejectOfferId\",r.offer.offerId);}",
               "pm.test(\"Rejected has no offer\",()=>pm.expect(r.offer).to.eql(null));"
@@ -19598,7 +19642,7 @@
               "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
               "const r=pm.response.json();const input=JSON.parse(pm.collectionVariables.get(\"actionCounterManualBodyJSON\"));",
               "pm.test(\"Manual decision preserves risk and does not expose the internal comment\",()=>{",
-              " pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"actionCounterId\"));pm.expect(r.status).to.eql(\"counter_offer\");pm.expect(r.decision).to.eql(\"counter_offer\");pm.expect(r.version).to.eql(input.version+1);pm.expect(r.reviewedBy).to.eql(pm.collectionVariables.get(\"bankProfileId\"));pm.expect(r.score).to.eql(65);pm.expect(r.riskLevel).to.eql(\"MEDIUM\");pm.expect(r.processing).to.eql(null);pm.expect(Number.isFinite(Date.parse(r.assessedAt))).to.eql(true);pm.expect(r.reasons.length).to.be.above(0);pm.expect(JSON.stringify(r)).not.to.include(\"Внутренний аудит\");",
+              " pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"actionCounterId\"));pm.expect(r.status).to.eql(\"counter_offer\");pm.expect(r.decision).to.eql(\"counter_offer\");pm.expect(r.version).to.eql(input.version+1);pm.expect(r.reviewedBy).to.eql(pm.collectionVariables.get(\"bankProfileId\"));pm.expect(r.score).to.eql(String(pm.variables.get(\"scoringMode\"))===\"logreg_v1\" ? 78 : 65);pm.expect(r.riskLevel).to.eql(\"MEDIUM\");pm.expect(r.processing).to.eql(null);pm.expect(Number.isFinite(Date.parse(r.assessedAt))).to.eql(true);pm.expect(r.reasons.length).to.be.above(0);pm.expect(JSON.stringify(r)).not.to.include(\"Внутренний аудит\");",
               "});",
               "if(pm.response.code===201){pm.collectionVariables.set(\"actionCounterVersion\",r.version);pm.collectionVariables.set(\"actionCounterManualResponseJSON\",JSON.stringify(r));if(r.offer)pm.collectionVariables.set(\"actionCounterOfferId\",r.offer.offerId);}",
               "pm.test(\"Frozen product, rate and server-computed payment\",()=>{pm.expect(r.offer.status).to.eql(\"active\");pm.expect(r.offer.productId).to.eql(\"turnover\");pm.expect(r.offer.amountRub).to.eql(800000);pm.expect(r.offer.termMonths).to.eql(12);const product=JSON.parse(pm.collectionVariables.get(\"creditProductsJSON\")).find(p=>p.id===\"turnover\");pm.expect(r.offer.annualRatePercent).to.eql(product.annualRatePercent);const rate=product.annualRatePercent/1200;const factor=rate===0?1/12:rate/(1-Math.pow(1+rate,-12));pm.expect(r.offer.monthlyPaymentRub).to.eql(Math.ceil(800000*factor));});"
@@ -22014,7 +22058,9 @@
           "transientKeys.forEach(key => pm.variables.set(key, pm.collectionVariables.get(key) || \"\"));",
           "const configuredCode = String(pm.variables.get(\"demoOtpCode\") || \"1234\");",
           "pm.variables.set(\"demoOtpCode\", configuredCode);",
-          "pm.variables.set(\"wrongOtpCode\", configuredCode === \"0000\" ? \"1111\" : \"0000\");"
+          "pm.variables.set(\"wrongOtpCode\", configuredCode === \"0000\" ? \"1111\" : \"0000\");",
+          "const scoringMode=String(pm.variables.get(\"scoringMode\") || \"fixture\");",
+          "pm.test(\"Known scoring mode\",()=>pm.expect(scoringMode).to.be.oneOf([\"fixture\",\"logreg_v1\"]));"
         ]
       }
     },

@@ -1,0 +1,23 @@
+# Optional local integration with a separately owned scoring checkout.
+# The regular compose.yaml does not require this checkout or service.
+services:
+  backend:
+    environment:
+      SCORING_URL: http://scoring:8001
+  scoring:
+    build:
+      context: ${SCORING_CONTEXT:?Set SCORING_CONTEXT to the existing scoring directory}
+    environment:
+      HOST: 0.0.0.0
+      PORT: "8001"
+      SCORING_MODEL: ${SCORING_MODEL:-logreg_v1}
+      PYTHONDONTWRITEBYTECODE: "1"
+    read_only: true
+    ports:
+      - "127.0.0.1:${SCORING_PORT:-8001}:8001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=2).read()"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s

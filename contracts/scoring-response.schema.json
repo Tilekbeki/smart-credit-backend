@@ -1,14 +1,21 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Synthetic scoring response v1",
+  "title": "Scoring response v1",
+  "description": "Synthetic risk score and preliminary recommendation. The backend makes the final credit decision.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["decision", "score", "approved_amount", "reasons", "factors"],
+  "required": [
+    "decision", "score", "approved_amount", "reasons", "factors"
+  ],
   "properties": {
     "decision": {"enum": ["approved", "counter_offer", "rejected"]},
-    "score": {"type": "integer", "minimum": 0, "maximum": 100},
+    "score": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
     "approved_amount": {"type": "integer", "minimum": 0},
-    "reasons": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "reasons": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
     "factors": {
       "type": "object",
       "additionalProperties": false,

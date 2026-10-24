@@ -65,6 +65,18 @@ func (e *Engine) Evaluate(input Input) (Result, error) {
 		return Result{}, ErrInvalidData
 	}
 	affordable := payment <= budget
+	var available int64
+	if !affordable {
+		available, err = credit.AvailableAmount(budget, product.AnnualRatePercent, data.request.TermMonths, product.MaxAmountRub)
+		if err != nil {
+			return Result{}, ErrInvalidData
+		}
+		// An explicit LOW-risk affordability refusal takes precedence over an
+		// advisory scoring conflict. MEDIUM still requires an employee review.
+		if result.RiskLevel == "LOW" && available < product.MinAmountRub {
+			return finish(application.Rejected, "Финансовый бюджет не позволяет обслуживать минимальную сумму выбранного продукта.")
+		}
+	}
 	if data.response.Decision == "rejected" || (affordable && data.response.Decision != "approved") {
 		manual = append(manual, Reason{"scoring_policy_conflict", "Рекомендация скоринга не согласуется с автоматическим одобрением по кредитной политике."})
 	}
@@ -79,10 +91,6 @@ func (e *Engine) Evaluate(input Input) (Result, error) {
 	if affordable {
 		result.Offer = newOffer(product, data.request.RequestedAmount, data.request.TermMonths, payment)
 		return finish(application.Approved, "Компания прошла обязательные проверки.", "Низкий кредитный риск и допустимая финансовая нагрузка.")
-	}
-	available, err := credit.AvailableAmount(budget, product.AnnualRatePercent, data.request.TermMonths, product.MaxAmountRub)
-	if err != nil {
-		return Result{}, ErrInvalidData
 	}
 	if available < product.MinAmountRub {
 		return finish(application.Rejected, "Финансовый бюджет не позволяет обслуживать минимальную сумму выбранного продукта.")
@@ -111,6 +119,21 @@ func criticalGrounds(data evaluationData, submittedAt time.Time) []string {
 	critical := []string{}
 	if riskLevel(data.response.Score) == "HIGH" {
 		critical = append(critical, "Высокий кредитный риск по демонстрационной кредитной политике.")
+	}
+	// These are mandatory lending constraints, not an implementation of the
+	// external risk model. Use saved facts rather than rounded model factors.
+	request := data.request
+	flow := request.MonthlyRevenue - request.MonthlyExpenses
+	if request.OverdueCount >= 3 {
+		critical = append(critical, "Три или более просрочки в кредитной истории.")
+	}
+	if flow <= 0 {
+		critical = append(critical, "Операционные расходы не покрываются месячной выручкой.")
+	} else if flow*10 < request.MonthlyRevenue {
+		critical = append(critical, "Операционная маржа ниже обязательного минимума 10%.")
+	}
+	if request.MonthlyRevenue > 0 && request.ExistingDebt >= request.MonthlyRevenue*18 {
+		critical = append(critical, "Текущий долг составляет не менее 150% годовой выручки.")
 	}
 	for _, fact := range facts {
 		if !fact.Passed && criticalRegistrationCheck(fact.Code) {
@@ -170,8 +193,8 @@ func conflictingRecommendation(request scoring.Request, response scoring.Respons
 func conflictingFacts(request scoring.Request, response scoring.Response) bool {
 	expected := float64(request.MonthlyRevenue - request.MonthlyExpenses)
 	tolerance := max(1.0, math.Abs(expected)*1e-9)
-	// Margin, ratios and estimated model payment have no established policy
-	// semantics in v1. They are contract-validated but never recalculate risk.
+	// Rounded model ratios and the illustrative 20% payment never define the
+	// product rate or replace the backend's calculations from saved facts.
 	return response.Factors.OverdueCount != request.OverdueCount || math.Abs(response.Factors.OperatingCashFlow-expected) > tolerance
 }
 
@@ -235,7 +258,7 @@ func checkAmbiguities(check companyCheck) []Reason {
 // ValidateResult guards the internal persistence boundary without re-running
 // policy or accepting a fabricated final decision for manual review.
 func ValidateResult(result Result) error {
-	if result.PolicyVersion != PolicyVersion || result.Score < 0 || result.Score > 100 || result.RiskLevel != riskLevel(result.Score) || len(result.Reasons) == 0 || result.ManualReviewReasons == nil {
+	if (result.PolicyVersion != PolicyVersion && result.PolicyVersion != "go-demo-v1") || result.Score < 0 || result.Score > 100 || result.RiskLevel != riskLevel(result.Score) || len(result.Reasons) == 0 || result.ManualReviewReasons == nil {
 		return ErrInvalidData
 	}
 	for _, reason := range result.Reasons {

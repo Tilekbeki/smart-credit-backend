@@ -1,18 +1,67 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Synthetic scoring request v1",
-  "description": "Only synthetic business data may be submitted. This model is a hackathon prototype, not bank underwriting.",
+  "title": "Scoring request v1",
+  "description": "Synthetic application data supplied by the backend after mandatory checks. Monetary values are whole RUB. application_id is correlation metadata, not a model feature.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["application_id", "monthly_revenue", "monthly_expenses", "existing_debt", "monthly_debt_payments", "overdue_count", "requested_amount", "term_months"],
+  "required": [
+    "application_id",
+    "monthly_revenue",
+    "monthly_expenses",
+    "existing_debt",
+    "monthly_debt_payments",
+    "overdue_count",
+    "requested_amount",
+    "term_months"
+  ],
   "properties": {
-    "application_id": {"type": "string", "minLength": 1, "maxLength": 100},
-    "monthly_revenue": {"type": "number", "minimum": 0, "maximum": 1000000000000},
-    "monthly_expenses": {"type": "number", "minimum": 0, "maximum": 1000000000000, "description": "Operating expenses excluding monthly debt payments."},
-    "existing_debt": {"type": "number", "minimum": 0, "maximum": 1000000000000},
-    "monthly_debt_payments": {"type": "number", "minimum": 0, "maximum": 1000000000000},
-    "overdue_count": {"type": "integer", "minimum": 0, "maximum": 100},
-    "requested_amount": {"type": "integer", "minimum": 1, "maximum": 1000000000000},
-    "term_months": {"type": "integer", "minimum": 1, "maximum": 120}
+    "application_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "pattern": "\\S"
+    },
+    "monthly_revenue": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000000000000,
+      "description": "Average monthly revenue in RUB."
+    },
+    "monthly_expenses": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000000000000,
+      "description": "Average monthly operating expenses in RUB, excluding debt payments."
+    },
+    "existing_debt": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000000000000,
+      "description": "Outstanding principal from the synthetic credit bureau in RUB."
+    },
+    "monthly_debt_payments": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000000000000,
+      "description": "Current monthly credit payments from the synthetic credit bureau in RUB."
+    },
+    "overdue_count": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Count of overdue credit events from the synthetic credit bureau."
+    },
+    "requested_amount": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000000000000,
+      "description": "Requested principal in RUB."
+    },
+    "term_months": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 120,
+      "description": "Requested term in whole months."
+    }
   }
 }

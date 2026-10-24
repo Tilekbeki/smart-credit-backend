@@ -57,6 +57,7 @@ func TestValidateRequest(t *testing.T) {
 		change func(*Request)
 	}{
 		{"missing application", func(r *Request) { r.ApplicationID = "" }},
+		{"blank application", func(r *Request) { r.ApplicationID = " \t\n" }},
 		{"long application", func(r *Request) { r.ApplicationID = strings.Repeat("я", 101) }},
 		{"invalid UTF-8", func(r *Request) { r.ApplicationID = string([]byte{255}) }},
 		{"negative revenue", func(r *Request) { r.MonthlyRevenue = -1 }},
@@ -177,6 +178,7 @@ func TestDecodeResponseInvalidJSONAndContract(t *testing.T) {
 		{"negative amount", strings.Replace(validResponseJSON, `"approved_amount":0`, `"approved_amount":-1`, 1), "invalid_response"},
 		{"fractional amount", strings.Replace(validResponseJSON, `"approved_amount":0`, `"approved_amount":0.1`, 1), "invalid_response"},
 		{"empty reasons", strings.Replace(validResponseJSON, `["Synthetic evaluation."]`, `[]`, 1), "invalid_response"},
+		{"empty reason", strings.Replace(validResponseJSON, `["Synthetic evaluation."]`, `[""]`, 1), "invalid_response"},
 		{"number reason", strings.Replace(validResponseJSON, `["Synthetic evaluation."]`, `[1]`, 1), "invalid_response"},
 		{"null reason", strings.Replace(validResponseJSON, `["Synthetic evaluation."]`, `[null]`, 1), "invalid_response"},
 		{"negative payment", strings.Replace(validResponseJSON, `"estimated_new_monthly_payment":0`, `"estimated_new_monthly_payment":-1`, 1), "invalid_response"},
