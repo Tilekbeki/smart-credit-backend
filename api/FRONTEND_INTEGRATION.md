@@ -256,17 +256,25 @@ nextStage awaiting_scoring. Это зафиксированный укрупнё
 
 Worker выполняет синтетические проверки компании/кредитной истории, затем
 вызывает отдельный scoring по HTTP из того же существующего механизма jobs.
-После строгой проверки ответ сохраняется в PostgreSQL; задача остаётся в
-awaiting_decision, заявка — в processing. Окончательное кредитное решение
-на этом этапе не создаётся. При недоступности scoring выполняются ограниченные
-повторы; техническая ошибка не превращается в rejected.
+После строгой проверки ответ сохраняется в PostgreSQL; задача переходит в
+awaiting_decision. Тот же worker применяет Go Decision Engine к сохранённым
+снимкам, проверкам и scoring без повторного HTTP-вызова. Заявка автоматически
+переходит в approved, rejected, counter_offer либо manual_review. В первых трёх
+случаях сохраняется окончательное решение, для approved/counter_offer — также
+предложение. Для manual_review сохраняется оценка и причины направления, но
+окончательное кредитное решение не создаётся. При недоступности scoring
+выполняются ограниченные повторы; техническая ошибка не превращается в rejected.
 
 Опрос текущего Application и timeline доступен, но подробная стадия, результаты
 scoring и исчерпание повторов через публичный API пока не выдаются.
 В timeline порядок задаётся sequence; actorId=null у системных событий.
 SCORING_STARTED означает начало обработки scoring, SCORING_COMPLETED — надёжное
 сохранение результата, а не кредитное решение. Каждое событие появляется один
-раз; попытки HTTP-вызова могут повторяться при сбое. Финансовые данные, score,
+раз; попытки HTTP-вызова могут повторяться при сбое. Затем записывается
+DECISION_PROCESSING_STARTED со статусом processing и одно из событий:
+APPLICATION_APPROVED (approved), APPLICATION_REJECTED (rejected),
+COUNTER_OFFER_CREATED (counter_offer), MANUAL_REVIEW_REQUIRED (manual_review).
+Все события Decision Engine системные, actorId=null. Финансовые данные, score,
 factors и технические причины ошибок в timeline не публикуются.
 
 ## Решение и предложение — PLANNED
@@ -279,7 +287,9 @@ GET `/api/v1/applications/{applicationId}/decision` будет возвраща�
 Поля CreditDecision: applicationId, status, version, decision, score, riskLevel,
 reasons, assessedAt, reviewedBy, offer, processing. decision имеет значения
 approved/counter_offer/rejected/null. score — integer 0..100/null; riskLevel —
-LOW/MEDIUM/HIGH/null. Пороги и направленность шкалы в этом freeze не определяются.
+LOW/MEDIUM/HIGH/null. Демонстрационная Go policy использует шкалу 0–100:
+более высокий score означает меньший риск; LOW при score >= 80, MEDIUM при
+50 <= score < 80, HIGH при score < 50. Это правила backend, а не новая модель scoring.
 assessedAt — время финального решения либо null; reviewedBy — UUID сотрудника
 для ручного решения, иначе null. reasons — безопасные пояснения клиенту.
 
@@ -310,7 +320,7 @@ processing.stage: prechecks/scoring/decision; state: waiting/running/retrying/
 failed. retryAt и message nullable. Техническая ошибка не превращается в rejected:
 сохраняется submitted/processing и безопасная диагностика. Ручного retry API нет.
 
-Ручное рассмотрение; числовой score и MEDIUM здесь только пример формата:
+Ручное рассмотрение; пример формата с MEDIUM для score 62:
 
 ```json
 {
@@ -444,7 +454,7 @@ manualReviewReasons, recommendations, manualDecision, processing.
 | --- | --- | --- | --- |
 | draft | submitted | CLIENT, submit выбранного черновика | IMPLEMENTED |
 | submitted | processing | Worker | IMPLEMENTED |
-| processing | approved / counter_offer / rejected / manual_review | Go policy | PLANNED |
+| processing | approved / counter_offer / rejected / manual_review | Go policy | IMPLEMENTED |
 | manual_review | approved / counter_offer / rejected | BANK_EMPLOYEE | PLANNED |
 | approved / counter_offer | signed | CLIENT, accept | PLANNED |
 | approved / counter_offer | closed | CLIENT, decline | PLANNED |
@@ -568,24 +578,33 @@ curl --fail --silent "$BASE_URL/api/v1/applications?status=draft" \
 Запустите коллекцию сверху вниз в Collection Runner. Working directory для
 файлов — `api/postman`. Профили, JWT, UUID, версии и проверки передаются
 автоматически; коллекция не вызывает PLANNED маршруты и не обращается к scoring
-напрямую. По умолчанию expectScoringResult=false: проверяются prechecks и
-сохранение processing, успешный scoring при этом не заявляется. Только при
-доступном совместимом сервисе задайте expectScoringResult=true: коллекция
-ограниченно опрашивает timeline до SCORING_COMPLETED (до 30 секунд на заявку),
-проверяет историю и отсутствие повторных событий после submit. Содержимое
-сохранённого результата проверяется PostgreSQL-интеграционными тестами.
+напрямую. По умолчанию expectScoringResult=false и expectDecisionResult=false:
+коллекция ждёт prechecks и не требует недоступный scoring. При настроенном
+совместимом тестовом сервисе expectScoringResult=true включает ожидание
+SCORING_COMPLETED. Дополнительно expectDecisionResult=true включает ожидание
+одного из четырёх итоговых событий Go policy; этот режим требует
+expectScoringResult=true. Polling ограничен 30 секундами на заявку. Коллекция
+проверяет доступные публичные статусы, порядок, системных акторов и отсутствие
+дублирования событий. Повторный submit после итогового состояния проверяется
+как 409 invalid_status; в submitted/processing он остаётся 202. Легитимный
+асинхронный прогресс не считается изменением заявки из-за повторного submit.
+Сохранённые score, risk level, причины, решения и предложения проверяются
+непосредственно PostgreSQL-интеграционными тестами: decision API пока PLANNED.
 
 ## Передача frontend и оставшиеся задачи backend
 
 Передайте вместе этот документ, openapi.yaml и существующую Postman Collection
-с fixtures. Для генерации клиента различайте IMPLEMENTED/PLANNED через extension,
-а для UI подготовьте mock всех финальных состояний. Не подключайте вместо Go
+с fixtures. Для генерации клиента различайте IMPLEMENTED/PLANNED через extension.
+Финальные статусы и события уже доступны через существующие application/timeline
+API; для подробностей решения, предложений и банковского кабинета пока нужны
+mock. Не подключайте вместо Go
 одноимённые маршруты старого Python backend.
 
 Оставшиеся задачи: воспроизводимая поставка настоящего Python scoring и
-контрактная проверка против него, согласование смысла score и Go risk policy без
-дублирования модели, Decision Engine, семь PLANNED обработчиков,
-транзакционные accept/decline/manual decisions, хранилище внутренних комментариев
-и нормализованной оценки, аудит действия с конкретным предложением, расширение
-Application.availableActions. Изменения БД выполняются только новыми миграциями.
-На текущем этапе эти задачи не реализуются.
+контрактная проверка против него, семь PLANNED обработчиков, транзакционные
+accept/decline/manual decisions, хранилище внутренних комментариев сотрудника,
+аудит действия с конкретным предложением, расширение Application.availableActions.
+Go Decision Engine и сохранение нормализованной оценки уже реализованы; публичные
+DTO API Freeze v1 не менялись. Изменения БД выполняются только новыми миграциями.
+Настоящий Python scoring не проверен; тестовые ответы не поставляются как
+production-заглушка. Следующий этап здесь не реализуется.

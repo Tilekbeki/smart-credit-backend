@@ -22,12 +22,14 @@ func DefaultConfig() Config {
 }
 
 type Worker struct {
-	queue        Queue
-	processor    Processor
-	config       Config
-	logger       *slog.Logger
-	scoringQueue ScoringQueue
-	scorer       Scorer
+	queue          Queue
+	processor      Processor
+	config         Config
+	logger         *slog.Logger
+	scoringQueue   ScoringQueue
+	scorer         Scorer
+	decisionQueue  DecisionQueue
+	decisionEngine DecisionEngine
 }
 
 func NewWorker(queue Queue, processor Processor, config Config, logger *slog.Logger, options ...WorkerOption) (*Worker, error) {
@@ -64,10 +66,10 @@ func (w *Worker) Run(ctx context.Context) error {
 }
 
 func (w *Worker) loop(ctx context.Context) {
-	scoringFirst := false
+	nextStage := 0
 	for ctx.Err() == nil {
-		job, err := w.claimNext(ctx, scoringFirst)
-		scoringFirst = !scoringFirst
+		job, err := w.claimNext(ctx, nextStage)
+		nextStage++
 		if ctx.Err() != nil {
 			return
 		}
@@ -84,7 +86,9 @@ func (w *Worker) loop(ctx context.Context) {
 			}
 			continue
 		}
-		if job.Stage == ScoringStage {
+		if job.Stage == DecisionStage {
+			w.processDecision(ctx, *job)
+		} else if job.Stage == ScoringStage {
 			w.processScoring(ctx, *job)
 		} else {
 			w.process(ctx, *job)
@@ -92,19 +96,21 @@ func (w *Worker) loop(ctx context.Context) {
 	}
 }
 
-func (w *Worker) claimNext(ctx context.Context, scoringFirst bool) (*Job, error) {
-	if w.scoringQueue == nil {
-		return w.queue.Claim(ctx, w.config.LeaseDuration)
+func (w *Worker) claimNext(ctx context.Context, next int) (*Job, error) {
+	claims := []func(context.Context, time.Duration) (*Job, error){w.queue.Claim}
+	if w.scoringQueue != nil {
+		claims = append(claims, w.scoringQueue.ClaimScoring)
 	}
-	claim, other := w.queue.Claim, w.scoringQueue.ClaimScoring
-	if scoringFirst {
-		claim, other = other, claim
+	if w.decisionQueue != nil {
+		claims = append(claims, w.decisionQueue.ClaimDecision)
 	}
-	job, err := claim(ctx, w.config.LeaseDuration)
-	if err != nil || job != nil {
-		return job, err
+	for offset := range len(claims) {
+		job, err := claims[(next+offset)%len(claims)](ctx, w.config.LeaseDuration)
+		if err != nil || job != nil {
+			return job, err
+		}
 	}
-	return other(ctx, w.config.LeaseDuration)
+	return nil, nil
 }
 
 func (w *Worker) process(ctx context.Context, job Job) {

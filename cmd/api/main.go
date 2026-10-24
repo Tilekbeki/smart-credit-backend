@@ -17,6 +17,7 @@ import (
 	"smart-credit-backend/internal/company"
 	"smart-credit-backend/internal/config"
 	"smart-credit-backend/internal/credit"
+	"smart-credit-backend/internal/decision"
 	"smart-credit-backend/internal/document"
 	"smart-credit-backend/internal/httpapi"
 	"smart-credit-backend/internal/pipeline"
@@ -78,7 +79,7 @@ func run() error {
 	// outlives the entire attempt, including its final fenced transaction.
 	workerConfig.AttemptTimeout = max(workerConfig.AttemptTimeout, cfg.ScoringTimeout+10*time.Second)
 	workerConfig.LeaseDuration = max(workerConfig.LeaseDuration, workerConfig.AttemptTimeout+15*time.Second)
-	worker, err := pipeline.NewWorker(postgres.NewPrecheckQueue(pool, cfg.AuthDBTimeout), pipeline.NewSimulator(), workerConfig, logger, pipeline.WithScoring(scoringClient))
+	worker, err := pipeline.NewWorker(postgres.NewPrecheckQueue(pool, cfg.AuthDBTimeout), pipeline.NewSimulator(), workerConfig, logger, pipeline.WithScoring(scoringClient), pipeline.WithDecisionEngine(decision.NewEngine()))
 	if err != nil {
 		return errors.New("background worker configuration is invalid")
 	}

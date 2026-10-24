@@ -48,6 +48,26 @@ func TestBusinessAgeMonths(t *testing.T) {
 	})
 }
 
+func TestPaymentBudget(t *testing.T) {
+	for _, tc := range []struct {
+		name                          string
+		revenue, expenses, debt, want int64
+	}{
+		{"half surplus less existing payments", 1_000_000, 500_000, 10_000, 240_000},
+		{"round down odd surplus", 1_000_001, 500_000, 10_000, 240_000},
+		{"no surplus", 1_000_000, 1_000_000, 0, 0},
+		{"negative surplus", 0, 1_000_000, 0, 0},
+		{"existing debt exhausts budget", 1_000_000, 500_000, 300_000, 0},
+		{"legitimate zero", 0, 0, 0, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := PaymentBudget(tc.revenue, tc.expenses, tc.debt); got != tc.want {
+				t.Fatalf("budget = %d, want %d", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestMonthlyPayment(t *testing.T) {
 	tests := []struct {
 		name   string

@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "Smart Credit — Backend Stages 2–6.1 (OTP, drafts, documents, submit)",
-    "description": "Единая коллекция Smart Credit, Postman Collection v2.1. Запустите docker compose up -d --build, затем всю коллекцию сверху вниз в Collection Runner. baseUrl по умолчанию http://localhost:8080; demoOtpCode по умолчанию 1234. Все профили, companyId, OTP challenges и JWT передаются автоматически; первый запрос очищает результаты предыдущего запуска. Сохранены сценарии OTP/JWT обеих ролей. Новые сценарии проверяют собственную и чужую компанию, каталог и карточки продуктов, подбор финансирования, точные финансовые расчёты, границы и ошибки. Для проверки чужой компании автоматически авторизуется второй обнаруженный CLIENT. Расчёты проверяются независимой аннуитетной формулой JavaScript на синтетических значениях; точная арифметика и границы округления дополнительно проверяются Go-тестами. Рекомендация не является кредитным решением; scoring не вызывается. Не экспортируйте коллекцию с заполненными токенами и не используйте реальные персональные данные. Этап 4: пустой и частичный черновик, редактирование, null/отсутствующие поля, сохранение и обновление applicationId/version, история, SQL-пагинация и фильтры, конфликт версий, изоляция другого CLIENT, ограничения ролей и валидация. Два новых черновика создаются на каждой итерации; тесты не требуют пустой БД. В сценариях этапа 4 submit, документы и scoring не вызываются. Остальные этапы коллекции выполняются далее. Этап 5: документы загружаются к новому черновику, UUID и JWT передаются автоматически. Маленькие синтетические файлы находятся в fixtures/ рядом с коллекцией. Для Newman укажите --working-dir api/postman из корня backend; в Postman настройте Working directory на api/postman и разрешите чтение тестовых файлов. Превышение размера и опасные имена проверяются динамическим multipart без большого файла в репозитории. Все файлы синтетические, без банковских данных. Этап 6.1: отправка заполненных заявок, детальные ошибки 422, обязательные документы и серверный доверенный источник финансов, повторный submit, запрет изменений после отправки. Ограниченный автоматический polling timeline ожидает PRECHECKS_COMPLETED (до 20 проверок с интервалом 250 мс); заявка остаётся processing; успешный scoring по умолчанию не предполагается. Все новые заявки, версии и третий профиль передаются автоматически. Внутренние результаты проверок и очередь не публикуются. Две итерации Runner создают независимые заявки; никакая ручная очистка не нужна. API Freeze v1: черновики приватны для предпринимателя. BANK_EMPLOYEE получает 404 application_not_found при чтении списка документов или скачивании документа draft; после успешного submit банк получает метаданные и файл. CLIENT продолжает читать собственные draft, чужие заявки и документы возвращают 404. Проверяется независимость нескольких черновиков turnover: отправка выбранного не отправляет остальные, оставшийся черновик доступен для редактирования без изменения отправленной заявки. Семь маршрутов decision/accept/decline и bank/applications зафиксированы в api/openapi.yaml как PLANNED и не вызываются этой коллекцией до реализации; интеграционные правила описаны в api/FRONTEND_INTEGRATION.md. Этап 6.2: expectScoringResult=false по умолчанию сохраняет проверки prechecks и processing без заявления об успешном scoring. Только для backend с доступным совместимым scoring задайте expectScoringResult=true: polling до 30 секунд на заявку ожидает SCORING_COMPLETED, проверяет порядок, уникальность и сохранение событий после повторного submit. nextStage сохраняет frozen значение awaiting_scoring и не доказывает наличие результата. Результат score/factors проверяется PostgreSQL-интеграционными тестами, нового публичного endpoint нет. Коллекция никогда не вызывает scoring напрямую; тестовый HTTP-сервис не подтверждает совместимость с реальным Python scoring.",
+    "name": "Smart Credit — Backend Stages 2–6.3 (OTP, drafts, documents, decision pipeline)",
+    "description": "Единая коллекция Smart Credit, Postman Collection v2.1. Запустите docker compose up -d --build, затем всю коллекцию сверху вниз в Collection Runner. baseUrl по умолчанию http://localhost:8080; demoOtpCode по умолчанию 1234. Все профили, companyId, OTP challenges и JWT передаются автоматически; первый запрос очищает результаты предыдущего запуска. Сохранены сценарии OTP/JWT обеих ролей. Новые сценарии проверяют собственную и чужую компанию, каталог и карточки продуктов, подбор финансирования, точные финансовые расчёты, границы и ошибки. Для проверки чужой компании автоматически авторизуется второй обнаруженный CLIENT. Расчёты проверяются независимой аннуитетной формулой JavaScript на синтетических значениях; точная арифметика и границы округления дополнительно проверяются Go-тестами. Рекомендация не является кредитным решением; scoring не вызывается. Не экспортируйте коллекцию с заполненными токенами и не используйте реальные персональные данные. Этап 4: пустой и частичный черновик, редактирование, null/отсутствующие поля, сохранение и обновление applicationId/version, история, SQL-пагинация и фильтры, конфликт версий, изоляция другого CLIENT, ограничения ролей и валидация. Два новых черновика создаются на каждой итерации; тесты не требуют пустой БД. В сценариях этапа 4 submit, документы и scoring не вызываются. Остальные этапы коллекции выполняются далее. Этап 5: документы загружаются к новому черновику, UUID и JWT передаются автоматически. Маленькие синтетические файлы находятся в fixtures/ рядом с коллекцией. Для Newman укажите --working-dir api/postman из корня backend; в Postman настройте Working directory на api/postman и разрешите чтение тестовых файлов. Превышение размера и опасные имена проверяются динамическим multipart без большого файла в репозитории. Все файлы синтетические, без банковских данных. Этап 6.1: отправка заполненных заявок, детальные ошибки 422, обязательные документы и серверный доверенный источник финансов, повторный submit, запрет изменений после отправки. Ограниченный автоматический polling timeline ожидает PRECHECKS_COMPLETED (до 20 проверок с интервалом 250 мс); заявка остаётся processing; успешный scoring по умолчанию не предполагается. Все новые заявки, версии и третий профиль передаются автоматически. Внутренние результаты проверок и очередь не публикуются. Две итерации Runner создают независимые заявки; никакая ручная очистка не нужна. API Freeze v1: черновики приватны для предпринимателя. BANK_EMPLOYEE получает 404 application_not_found при чтении списка документов или скачивании документа draft; после успешного submit банк получает метаданные и файл. CLIENT продолжает читать собственные draft, чужие заявки и документы возвращают 404. Проверяется независимость нескольких черновиков turnover: отправка выбранного не отправляет остальные, оставшийся черновик доступен для редактирования без изменения отправленной заявки. Семь маршрутов decision/accept/decline и bank/applications зафиксированы в api/openapi.yaml как PLANNED и не вызываются этой коллекцией до реализации; интеграционные правила описаны в api/FRONTEND_INTEGRATION.md. Этап 6.2: expectScoringResult=false по умолчанию сохраняет проверки prechecks и processing без заявления об успешном scoring. Только для backend с доступным совместимым scoring задайте expectScoringResult=true: polling до 30 секунд на заявку ожидает SCORING_COMPLETED, проверяет порядок, уникальность и сохранение событий после повторного submit. nextStage сохраняет frozen значение awaiting_scoring и не доказывает наличие результата. Результат score/factors проверяется PostgreSQL-интеграционными тестами, нового публичного endpoint нет. Коллекция никогда не вызывает scoring напрямую; тестовый HTTP-сервис не подтверждает совместимость с реальным Python scoring. Этап 6.3: существующие application/timeline API отражают исходы approved/rejected/counter_offer/manual_review. expectDecisionResult=false по умолчанию; true требует expectScoringResult=true и настроенный совместимый тестовый HTTP scoring. Коллекция тогда ждёт итоговое событие policy; score, risk level и сохранённые offers проверяются PostgreSQL-тестами. Семь PLANNED endpoints пока не вызываются.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -17,6 +17,11 @@
     },
     {
       "key": "expectScoringResult",
+      "value": "false",
+      "type": "string"
+    },
+    {
+      "key": "expectDecisionResult",
       "value": "false",
       "type": "string"
     },
@@ -391,7 +396,8 @@
               "  });",
               "}",
               "if (pm.response.code === 200 && clients[1]) pm.collectionVariables.set(\"otherClientProfileId\", clients[1].id);",
-              "if (pm.response.code === 200) { const third = clients.find(p => p.id !== pm.collectionVariables.get(\"clientProfileId\") && p.id !== pm.collectionVariables.get(\"otherClientProfileId\")); if (third) pm.collectionVariables.set(\"thirdClientProfileId\", third.id); }"
+              "if (pm.response.code === 200) { const third = clients.find(p => p.id !== pm.collectionVariables.get(\"clientProfileId\") && p.id !== pm.collectionVariables.get(\"otherClientProfileId\")); if (third) pm.collectionVariables.set(\"thirdClientProfileId\", third.id); }",
+              "pm.test(\"Decision polling requires scoring polling\",()=>{if(String(pm.variables.get(\"expectDecisionResult\")).toLowerCase()===\"true\")pm.expect(String(pm.variables.get(\"expectScoringResult\")).toLowerCase()).to.eql(\"true\");});"
             ]
           }
         }
@@ -9552,17 +9558,22 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"HTTP 202\", () => pm.response.to.have.status(202));",
+              "pm.test(\"Repeat submit returns 202 in progress or 409 after a Go outcome\",()=>pm.expect(pm.response.code).to.be.oneOf([202,409]));",
               "const r=pm.response.json();",
+              "if(pm.response.code===202){",
               "pm.test(\"Asynchronous submit DTO\",()=>{pm.expect(r).to.have.all.keys(\"applicationId\",\"status\",\"submittedAt\",\"nextStage\");pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"submitApplicationId\"));pm.expect(r.status).to.be.oneOf([\"submitted\",\"processing\"]);pm.expect(r.nextStage).to.be.oneOf([\"prechecks\",\"awaiting_scoring\"]);pm.expect(Number.isFinite(Date.parse(r.submittedAt))).to.eql(true);});",
-              "pm.test(\"Repeated submission preserves first timestamp\",()=>pm.expect(r.submittedAt).to.eql(pm.collectionVariables.get(\"submitSubmittedAt\")));"
+              "pm.test(\"Repeated submission preserves first timestamp\",()=>pm.expect(r.submittedAt).to.eql(pm.collectionVariables.get(\"submitSubmittedAt\")));",
+              " if(r.status===\"processing\")pm.test(\"Coarse next stage is unchanged after prechecks\",()=>pm.expect(r.nextStage).to.be.oneOf([\"prechecks\",\"awaiting_scoring\"]));",
+              "}else{",
+              " pm.test(\"Finalized application cannot be submitted again\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_status\");pm.expect(r.message).to.eql(\"Отправка недоступна в текущем состоянии заявки.\");});",
+              "}"
             ]
           }
         }
       ]
     },
     {
-      "name": "183 · Submit — wait for submit prechecks and optional durable scoring",
+      "name": "183 · Submit — wait for submit prechecks and optional scoring and Go decision",
       "request": {
         "method": "GET",
         "auth": {
@@ -9597,13 +9608,16 @@
               "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
               "const r=pm.response.json();",
               "const expectScoring=String(pm.variables.get(\"expectScoringResult\")).toLowerCase()===\"true\";",
+              "const expectDecision=String(pm.variables.get(\"expectDecisionResult\")).toLowerCase()===\"true\";",
               "const types=[\"APPLICATION_SUBMITTED\",\"PROCESSING_STARTED\",\"COMPANY_CHECK_COMPLETED\",\"CREDIT_HISTORY_CHECK_COMPLETED\",\"PRECHECKS_COMPLETED\"];",
               "const scoringTypes=[\"SCORING_STARTED\",\"SCORING_COMPLETED\"];",
-              "const target=expectScoring?\"SCORING_COMPLETED\":\"PRECHECKS_COMPLETED\";",
-              "const done=pm.response.code===200&&Array.isArray(r.items)&&r.items.some(e=>e.eventType===target);",
+              "const finalEvents=[\"APPLICATION_APPROVED\",\"APPLICATION_REJECTED\",\"COUNTER_OFFER_CREATED\",\"MANUAL_REVIEW_REQUIRED\"];",
+              "const target=expectDecision?\"Go policy outcome\":expectScoring?\"SCORING_COMPLETED\":\"PRECHECKS_COMPLETED\";",
+              "const done=pm.response.code===200&&Array.isArray(r.items)&&r.items.some(e=>expectDecision?finalEvents.includes(e.eventType):e.eventType===target);",
               "const attempts=Number(pm.collectionVariables.get(\"submitPollAttempts\")||0)+1;pm.collectionVariables.set(\"submitPollAttempts\",attempts);",
               "if(!done&&attempts<(expectScoring?60:20)){setTimeout(()=>pm.execution.setNextRequest(pm.info.requestId),expectScoring?500:250);}else{",
-              " pm.test(expectScoring?\"Scoring result saved within bounded polling\":\"Prechecks complete within bounded polling\",()=>pm.expect(done,target).to.eql(true));",
+              " pm.test(expectDecision?\"Go decision completes within bounded polling\":expectScoring?\"Scoring result saved within bounded polling\":\"Prechecks complete within bounded polling\",()=>pm.expect(done,target).to.eql(true));",
+              " if(expectDecision)pm.test(\"Exactly one Go policy outcome is persisted\",()=>{pm.expect(r.items.filter(e=>e.eventType===\"DECISION_PROCESSING_STARTED\")).to.have.length(1);pm.expect(r.items.filter(e=>finalEvents.includes(e.eventType))).to.have.length(1);});",
               " pm.test(\"One ordered event per durable transition\",()=>{pm.expect(r).to.have.all.keys(\"items\");const ids=new Set();let sequence=0;types.forEach(type=>pm.expect(r.items.filter(e=>e.eventType===type),type).to.have.length(1));const pipeline=r.items.filter(e=>types.includes(e.eventType));pm.expect(pipeline.map(e=>e.eventType)).to.deep.eql(types);r.items.forEach(e=>{pm.expect(e).to.have.all.keys(\"eventId\",\"eventType\",\"sequence\",\"status\",\"createdAt\",\"actorId\",\"title\");pm.expect(e.sequence).to.be.above(sequence);sequence=e.sequence;ids.add(e.eventId);pm.expect(Number.isFinite(Date.parse(e.createdAt))).to.eql(true);pm.expect(e.title).to.be.a(\"string\").and.not.empty;});pm.expect(ids.size).to.eql(r.items.length);});",
               " pm.test(\"User and system actors and application states\",()=>{r.items.filter(e=>types.includes(e.eventType)).forEach(e=>{if(e.eventType===\"APPLICATION_SUBMITTED\"){pm.expect(e.actorId).to.eql(pm.collectionVariables.get(\"clientProfileId\"));pm.expect(e.status).to.eql(\"submitted\");}else{pm.expect(e.actorId).to.eql(null);pm.expect(e.status).to.eql(\"processing\");}});});",
               " pm.test(\"Scoring events are unique, safe and ordered after prechecks\",()=>{scoringTypes.forEach(type=>{const events=r.items.filter(e=>e.eventType===type);pm.expect(events.length,type).to.be.at.most(1);if(expectScoring)pm.expect(events,type).to.have.length(1);events.forEach(e=>{pm.expect(e.actorId).to.eql(null);pm.expect(e.status).to.eql(\"processing\");pm.expect(e).not.to.have.any.keys(\"score\",\"factors\",\"scoringUrl\",\"error\");});});const observed=r.items.filter(e=>types.concat(scoringTypes).includes(e.eventType)).map(e=>e.eventType);const expected=types.concat(scoringTypes).filter(type=>observed.includes(type));pm.expect(observed).to.deep.eql(expected);if(observed.includes(\"SCORING_COMPLETED\"))pm.expect(observed).to.include(\"SCORING_STARTED\");});",
@@ -9616,7 +9630,7 @@
       ]
     },
     {
-      "name": "184 · Submit — read submit application remaining processing",
+      "name": "184 · Submit — read submit application with persisted pipeline status",
       "request": {
         "method": "GET",
         "auth": {
@@ -9649,8 +9663,10 @@
             "exec": [
               "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
               "const r=pm.response.json();",
-              "pm.test(\"Persisted processing state, fields preserved and no private results\",()=>{pm.expect(r.status).to.eql(\"processing\");pm.expect(r.submittedAt).to.eql(pm.collectionVariables.get(\"submitSubmittedAt\"));pm.expect(r.availableActions).to.deep.eql([]);pm.expect(r.monthlyRevenueRub).to.be.a(\"number\");pm.expect(r.monthlyExpensesRub).to.be.a(\"number\");[\"financialSnapshot\",\"productSnapshot\",\"precheckResults\",\"job\",\"processingError\",\"decision\",\"approvedAmountRub\"].forEach(k=>pm.expect(r).not.to.have.property(k));pm.expect(r.company).not.to.have.property(\"financialDataSource\");pm.expect(r.company).not.to.have.property(\"registrationStatus\");});",
-              "if (pm.response.code === 200) pm.collectionVariables.set(\"submittedApplicationJSON\", JSON.stringify(r));"
+              "const finalStates=[\"approved\",\"rejected\",\"counter_offer\",\"manual_review\"];const expectDecision=String(pm.variables.get(\"expectDecisionResult\")).toLowerCase()===\"true\";",
+              "pm.test(\"Persisted processing or policy outcome, fields preserved and no private results\",()=>{pm.expect(r.status).to.be.oneOf(expectDecision?finalStates:[\"processing\"].concat(finalStates));pm.expect(r.submittedAt).to.eql(pm.collectionVariables.get(\"submitSubmittedAt\"));pm.expect(r.availableActions).to.deep.eql([]);pm.expect(r.monthlyRevenueRub).to.be.a(\"number\");pm.expect(r.monthlyExpensesRub).to.be.a(\"number\");[\"financialSnapshot\",\"productSnapshot\",\"precheckResults\",\"job\",\"processingError\",\"decision\",\"approvedAmountRub\"].forEach(k=>pm.expect(r).not.to.have.property(k));pm.expect(r.company).not.to.have.property(\"financialDataSource\");pm.expect(r.company).not.to.have.property(\"registrationStatus\");});",
+              "if (pm.response.code === 200) pm.collectionVariables.set(\"submittedApplicationJSON\", JSON.stringify(r));",
+              "if(expectDecision)pm.test(\"Application status matches the durable decision event\",()=>{const map={APPLICATION_APPROVED:\"approved\",APPLICATION_REJECTED:\"rejected\",COUNTER_OFFER_CREATED:\"counter_offer\",MANUAL_REVIEW_REQUIRED:\"manual_review\"};const history=JSON.parse(pm.collectionVariables.get(\"submitTimelineJSON\"));const final=history.items.find(e=>Object.prototype.hasOwnProperty.call(map,e.eventType));pm.expect(final).to.be.an(\"object\");pm.expect(r.status).to.eql(map[final.eventType]);});"
             ]
           }
         }
@@ -9689,11 +9705,15 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"HTTP 202\", () => pm.response.to.have.status(202));",
+              "pm.test(\"Repeat submit returns 202 in progress or 409 after a Go outcome\",()=>pm.expect(pm.response.code).to.be.oneOf([202,409]));",
               "const r=pm.response.json();",
+              "if(pm.response.code===202){",
               "pm.test(\"Asynchronous submit DTO\",()=>{pm.expect(r).to.have.all.keys(\"applicationId\",\"status\",\"submittedAt\",\"nextStage\");pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"submitApplicationId\"));pm.expect(r.status).to.be.oneOf([\"submitted\",\"processing\"]);pm.expect(r.nextStage).to.be.oneOf([\"prechecks\",\"awaiting_scoring\"]);pm.expect(Number.isFinite(Date.parse(r.submittedAt))).to.eql(true);});",
               "pm.test(\"Repeated submission preserves first timestamp\",()=>pm.expect(r.submittedAt).to.eql(pm.collectionVariables.get(\"submitSubmittedAt\")));",
-              "pm.test(\"Durable waiting state without credit decision\",()=>{pm.expect(r.status).to.eql(\"processing\");pm.expect(r.nextStage).to.eql(\"awaiting_scoring\");});"
+              " if(r.status===\"processing\")pm.test(\"Coarse next stage is unchanged after prechecks\",()=>pm.expect(r.nextStage).to.be.oneOf([\"prechecks\",\"awaiting_scoring\"]));",
+              "}else{",
+              " pm.test(\"Finalized application cannot be submitted again\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_status\");pm.expect(r.message).to.eql(\"Отправка недоступна в текущем состоянии заявки.\");});",
+              "}"
             ]
           }
         }
@@ -9732,11 +9752,9 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-              "const expectScoring=String(pm.variables.get(\"expectScoringResult\")).toLowerCase()===\"true\";",
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
               "const current=pm.response.json();const previous=JSON.parse(pm.collectionVariables.get(\"submitTimelineJSON\"));",
-              "const stable=items=>expectScoring?items:items.filter(e=>![\"SCORING_STARTED\",\"SCORING_COMPLETED\"].includes(e.eventType));",
-              "pm.test(\"Repeated submit did not append or alter durable events\",()=>pm.expect(stable(current.items)).to.deep.eql(stable(previous.items)));"
+              "pm.test(\"Repeated submit preserves existing events while asynchronous policy may append\",()=>{pm.expect(current.items.slice(0,previous.items.length)).to.deep.eql(previous.items);if(String(pm.variables.get(\"expectDecisionResult\")).toLowerCase()===\"true\")pm.expect(current.items).to.deep.eql(previous.items);});"
             ]
           }
         }
@@ -9853,7 +9871,7 @@
       ]
     },
     {
-      "name": "189 · Submit — processing filter exposes the submitted application",
+      "name": "189 · Submit — processing filter follows the application until a Go outcome",
       "request": {
         "method": "GET",
         "auth": {
@@ -9893,9 +9911,15 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
               "const r=pm.response.json();",
-              "pm.test(\"Status filter includes the new processing application\",()=>{pm.expect(r.items.every(x=>x.status===\"processing\")).to.eql(true);pm.expect(r.items.some(x=>x.applicationId===pm.collectionVariables.get(\"submitApplicationId\"))).to.eql(true);});"
+              "const id=pm.collectionVariables.get(\"submitApplicationId\");",
+              "pm.test(\"Processing filter returns only processing applications\",()=>pm.expect(r.items.every(x=>x.status===\"processing\")).to.eql(true));",
+              "if(!r.items.some(x=>x.applicationId===id)){",
+              " pm.sendRequest({url:String(pm.variables.get(\"baseUrl\"))+\"/api/v1/applications/\"+id,method:\"GET\",header:{Authorization:\"Bearer \"+pm.collectionVariables.get(\"clientAccessToken\")}},(err,res)=>{",
+              "  pm.test(\"Application absent from processing filter has a Go policy outcome\",()=>{pm.expect(err).to.eql(null);pm.expect(res.code).to.eql(200);pm.expect(res.json().status).to.be.oneOf([\"approved\",\"rejected\",\"counter_offer\",\"manual_review\"]);});",
+              " });",
+              "}else pm.test(\"In-progress application remains visible in processing filter\",()=>pm.expect(r.items.some(x=>x.applicationId===id)).to.eql(true));"
             ]
           }
         }
@@ -10137,7 +10161,7 @@
       ]
     },
     {
-      "name": "195 · Submit — wait for investment prechecks and optional durable scoring",
+      "name": "195 · Submit — wait for investment prechecks and optional scoring and Go decision",
       "request": {
         "method": "GET",
         "auth": {
@@ -10172,13 +10196,16 @@
               "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
               "const r=pm.response.json();",
               "const expectScoring=String(pm.variables.get(\"expectScoringResult\")).toLowerCase()===\"true\";",
+              "const expectDecision=String(pm.variables.get(\"expectDecisionResult\")).toLowerCase()===\"true\";",
               "const types=[\"APPLICATION_SUBMITTED\",\"PROCESSING_STARTED\",\"COMPANY_CHECK_COMPLETED\",\"CREDIT_HISTORY_CHECK_COMPLETED\",\"PRECHECKS_COMPLETED\"];",
               "const scoringTypes=[\"SCORING_STARTED\",\"SCORING_COMPLETED\"];",
-              "const target=expectScoring?\"SCORING_COMPLETED\":\"PRECHECKS_COMPLETED\";",
-              "const done=pm.response.code===200&&Array.isArray(r.items)&&r.items.some(e=>e.eventType===target);",
+              "const finalEvents=[\"APPLICATION_APPROVED\",\"APPLICATION_REJECTED\",\"COUNTER_OFFER_CREATED\",\"MANUAL_REVIEW_REQUIRED\"];",
+              "const target=expectDecision?\"Go policy outcome\":expectScoring?\"SCORING_COMPLETED\":\"PRECHECKS_COMPLETED\";",
+              "const done=pm.response.code===200&&Array.isArray(r.items)&&r.items.some(e=>expectDecision?finalEvents.includes(e.eventType):e.eventType===target);",
               "const attempts=Number(pm.collectionVariables.get(\"investmentPollAttempts\")||0)+1;pm.collectionVariables.set(\"investmentPollAttempts\",attempts);",
               "if(!done&&attempts<(expectScoring?60:20)){setTimeout(()=>pm.execution.setNextRequest(pm.info.requestId),expectScoring?500:250);}else{",
-              " pm.test(expectScoring?\"Scoring result saved within bounded polling\":\"Prechecks complete within bounded polling\",()=>pm.expect(done,target).to.eql(true));",
+              " pm.test(expectDecision?\"Go decision completes within bounded polling\":expectScoring?\"Scoring result saved within bounded polling\":\"Prechecks complete within bounded polling\",()=>pm.expect(done,target).to.eql(true));",
+              " if(expectDecision)pm.test(\"Exactly one Go policy outcome is persisted\",()=>{pm.expect(r.items.filter(e=>e.eventType===\"DECISION_PROCESSING_STARTED\")).to.have.length(1);pm.expect(r.items.filter(e=>finalEvents.includes(e.eventType))).to.have.length(1);});",
               " pm.test(\"One ordered event per durable transition\",()=>{pm.expect(r).to.have.all.keys(\"items\");const ids=new Set();let sequence=0;types.forEach(type=>pm.expect(r.items.filter(e=>e.eventType===type),type).to.have.length(1));const pipeline=r.items.filter(e=>types.includes(e.eventType));pm.expect(pipeline.map(e=>e.eventType)).to.deep.eql(types);r.items.forEach(e=>{pm.expect(e).to.have.all.keys(\"eventId\",\"eventType\",\"sequence\",\"status\",\"createdAt\",\"actorId\",\"title\");pm.expect(e.sequence).to.be.above(sequence);sequence=e.sequence;ids.add(e.eventId);pm.expect(Number.isFinite(Date.parse(e.createdAt))).to.eql(true);pm.expect(e.title).to.be.a(\"string\").and.not.empty;});pm.expect(ids.size).to.eql(r.items.length);});",
               " pm.test(\"User and system actors and application states\",()=>{r.items.filter(e=>types.includes(e.eventType)).forEach(e=>{if(e.eventType===\"APPLICATION_SUBMITTED\"){pm.expect(e.actorId).to.eql(pm.collectionVariables.get(\"clientProfileId\"));pm.expect(e.status).to.eql(\"submitted\");}else{pm.expect(e.actorId).to.eql(null);pm.expect(e.status).to.eql(\"processing\");}});});",
               " pm.test(\"Scoring events are unique, safe and ordered after prechecks\",()=>{scoringTypes.forEach(type=>{const events=r.items.filter(e=>e.eventType===type);pm.expect(events.length,type).to.be.at.most(1);if(expectScoring)pm.expect(events,type).to.have.length(1);events.forEach(e=>{pm.expect(e.actorId).to.eql(null);pm.expect(e.status).to.eql(\"processing\");pm.expect(e).not.to.have.any.keys(\"score\",\"factors\",\"scoringUrl\",\"error\");});});const observed=r.items.filter(e=>types.concat(scoringTypes).includes(e.eventType)).map(e=>e.eventType);const expected=types.concat(scoringTypes).filter(type=>observed.includes(type));pm.expect(observed).to.deep.eql(expected);if(observed.includes(\"SCORING_COMPLETED\"))pm.expect(observed).to.include(\"SCORING_STARTED\");});",
@@ -10191,7 +10218,7 @@
       ]
     },
     {
-      "name": "196 · Submit — read investment application remaining processing",
+      "name": "196 · Submit — read investment application with persisted pipeline status",
       "request": {
         "method": "GET",
         "auth": {
@@ -10224,7 +10251,9 @@
             "exec": [
               "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
               "const r=pm.response.json();",
-              "pm.test(\"Persisted processing state, fields preserved and no private results\",()=>{pm.expect(r.status).to.eql(\"processing\");pm.expect(r.submittedAt).to.eql(pm.collectionVariables.get(\"investmentSubmittedAt\"));pm.expect(r.availableActions).to.deep.eql([]);pm.expect(r.monthlyRevenueRub).to.be.a(\"number\");pm.expect(r.monthlyExpensesRub).to.be.a(\"number\");[\"financialSnapshot\",\"productSnapshot\",\"precheckResults\",\"job\",\"processingError\",\"decision\",\"approvedAmountRub\"].forEach(k=>pm.expect(r).not.to.have.property(k));pm.expect(r.company).not.to.have.property(\"financialDataSource\");pm.expect(r.company).not.to.have.property(\"registrationStatus\");});"
+              "const finalStates=[\"approved\",\"rejected\",\"counter_offer\",\"manual_review\"];const expectDecision=String(pm.variables.get(\"expectDecisionResult\")).toLowerCase()===\"true\";",
+              "pm.test(\"Persisted processing or policy outcome, fields preserved and no private results\",()=>{pm.expect(r.status).to.be.oneOf(expectDecision?finalStates:[\"processing\"].concat(finalStates));pm.expect(r.submittedAt).to.eql(pm.collectionVariables.get(\"investmentSubmittedAt\"));pm.expect(r.availableActions).to.deep.eql([]);pm.expect(r.monthlyRevenueRub).to.be.a(\"number\");pm.expect(r.monthlyExpensesRub).to.be.a(\"number\");[\"financialSnapshot\",\"productSnapshot\",\"precheckResults\",\"job\",\"processingError\",\"decision\",\"approvedAmountRub\"].forEach(k=>pm.expect(r).not.to.have.property(k));pm.expect(r.company).not.to.have.property(\"financialDataSource\");pm.expect(r.company).not.to.have.property(\"registrationStatus\");});",
+              "if(expectDecision)pm.test(\"Application status matches the durable decision event\",()=>{const map={APPLICATION_APPROVED:\"approved\",APPLICATION_REJECTED:\"rejected\",COUNTER_OFFER_CREATED:\"counter_offer\",MANUAL_REVIEW_REQUIRED:\"manual_review\"};const history=JSON.parse(pm.collectionVariables.get(\"investmentTimelineJSON\"));const final=history.items.find(e=>Object.prototype.hasOwnProperty.call(map,e.eventType));pm.expect(final).to.be.an(\"object\");pm.expect(r.status).to.eql(map[final.eventType]);});"
             ]
           }
         }
@@ -10263,11 +10292,15 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"HTTP 202\", () => pm.response.to.have.status(202));",
+              "pm.test(\"Repeat submit returns 202 in progress or 409 after a Go outcome\",()=>pm.expect(pm.response.code).to.be.oneOf([202,409]));",
               "const r=pm.response.json();",
+              "if(pm.response.code===202){",
               "pm.test(\"Asynchronous submit DTO\",()=>{pm.expect(r).to.have.all.keys(\"applicationId\",\"status\",\"submittedAt\",\"nextStage\");pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"investmentApplicationId\"));pm.expect(r.status).to.be.oneOf([\"submitted\",\"processing\"]);pm.expect(r.nextStage).to.be.oneOf([\"prechecks\",\"awaiting_scoring\"]);pm.expect(Number.isFinite(Date.parse(r.submittedAt))).to.eql(true);});",
               "pm.test(\"Repeated submission preserves first timestamp\",()=>pm.expect(r.submittedAt).to.eql(pm.collectionVariables.get(\"investmentSubmittedAt\")));",
-              "pm.test(\"Durable waiting state without credit decision\",()=>{pm.expect(r.status).to.eql(\"processing\");pm.expect(r.nextStage).to.eql(\"awaiting_scoring\");});"
+              " if(r.status===\"processing\")pm.test(\"Coarse next stage is unchanged after prechecks\",()=>pm.expect(r.nextStage).to.be.oneOf([\"prechecks\",\"awaiting_scoring\"]));",
+              "}else{",
+              " pm.test(\"Finalized application cannot be submitted again\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_status\");pm.expect(r.message).to.eql(\"Отправка недоступна в текущем состоянии заявки.\");});",
+              "}"
             ]
           }
         }
@@ -10610,7 +10643,7 @@
       ]
     },
     {
-      "name": "205 · Submit — wait for untrusted prechecks and optional durable scoring",
+      "name": "205 · Submit — wait for untrusted prechecks and optional scoring and Go decision",
       "request": {
         "method": "GET",
         "auth": {
@@ -10645,13 +10678,16 @@
               "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
               "const r=pm.response.json();",
               "const expectScoring=String(pm.variables.get(\"expectScoringResult\")).toLowerCase()===\"true\";",
+              "const expectDecision=String(pm.variables.get(\"expectDecisionResult\")).toLowerCase()===\"true\";",
               "const types=[\"APPLICATION_SUBMITTED\",\"PROCESSING_STARTED\",\"COMPANY_CHECK_COMPLETED\",\"CREDIT_HISTORY_CHECK_COMPLETED\",\"PRECHECKS_COMPLETED\"];",
               "const scoringTypes=[\"SCORING_STARTED\",\"SCORING_COMPLETED\"];",
-              "const target=expectScoring?\"SCORING_COMPLETED\":\"PRECHECKS_COMPLETED\";",
-              "const done=pm.response.code===200&&Array.isArray(r.items)&&r.items.some(e=>e.eventType===target);",
+              "const finalEvents=[\"APPLICATION_APPROVED\",\"APPLICATION_REJECTED\",\"COUNTER_OFFER_CREATED\",\"MANUAL_REVIEW_REQUIRED\"];",
+              "const target=expectDecision?\"Go policy outcome\":expectScoring?\"SCORING_COMPLETED\":\"PRECHECKS_COMPLETED\";",
+              "const done=pm.response.code===200&&Array.isArray(r.items)&&r.items.some(e=>expectDecision?finalEvents.includes(e.eventType):e.eventType===target);",
               "const attempts=Number(pm.collectionVariables.get(\"untrustedPollAttempts\")||0)+1;pm.collectionVariables.set(\"untrustedPollAttempts\",attempts);",
               "if(!done&&attempts<(expectScoring?60:20)){setTimeout(()=>pm.execution.setNextRequest(pm.info.requestId),expectScoring?500:250);}else{",
-              " pm.test(expectScoring?\"Scoring result saved within bounded polling\":\"Prechecks complete within bounded polling\",()=>pm.expect(done,target).to.eql(true));",
+              " pm.test(expectDecision?\"Go decision completes within bounded polling\":expectScoring?\"Scoring result saved within bounded polling\":\"Prechecks complete within bounded polling\",()=>pm.expect(done,target).to.eql(true));",
+              " if(expectDecision)pm.test(\"Exactly one Go policy outcome is persisted\",()=>{pm.expect(r.items.filter(e=>e.eventType===\"DECISION_PROCESSING_STARTED\")).to.have.length(1);pm.expect(r.items.filter(e=>finalEvents.includes(e.eventType))).to.have.length(1);});",
               " pm.test(\"One ordered event per durable transition\",()=>{pm.expect(r).to.have.all.keys(\"items\");const ids=new Set();let sequence=0;types.forEach(type=>pm.expect(r.items.filter(e=>e.eventType===type),type).to.have.length(1));const pipeline=r.items.filter(e=>types.includes(e.eventType));pm.expect(pipeline.map(e=>e.eventType)).to.deep.eql(types);r.items.forEach(e=>{pm.expect(e).to.have.all.keys(\"eventId\",\"eventType\",\"sequence\",\"status\",\"createdAt\",\"actorId\",\"title\");pm.expect(e.sequence).to.be.above(sequence);sequence=e.sequence;ids.add(e.eventId);pm.expect(Number.isFinite(Date.parse(e.createdAt))).to.eql(true);pm.expect(e.title).to.be.a(\"string\").and.not.empty;});pm.expect(ids.size).to.eql(r.items.length);});",
               " pm.test(\"User and system actors and application states\",()=>{r.items.filter(e=>types.includes(e.eventType)).forEach(e=>{if(e.eventType===\"APPLICATION_SUBMITTED\"){pm.expect(e.actorId).to.eql(pm.collectionVariables.get(\"thirdClientProfileId\"));pm.expect(e.status).to.eql(\"submitted\");}else{pm.expect(e.actorId).to.eql(null);pm.expect(e.status).to.eql(\"processing\");}});});",
               " pm.test(\"Scoring events are unique, safe and ordered after prechecks\",()=>{scoringTypes.forEach(type=>{const events=r.items.filter(e=>e.eventType===type);pm.expect(events.length,type).to.be.at.most(1);if(expectScoring)pm.expect(events,type).to.have.length(1);events.forEach(e=>{pm.expect(e.actorId).to.eql(null);pm.expect(e.status).to.eql(\"processing\");pm.expect(e).not.to.have.any.keys(\"score\",\"factors\",\"scoringUrl\",\"error\");});});const observed=r.items.filter(e=>types.concat(scoringTypes).includes(e.eventType)).map(e=>e.eventType);const expected=types.concat(scoringTypes).filter(type=>observed.includes(type));pm.expect(observed).to.deep.eql(expected);if(observed.includes(\"SCORING_COMPLETED\"))pm.expect(observed).to.include(\"SCORING_STARTED\");});",
@@ -10664,7 +10700,7 @@
       ]
     },
     {
-      "name": "206 · Submit — read untrusted application remaining processing",
+      "name": "206 · Submit — read untrusted application with persisted pipeline status",
       "request": {
         "method": "GET",
         "auth": {
@@ -10697,7 +10733,9 @@
             "exec": [
               "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
               "const r=pm.response.json();",
-              "pm.test(\"Persisted processing state, fields preserved and no private results\",()=>{pm.expect(r.status).to.eql(\"processing\");pm.expect(r.submittedAt).to.eql(pm.collectionVariables.get(\"untrustedSubmittedAt\"));pm.expect(r.availableActions).to.deep.eql([]);pm.expect(r.monthlyRevenueRub).to.be.a(\"number\");pm.expect(r.monthlyExpensesRub).to.be.a(\"number\");[\"financialSnapshot\",\"productSnapshot\",\"precheckResults\",\"job\",\"processingError\",\"decision\",\"approvedAmountRub\"].forEach(k=>pm.expect(r).not.to.have.property(k));pm.expect(r.company).not.to.have.property(\"financialDataSource\");pm.expect(r.company).not.to.have.property(\"registrationStatus\");});"
+              "const finalStates=[\"approved\",\"rejected\",\"counter_offer\",\"manual_review\"];const expectDecision=String(pm.variables.get(\"expectDecisionResult\")).toLowerCase()===\"true\";",
+              "pm.test(\"Persisted processing or policy outcome, fields preserved and no private results\",()=>{pm.expect(r.status).to.be.oneOf(expectDecision?finalStates:[\"processing\"].concat(finalStates));pm.expect(r.submittedAt).to.eql(pm.collectionVariables.get(\"untrustedSubmittedAt\"));pm.expect(r.availableActions).to.deep.eql([]);pm.expect(r.monthlyRevenueRub).to.be.a(\"number\");pm.expect(r.monthlyExpensesRub).to.be.a(\"number\");[\"financialSnapshot\",\"productSnapshot\",\"precheckResults\",\"job\",\"processingError\",\"decision\",\"approvedAmountRub\"].forEach(k=>pm.expect(r).not.to.have.property(k));pm.expect(r.company).not.to.have.property(\"financialDataSource\");pm.expect(r.company).not.to.have.property(\"registrationStatus\");});",
+              "if(expectDecision)pm.test(\"Application status matches the durable decision event\",()=>{const map={APPLICATION_APPROVED:\"approved\",APPLICATION_REJECTED:\"rejected\",COUNTER_OFFER_CREATED:\"counter_offer\",MANUAL_REVIEW_REQUIRED:\"manual_review\"};const history=JSON.parse(pm.collectionVariables.get(\"untrustedTimelineJSON\"));const final=history.items.find(e=>Object.prototype.hasOwnProperty.call(map,e.eventType));pm.expect(final).to.be.an(\"object\");pm.expect(r.status).to.eql(map[final.eventType]);});"
             ]
           }
         }
@@ -10736,11 +10774,15 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"HTTP 202\", () => pm.response.to.have.status(202));",
+              "pm.test(\"Repeat submit returns 202 in progress or 409 after a Go outcome\",()=>pm.expect(pm.response.code).to.be.oneOf([202,409]));",
               "const r=pm.response.json();",
+              "if(pm.response.code===202){",
               "pm.test(\"Asynchronous submit DTO\",()=>{pm.expect(r).to.have.all.keys(\"applicationId\",\"status\",\"submittedAt\",\"nextStage\");pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"untrustedApplicationId\"));pm.expect(r.status).to.be.oneOf([\"submitted\",\"processing\"]);pm.expect(r.nextStage).to.be.oneOf([\"prechecks\",\"awaiting_scoring\"]);pm.expect(Number.isFinite(Date.parse(r.submittedAt))).to.eql(true);});",
               "pm.test(\"Repeated submission preserves first timestamp\",()=>pm.expect(r.submittedAt).to.eql(pm.collectionVariables.get(\"untrustedSubmittedAt\")));",
-              "pm.test(\"Durable waiting state without credit decision\",()=>{pm.expect(r.status).to.eql(\"processing\");pm.expect(r.nextStage).to.eql(\"awaiting_scoring\");});"
+              " if(r.status===\"processing\")pm.test(\"Coarse next stage is unchanged after prechecks\",()=>pm.expect(r.nextStage).to.be.oneOf([\"prechecks\",\"awaiting_scoring\"]));",
+              "}else{",
+              " pm.test(\"Finalized application cannot be submitted again\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_status\");pm.expect(r.message).to.eql(\"Отправка недоступна в текущем состоянии заявки.\");});",
+              "}"
             ]
           }
         }
@@ -11149,13 +11191,14 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-              "const r = pm.response.json();",
-              "pm.test(\"Independent draft edit does not alter the submitted application\", () => {",
-              "  pm.expect(r).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"submittedApplicationJSON\")));",
-              "  pm.expect(r.status).to.eql(\"processing\");",
-              "  pm.expect(r.productId).to.eql(\"turnover\");",
-              "  pm.expect(r.submittedAt).to.eql(pm.collectionVariables.get(\"submitSubmittedAt\"));",
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json();const previous=JSON.parse(pm.collectionVariables.get(\"submittedApplicationJSON\"));",
+              "pm.test(\"Independent draft edit preserves submitted inputs and identity\",()=>{",
+              " const stable=value=>{const copy=JSON.parse(JSON.stringify(value));[\"status\",\"version\",\"updatedAt\"].forEach(k=>delete copy[k]);return copy;};",
+              " pm.expect(stable(r)).to.deep.eql(stable(previous));pm.expect(r.version).to.be.at.least(previous.version);",
+              " pm.expect(r.status).to.be.oneOf([\"processing\",\"approved\",\"rejected\",\"counter_offer\",\"manual_review\"]);",
+              " if(previous.status!==\"processing\")pm.expect(r).to.deep.eql(previous);",
+              " pm.expect(r.productId).to.eql(\"turnover\");pm.expect(r.submittedAt).to.eql(pm.collectionVariables.get(\"submitSubmittedAt\"));",
               "});"
             ]
           }
@@ -11220,7 +11263,7 @@
       ]
     },
     {
-      "name": "218 · Scoring — submit history remains stable after repeat submit",
+      "name": "218 · Pipeline — submit history remains stable after repeat submit",
       "request": {
         "method": "GET",
         "auth": {
@@ -11252,21 +11295,21 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
               "const r=pm.response.json();",
               "const expectScoring=String(pm.variables.get(\"expectScoringResult\")).toLowerCase()===\"true\";",
+              "const expectDecision=String(pm.variables.get(\"expectDecisionResult\")).toLowerCase()===\"true\";",
               "const previous=JSON.parse(pm.collectionVariables.get(\"submitTimelineJSON\"));",
-              "const stable=items=>expectScoring?items:items.filter(e=>![\"SCORING_STARTED\",\"SCORING_COMPLETED\"].includes(e.eventType));",
-              "pm.test(\"Repeated submission preserves persisted history and event IDs\",()=>pm.expect(stable(r.items)).to.deep.eql(stable(previous.items)));",
-              "pm.test(\"Scoring does not create duplicate transitions or a credit decision\",()=>{[\"SCORING_STARTED\",\"SCORING_COMPLETED\"].forEach(type=>{const events=r.items.filter(e=>e.eventType===type);pm.expect(events.length,type).to.be.at.most(1);if(expectScoring)pm.expect(events,type).to.have.length(1);});r.items.filter(e=>e.eventType!==\"APPLICATION_SUBMITTED\"&&!e.eventType.startsWith(\"draft_\")).forEach(e=>pm.expect(e.status).to.eql(\"processing\"));});",
-              "if(!expectScoring)pm.test.skip(\"Scoring completion is not asserted without a configured compatible service\",()=>{});"
+              "pm.test(\"Repeat submission preserves durable events and IDs during asynchronous progress\",()=>{pm.expect(r.items.slice(0,previous.items.length)).to.deep.eql(previous.items);if(expectDecision)pm.expect(r.items).to.deep.eql(previous.items);});",
+              "pm.test(\"Scoring and Go policy create no duplicate transitions\",()=>{[\"SCORING_STARTED\",\"SCORING_COMPLETED\",\"DECISION_PROCESSING_STARTED\",\"APPLICATION_APPROVED\",\"APPLICATION_REJECTED\",\"COUNTER_OFFER_CREATED\",\"MANUAL_REVIEW_REQUIRED\"].forEach(type=>{const events=r.items.filter(e=>e.eventType===type);pm.expect(events.length,type).to.be.at.most(1);if(expectScoring&&[\"SCORING_STARTED\",\"SCORING_COMPLETED\"].includes(type))pm.expect(events,type).to.have.length(1);});if(expectDecision)pm.expect(r.items.filter(e=>[\"APPLICATION_APPROVED\",\"APPLICATION_REJECTED\",\"COUNTER_OFFER_CREATED\",\"MANUAL_REVIEW_REQUIRED\"].includes(e.eventType))).to.have.length(1);});",
+              "if(!expectScoring)pm.test.skip(\"Scoring completion is not required without a configured compatible service\",()=>{});"
             ]
           }
         }
       ]
     },
     {
-      "name": "219 · Scoring — investment history remains stable after repeat submit",
+      "name": "219 · Pipeline — investment history remains stable after repeat submit",
       "request": {
         "method": "GET",
         "auth": {
@@ -11298,21 +11341,21 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
               "const r=pm.response.json();",
               "const expectScoring=String(pm.variables.get(\"expectScoringResult\")).toLowerCase()===\"true\";",
+              "const expectDecision=String(pm.variables.get(\"expectDecisionResult\")).toLowerCase()===\"true\";",
               "const previous=JSON.parse(pm.collectionVariables.get(\"investmentTimelineJSON\"));",
-              "const stable=items=>expectScoring?items:items.filter(e=>![\"SCORING_STARTED\",\"SCORING_COMPLETED\"].includes(e.eventType));",
-              "pm.test(\"Repeated submission preserves persisted history and event IDs\",()=>pm.expect(stable(r.items)).to.deep.eql(stable(previous.items)));",
-              "pm.test(\"Scoring does not create duplicate transitions or a credit decision\",()=>{[\"SCORING_STARTED\",\"SCORING_COMPLETED\"].forEach(type=>{const events=r.items.filter(e=>e.eventType===type);pm.expect(events.length,type).to.be.at.most(1);if(expectScoring)pm.expect(events,type).to.have.length(1);});r.items.filter(e=>e.eventType!==\"APPLICATION_SUBMITTED\"&&!e.eventType.startsWith(\"draft_\")).forEach(e=>pm.expect(e.status).to.eql(\"processing\"));});",
-              "if(!expectScoring)pm.test.skip(\"Scoring completion is not asserted without a configured compatible service\",()=>{});"
+              "pm.test(\"Repeat submission preserves durable events and IDs during asynchronous progress\",()=>{pm.expect(r.items.slice(0,previous.items.length)).to.deep.eql(previous.items);if(expectDecision)pm.expect(r.items).to.deep.eql(previous.items);});",
+              "pm.test(\"Scoring and Go policy create no duplicate transitions\",()=>{[\"SCORING_STARTED\",\"SCORING_COMPLETED\",\"DECISION_PROCESSING_STARTED\",\"APPLICATION_APPROVED\",\"APPLICATION_REJECTED\",\"COUNTER_OFFER_CREATED\",\"MANUAL_REVIEW_REQUIRED\"].forEach(type=>{const events=r.items.filter(e=>e.eventType===type);pm.expect(events.length,type).to.be.at.most(1);if(expectScoring&&[\"SCORING_STARTED\",\"SCORING_COMPLETED\"].includes(type))pm.expect(events,type).to.have.length(1);});if(expectDecision)pm.expect(r.items.filter(e=>[\"APPLICATION_APPROVED\",\"APPLICATION_REJECTED\",\"COUNTER_OFFER_CREATED\",\"MANUAL_REVIEW_REQUIRED\"].includes(e.eventType))).to.have.length(1);});",
+              "if(!expectScoring)pm.test.skip(\"Scoring completion is not required without a configured compatible service\",()=>{});"
             ]
           }
         }
       ]
     },
     {
-      "name": "220 · Scoring — untrusted history remains stable after repeat submit",
+      "name": "220 · Pipeline — untrusted history remains stable after repeat submit",
       "request": {
         "method": "GET",
         "auth": {
@@ -11344,14 +11387,14 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
               "const r=pm.response.json();",
               "const expectScoring=String(pm.variables.get(\"expectScoringResult\")).toLowerCase()===\"true\";",
+              "const expectDecision=String(pm.variables.get(\"expectDecisionResult\")).toLowerCase()===\"true\";",
               "const previous=JSON.parse(pm.collectionVariables.get(\"untrustedTimelineJSON\"));",
-              "const stable=items=>expectScoring?items:items.filter(e=>![\"SCORING_STARTED\",\"SCORING_COMPLETED\"].includes(e.eventType));",
-              "pm.test(\"Repeated submission preserves persisted history and event IDs\",()=>pm.expect(stable(r.items)).to.deep.eql(stable(previous.items)));",
-              "pm.test(\"Scoring does not create duplicate transitions or a credit decision\",()=>{[\"SCORING_STARTED\",\"SCORING_COMPLETED\"].forEach(type=>{const events=r.items.filter(e=>e.eventType===type);pm.expect(events.length,type).to.be.at.most(1);if(expectScoring)pm.expect(events,type).to.have.length(1);});r.items.filter(e=>e.eventType!==\"APPLICATION_SUBMITTED\"&&!e.eventType.startsWith(\"draft_\")).forEach(e=>pm.expect(e.status).to.eql(\"processing\"));});",
-              "if(!expectScoring)pm.test.skip(\"Scoring completion is not asserted without a configured compatible service\",()=>{});"
+              "pm.test(\"Repeat submission preserves durable events and IDs during asynchronous progress\",()=>{pm.expect(r.items.slice(0,previous.items.length)).to.deep.eql(previous.items);if(expectDecision)pm.expect(r.items).to.deep.eql(previous.items);});",
+              "pm.test(\"Scoring and Go policy create no duplicate transitions\",()=>{[\"SCORING_STARTED\",\"SCORING_COMPLETED\",\"DECISION_PROCESSING_STARTED\",\"APPLICATION_APPROVED\",\"APPLICATION_REJECTED\",\"COUNTER_OFFER_CREATED\",\"MANUAL_REVIEW_REQUIRED\"].forEach(type=>{const events=r.items.filter(e=>e.eventType===type);pm.expect(events.length,type).to.be.at.most(1);if(expectScoring&&[\"SCORING_STARTED\",\"SCORING_COMPLETED\"].includes(type))pm.expect(events,type).to.have.length(1);});if(expectDecision)pm.expect(r.items.filter(e=>[\"APPLICATION_APPROVED\",\"APPLICATION_REJECTED\",\"COUNTER_OFFER_CREATED\",\"MANUAL_REVIEW_REQUIRED\"].includes(e.eventType))).to.have.length(1);});",
+              "if(!expectScoring)pm.test.skip(\"Scoring completion is not required without a configured compatible service\",()=>{});"
             ]
           }
         }
@@ -11445,6 +11488,21 @@
           "    const eligible = result.products.filter(item => item.eligible).sort((a, b) => a.monthlyPaymentRub - b.monthlyPaymentRub || a.product.id.localeCompare(b.product.id));",
           "    pm.expect(result.recommendedProductId).to.eql(eligible.length ? eligible[0].product.id : null);",
           "  });",
+          "}",
+          "// Decision Engine is observed through the existing timeline; no PLANNED API is called.",
+          "if(pm.request.method===\"GET\"&&/\\/timeline(?:\\?|$)/.test(pm.request.url.toString())&&pm.response.code===200){",
+          " const timeline=pm.response.json().items;",
+          " const stages=[\"APPLICATION_SUBMITTED\",\"PROCESSING_STARTED\",\"COMPANY_CHECK_COMPLETED\",\"CREDIT_HISTORY_CHECK_COMPLETED\",\"PRECHECKS_COMPLETED\",\"SCORING_STARTED\",\"SCORING_COMPLETED\",\"DECISION_PROCESSING_STARTED\"];",
+          " const finalStatus={APPLICATION_APPROVED:\"approved\",APPLICATION_REJECTED:\"rejected\",COUNTER_OFFER_CREATED:\"counter_offer\",MANUAL_REVIEW_REQUIRED:\"manual_review\"};",
+          " pm.test(\"Pipeline history has ordered unique stages and safe system outcomes\",()=>{",
+          "  const observed=timeline.filter(e=>stages.includes(e.eventType));",
+          "  pm.expect(observed.map(e=>e.eventType)).to.deep.eql(stages.filter(type=>observed.some(e=>e.eventType===type)));",
+          "  stages.forEach(type=>pm.expect(timeline.filter(e=>e.eventType===type).length,type).to.be.at.most(1));",
+          "  const outcomes=timeline.filter(e=>Object.prototype.hasOwnProperty.call(finalStatus,e.eventType));pm.expect(outcomes.length).to.be.at.most(1);",
+          "  const started=timeline.find(e=>e.eventType===\"DECISION_PROCESSING_STARTED\");",
+          "  if(started){const scoring=timeline.find(e=>e.eventType===\"SCORING_COMPLETED\");pm.expect(scoring).to.be.an(\"object\");pm.expect(started.sequence).to.be.above(scoring.sequence);pm.expect(started.actorId).to.eql(null);pm.expect(started.status).to.eql(\"processing\");}",
+          "  outcomes.forEach(e=>{pm.expect(started).to.be.an(\"object\");pm.expect(e.sequence).to.be.above(started.sequence);pm.expect(e.actorId).to.eql(null);pm.expect(e.status).to.eql(finalStatus[e.eventType]);pm.expect(e).to.have.all.keys(\"eventId\",\"eventType\",\"sequence\",\"status\",\"createdAt\",\"actorId\",\"title\");pm.expect(e).not.to.have.any.keys(\"score\",\"riskLevel\",\"factors\",\"offer\",\"scoringUrl\",\"error\");});",
+          " });",
           "}"
         ]
       }

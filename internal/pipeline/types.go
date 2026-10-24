@@ -1,4 +1,4 @@
-// Package pipeline submits applications and coordinates durable checks and scoring.
+// Package pipeline coordinates submission, durable checks, scoring and decisions.
 package pipeline
 
 import (
@@ -10,6 +10,7 @@ import (
 	"smart-credit-backend/internal/application"
 	"smart-credit-backend/internal/company"
 	"smart-credit-backend/internal/credit"
+	"smart-credit-backend/internal/decision"
 	"smart-credit-backend/internal/document"
 	"smart-credit-backend/internal/scoring"
 )
@@ -23,6 +24,7 @@ const JobType = "prechecks"
 const AwaitingScoring = "awaiting_scoring"
 const AwaitingDecision = "awaiting_decision"
 const ScoringStage = "scoring"
+const DecisionStage = "decision"
 const TrustedFinancialSource = "demo_bank_feed"
 
 type FieldError struct {
@@ -82,6 +84,7 @@ type Job struct {
 	Snapshot        FinancialSnapshot
 	Stage           string
 	PrecheckResults json.RawMessage
+	DecisionInput   decision.Input
 }
 type Check struct {
 	Code   string `json:"code"`
@@ -132,4 +135,16 @@ type ScoringQueue interface {
 
 type Scorer interface {
 	Score(context.Context, scoring.Request) (scoring.Response, error)
+}
+
+// DecisionQueue advances the existing job without repeating scoring. Completion
+// atomically persists the assessment, credit artifacts and application history.
+type DecisionQueue interface {
+	ClaimDecision(context.Context, time.Duration) (*Job, error)
+	CompleteDecision(context.Context, Job, decision.Result) error
+	FailDecision(context.Context, Job, string, time.Duration, bool) error
+}
+
+type DecisionEngine interface {
+	Evaluate(decision.Input) (decision.Result, error)
 }

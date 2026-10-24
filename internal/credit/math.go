@@ -16,6 +16,12 @@ var decimalRate = regexp.MustCompile(`^(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]
 
 var errCalculation = errors.New("invalid financing calculation parameters")
 
+// PaymentBudget reserves half of positive operating cash flow, then deducts
+// existing monthly debt payments. Callers validate nonnegative whole-ruble inputs.
+func PaymentBudget(revenue, expenses, existingMonthlyPayments int64) int64 {
+	return max(int64(0), max(int64(0), revenue-expenses)/2-existingMonthlyPayments)
+}
+
 // BusinessAgeMonths counts completed UTC calendar months. An anniversary on a
 // missing day falls on the last day of that month (January 31 -> February 28).
 func BusinessAgeMonths(registered, asOf time.Time) int {

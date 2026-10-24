@@ -473,6 +473,14 @@ func TestScoringQueueCompletionRollsBackAndPrecheckStageIsFenced(t *testing.T) {
 func TestScoringMigrationRoundTripAndLosslessRollback(t *testing.T) {
 	pool := authTestPool(t)
 	ctx := context.Background()
+	// Roll back newer stages first, matching the migration runner's ordering.
+	decisionDown, err := os.ReadFile("../../migrations/000010_decision_stage.down.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, string(decisionDown)); err != nil {
+		t.Fatal(err)
+	}
 	apply := func(direction string) error {
 		data, err := os.ReadFile("../../migrations/000009_scoring_stage." + direction + ".sql")
 		if err != nil {

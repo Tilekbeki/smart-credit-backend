@@ -11,12 +11,14 @@ info:
     use Cache-Control: no-store. CLIENT users can persist partial credit drafts and inspect their history;
     a separate submit operation validates and atomically queues preliminary checks. A durable worker in
     the same process performs synthetic company and credit-history checks, calls a separately configured
-    Python scoring HTTP service and durably saves its validated recommendation. The application remains
-    processing while the job waits in awaiting_decision. Credit decisions are not implemented at this
-    stage. Private application documents can be uploaded by their CLIENT owner and read by their owner
+    Python scoring HTTP service and durably saves its validated recommendation. The same worker claims
+    awaiting_decision jobs and applies Go credit policy, producing approved, rejected, counter_offer or
+    manual_review. Final automatic decisions and applicable offers are persisted atomically; manual_review
+    stores the assessment without a fictitious final decision. Private application documents can be uploaded by their CLIENT owner and read by their owner
     or BANK_EMPLOYEE after successful submit. Drafts are private to their CLIENT owner.
     API v1 freezes 19 implemented and seven planned operations; planned operations are marked
-    x-implementation-status: planned and have no handlers. No Decision Engine is implemented yet.
+    x-implementation-status: planned and have no handlers. Decision Engine is implemented internally;
+    decision details and offers are not yet exposed through these planned endpoints.
     Scoring integration follows the local JSON Schema; the real Python service and its Docker artifact
     are not supplied by this repository and have not been verified. Monetary amounts use integer rubles,
     annualRatePercent uses percent, and
@@ -40,7 +42,7 @@ x-application-lifecycle:
     - rejected
     - manual_review
     actor: GO_CREDIT_POLICY
-    implementation: planned
+    implementation: implemented
   - from: manual_review
     to:
     - approved
@@ -722,8 +724,9 @@ paths:
         The HTTP response does not wait for checks. The in-process worker changes the
         application to processing and durably stores synthetic company and credit-history
         results. The same worker calls the configured Python scoring service after prechecks, validates and
-        persists its recommendation, then leaves the job in awaiting_decision. The application stays
-        processing and no credit decision is made. An unavailable scoring service uses bounded retries;
+        persists its recommendation, then moves the job to awaiting_decision. The same worker applies Go
+        credit policy and atomically persists approved, rejected or counter_offer with the final decision
+        and applicable offer, or manual_review with its assessment and reasons. An unavailable scoring service uses bounded retries;
         technical failures never produce rejected.
         Repeated or concurrent submits of a submitted/processing application return 202
         with the same submittedAt and do not duplicate jobs or submission events.
@@ -812,7 +815,10 @@ paths:
         COMPANY_CHECK_COMPLETED, CREDIT_HISTORY_CHECK_COMPLETED and PRECHECKS_COMPLETED
         with null actorId for system actions. Scoring adds SCORING_STARTED and, only after its result
         is durably saved, SCORING_COMPLETED. These events have null actorId and processing status.
-        Retries do not duplicate these processing events. Timeline never contains OTP, JWT,
+        Go policy then records DECISION_PROCESSING_STARTED with processing status, followed by exactly one
+        of APPLICATION_APPROVED (approved), APPLICATION_REJECTED (rejected), COUNTER_OFFER_CREATED
+        (counter_offer) or MANUAL_REVIEW_REQUIRED (manual_review), all with null actorId.
+        Retries do not duplicate durable events. Timeline never contains OTP, JWT,
         internal errors, score, factors or editable financial values.
       security:
       - BearerAuth: []
@@ -1527,7 +1533,8 @@ paths:
         drafts regardless of knowing their UUID. Bank visibility starts only after successful submit. A
         draft and a missing application both return 404 application_not_found. Existing check results are
         reused. Empty assessments use null fields and empty arrays; do not manufacture a zero score. Go
-        policy owns final decisions and categories; numeric risk thresholds are not fixed by this contract.
+        policy owns final decisions and categories; demo policy uses LOW for score >= 80, MEDIUM for
+        50 <= score < 80 and HIGH for score < 50.
         Private manual comments are bank-only.'
       x-roles:
       - BANK_EMPLOYEE
@@ -2298,8 +2305,9 @@ components:
       - signed
       - closed
       description: Create and PATCH work with draft. Submit advances draft to submitted;
-        the worker advances it to processing and saves scoring without finalizing a decision. Remaining
-        statuses are reserved for later stages; technical errors are stored separately.
+        the worker advances it to processing, saves scoring and applies Go policy to produce approved,
+        rejected, counter_offer or manual_review. signed and closed require later planned actions;
+        technical errors are stored separately and never imply a credit refusal.
     ApplicationDraftInput:
       type: object
       additionalProperties: false
@@ -2563,7 +2571,7 @@ components:
           - awaiting_scoring
           description: Frozen coarse progress marker. prechecks means preliminary checks are queued/running;
             awaiting_scoring means prechecks are durably saved, including scoring in progress or
-            already saved for the future Decision Engine. It does not prove a scoring result exists.
+            already saved while the internal Decision Engine is pending. It does not prove a scoring result exists.
     ApplicationSubmitValidationError:
       type: object
       additionalProperties: false
@@ -2725,7 +2733,9 @@ components:
           description: >-
             draft_created, draft_updated, APPLICATION_SUBMITTED, PROCESSING_STARTED,
             COMPANY_CHECK_COMPLETED, CREDIT_HISTORY_CHECK_COMPLETED, PRECHECKS_COMPLETED,
-            SCORING_STARTED or SCORING_COMPLETED. System scoring events contain no financial results.
+            SCORING_STARTED, SCORING_COMPLETED, DECISION_PROCESSING_STARTED, APPLICATION_APPROVED,
+            APPLICATION_REJECTED, COUNTER_OFFER_CREATED or MANUAL_REVIEW_REQUIRED. System events
+            contain no financial results, score or private decision details.
         sequence:
           type: integer
           format: int64
@@ -2831,8 +2841,8 @@ components:
       - MEDIUM
       - HIGH
       - null
-      description: Risk category assigned by Go backend policy. Numeric thresholds and score direction are
-        not frozen yet; null means not available.
+      description: Demo risk category assigned by Go backend policy. Higher score means lower risk;
+        LOW for score >= 80, MEDIUM for 50 <= score < 80, HIGH for score < 50. null means not available.
     CreditOutcome:
       type: string
       nullable: true
@@ -2969,8 +2979,8 @@ components:
           nullable: true
           minimum: 0
           maximum: 100
-          description: Existing Python scoring integer scale 0..100. No risk thresholds are implied by examples;
-            null means not available, not zero.
+          description: Python scoring integer scale 0..100; higher score means lower risk in the demo policy.
+            LOW >= 80, MEDIUM 50..79, HIGH < 50. null means not available, not zero.
         riskLevel:
           $ref: '#/components/schemas/RiskLevel'
         reasons:
@@ -3465,8 +3475,8 @@ components:
         assessedAt:
           type: string
           format: date-time
-      description: Normalized existing scoring result, not a final credit decision. Neither score direction
-        nor LOW/MEDIUM/HIGH numeric thresholds are fixed here.
+      description: Normalized existing scoring result, not a final credit decision. Demo policy treats higher
+        score as lower risk; LOW >= 80, MEDIUM 50..79, HIGH < 50.
       nullable: true
     AssessmentRecommendation:
       type: object

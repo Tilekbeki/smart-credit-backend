@@ -67,7 +67,7 @@ func (s *Service) Recommend(ctx context.Context, companyID string, input Input) 
 		return Result{}, err
 	}
 	surplus := input.MonthlyRevenueRub - input.MonthlyExpensesRub
-	budget := max(int64(0), max(int64(0), surplus)/2-company.Financials.ExistingMonthlyPaymentsRub)
+	budget := PaymentBudget(input.MonthlyRevenueRub, input.MonthlyExpensesRub, company.Financials.ExistingMonthlyPaymentsRub)
 	result := Result{
 		CompanyID:                  companyID,
 		BusinessAgeMonths:          BusinessAgeMonths(registered, s.now()),
