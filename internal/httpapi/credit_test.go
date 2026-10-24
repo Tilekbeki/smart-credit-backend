@@ -51,7 +51,7 @@ func (r *creditRepoStub) ProductByID(_ context.Context, id string) (credit.Produ
 
 func creditFixture() *creditRepoStub {
 	return &creditRepoStub{
-		company: company.Company{ID: ownCompanyID, Name: "ИП «Лавка у дома»", OrganizationType: "ИП", INN: "000000000001", RegistrationNumber: "000000000000001", RegistrationDate: "2020-01-15", OKVED: "47.11", DirectorName: "Иван Лавкин", Contact: company.Contact{Phone: "+79990000001", Email: "shop@example.test", Address: "Учебный адрес"}, Financials: company.Financials{MonthlyRevenueRub: 2400000, MonthlyExpensesRub: 1500000, ExistingDebtRub: 500000, ExistingMonthlyPaymentsRub: 90000}, Simulation: true},
+		company: company.Company{ID: ownCompanyID, Name: "ИП «Лавка у дома»", BankRelationship: "alfa_account", OrganizationType: "ИП", INN: "000000000001", RegistrationNumber: "000000000000001", RegistrationDate: "2020-01-15", OKVED: "47.11", DirectorName: "Иван Лавкин", Contact: company.Contact{Phone: "+79990000001", Email: "shop@example.test", Address: "Учебный адрес"}, Financials: company.Financials{MonthlyRevenueRub: 2400000, MonthlyExpensesRub: 1500000, ExistingDebtRub: 500000, ExistingMonthlyPaymentsRub: 90000}, Simulation: true},
 		products: []credit.Product{
 			{ID: "turnover", Name: "Оборотный кредит", Purposes: []string{"stock", "expenses", "seasonal"}, MinAmountRub: 100000, MaxAmountRub: 3000000, MinTermMonths: 6, MaxTermMonths: 24, AnnualRatePercent: json.Number("22.0000"), MinBusinessAgeMonths: 6, Version: 1, Illustrative: true},
 			{ID: "investment", Name: "Инвестиционный кредит", Purposes: []string{"equipment", "upgrade"}, MinAmountRub: 300000, MaxAmountRub: 10000000, MinTermMonths: 12, MaxTermMonths: 60, AnnualRatePercent: json.Number("20.0000"), MinBusinessAgeMonths: 12, Version: 1, Illustrative: true},
@@ -93,7 +93,7 @@ func TestCompanyHTTPOnlyOwnCompany(t *testing.T) {
 	h, token := creditTestHandler(t, repo, auth.RoleClient)
 	w := authRequest(h, http.MethodGet, "/api/v1/companies/"+ownCompanyID, "", token)
 	var result company.Company
-	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &result) != nil || result.ID != ownCompanyID || result.OrganizationType != "ИП" || result.Contact.Email == "" || result.Financials.ExistingMonthlyPaymentsRub != 90000 {
+	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &result) != nil || result.ID != ownCompanyID || result.BankRelationship != "alfa_account" || result.OrganizationType != "ИП" || result.Contact.Email == "" || result.Financials.ExistingMonthlyPaymentsRub != 90000 {
 		t.Fatal("own company details failed")
 	}
 	reads := repo.companyReads

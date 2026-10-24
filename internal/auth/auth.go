@@ -25,11 +25,12 @@ type User struct {
 }
 
 type Profile struct {
-	ID          string  `json:"id"`
-	Name        string  `json:"name"`
-	Phone       string  `json:"phone"`
-	Role        Role    `json:"role"`
-	CompanyName *string `json:"companyName"`
+	ID               string  `json:"id"`
+	Name             string  `json:"name"`
+	Phone            string  `json:"phone"`
+	Role             Role    `json:"role"`
+	CompanyName      *string `json:"companyName"`
+	BankRelationship *string `json:"bankRelationship"`
 }
 
 type OTPChallenge struct {

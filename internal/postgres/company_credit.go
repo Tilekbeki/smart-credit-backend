@@ -36,12 +36,12 @@ func (r *CompanyCreditRepository) CompanyByID(ctx context.Context, id string) (c
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
 	var result company.Company
-	err := r.pool.QueryRow(ctx, `SELECT id::text, name, organization_type, inn,
+	err := r.pool.QueryRow(ctx, `SELECT id::text, name, bank_relationship, organization_type, inn,
 		registration_number, to_char(registration_date, 'YYYY-MM-DD'), okved,
 		director_name, contact_phone, contact_email, contact_address,
 		monthly_revenue, monthly_expenses, existing_debt, monthly_debt_payments, overdue_count
 		FROM companies WHERE id = $1`, id).Scan(
-		&result.ID, &result.Name, &result.OrganizationType, &result.INN,
+		&result.ID, &result.Name, &result.BankRelationship, &result.OrganizationType, &result.INN,
 		&result.RegistrationNumber, &result.RegistrationDate, &result.OKVED,
 		&result.DirectorName, &result.Contact.Phone, &result.Contact.Email, &result.Contact.Address,
 		&result.Financials.MonthlyRevenueRub, &result.Financials.MonthlyExpensesRub,

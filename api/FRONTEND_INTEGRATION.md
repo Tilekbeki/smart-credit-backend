@@ -80,8 +80,10 @@ Frontend не вызывает Python scoring напрямую.
 ## Авторизация
 
 1. `GET /api/v1/demo/profiles` возвращает `{items: [...]}`: три CLIENT и один
-   BANK_EMPLOYEE. Профиль: `id`, `name`, `phone`, `role`, `companyName`.
-   У сотрудника `companyName=null`.
+   BANK_EMPLOYEE. Профиль: `id`, `name`, `phone`, `role`, `companyName`,
+   `bankRelationship`. У сотрудника `companyName=null` и
+   `bankRelationship=null`. У первой учебной компании `alfa_account`, у двух
+   других `external_account`.
 2. `POST /api/v1/auth/otp/request` с `{"profileId":"UUID"}` возвращает `201`:
    `otpRequestId`, `expiresAt`, `maskedPhone`.
 3. `POST /api/v1/auth/otp/verify` с `{"otpRequestId":"UUID","code":"1234"}`
@@ -122,6 +124,18 @@ JWT не включайте в URL, логи, Git и экспортируемы�
 `companyId` берите из verify или `/me`, затем вызывайте
 `GET /api/v1/companies/{companyId}`. Чужая компания и BANK_EMPLOYEE получают `403`.
 Продукты доступны обеим ролям; список возвращает `{items: [...]}`.
+
+`Company.bankRelationship` повторяет признак из тестового профиля:
+`alfa_account` означает учебный счёт в Альфа-Банке, `external_account` —
+отсутствие такого счёта в этом прототипе. Это отдельное свойство от доверенного
+источника оборотов. У компаний `external_account` источник в seed остаётся
+`unverified`; финансовые значения в `Company.financials` — синтетический профиль,
+а не автоматически полученные банком обороты. Для такого пути frontend должен
+предлагать проверить и ввести выручку/расходы, не подписывая их как банковские
+данные. Оба пути сохраняют черновик и отправляют заявку через те же маршруты.
+Для оборотного кредита внешнему клиенту backend запросит выписку при submit;
+надёжным источником требований остаётся ответ `422 details`. Произвольную новую
+компанию создать через текущий API нельзя: вход доступен лишь seed-профилям.
 
 Предварительные рекомендации:
 

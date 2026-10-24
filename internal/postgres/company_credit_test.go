@@ -22,19 +22,19 @@ func TestCompanyCreditRepository(t *testing.T) {
 
 	t.Run("all synthetic company details and existing finances load from PostgreSQL", func(t *testing.T) {
 		cases := []struct {
-			id, organization, registration, director string
-			payments                                 int64
+			id, organization, registration, director, relationship string
+			payments                                               int64
 		}{
-			{companyID, "ИП", "2020-03-15", "Иван Лавкин", 90000},
-			{"10000000-0000-4000-8000-000000000002", "ООО", "2019-06-10", "Анна Северова", 180000},
-			{"10000000-0000-4000-8000-000000000003", "ООО", "2022-09-01", "Павел Вкусов", 130000},
+			{companyID, "ИП", "2020-03-15", "Иван Лавкин", "alfa_account", 90000},
+			{"10000000-0000-4000-8000-000000000002", "ООО", "2019-06-10", "Анна Северова", "external_account", 180000},
+			{"10000000-0000-4000-8000-000000000003", "ООО", "2022-09-01", "Павел Вкусов", "external_account", 130000},
 		}
 		for _, tc := range cases {
 			got, err := repo.CompanyByID(ctx, tc.id)
 			if err != nil {
 				t.Fatalf("company %s: %v", tc.id, err)
 			}
-			if got.ID != tc.id || got.Name == "" || got.OrganizationType != tc.organization ||
+			if got.ID != tc.id || got.Name == "" || got.BankRelationship != tc.relationship || got.OrganizationType != tc.organization ||
 				got.RegistrationDate != tc.registration || got.DirectorName != tc.director ||
 				got.OKVED == "" || got.Contact.Phone == "" || got.Contact.Address == "" ||
 				!strings.HasSuffix(got.Contact.Email, "@example.test") || !got.Simulation {
@@ -50,6 +50,14 @@ func TestCompanyCreditRepository(t *testing.T) {
 			if got.Financials.ExistingMonthlyPaymentsRub != tc.payments ||
 				got.Financials.MonthlyRevenueRub <= 0 || got.Financials.MonthlyExpensesRub <= 0 {
 				t.Fatalf("existing financial columns were not reused: %+v", got.Financials)
+			}
+			var source string
+			if err := pool.QueryRow(ctx, `SELECT financial_data_source FROM companies WHERE id=$1`, tc.id).Scan(&source); err != nil {
+				t.Fatal("cannot inspect seeded financial source")
+			}
+			if (tc.relationship == "alfa_account" && source != "demo_bank_feed") ||
+				(tc.relationship == "external_account" && source != "unverified") {
+				t.Fatalf("financial source %q contradicts bank relationship %q", source, tc.relationship)
 			}
 		}
 	})
@@ -184,6 +192,9 @@ func TestCompanyCreditRepository(t *testing.T) {
 			`UPDATE companies SET inn='0000000000' WHERE profile_key='shop'`,
 			`UPDATE companies SET registration_number='0000000000000' WHERE profile_key='shop'`,
 			`UPDATE companies SET organization_type='OTHER' WHERE profile_key='shop'`,
+			`UPDATE companies SET bank_relationship='unknown' WHERE profile_key='shop'`,
+			`UPDATE companies SET bank_relationship='external_account' WHERE profile_key='shop'`,
+			`UPDATE companies SET financial_data_source='demo_bank_feed' WHERE profile_key='workshop'`,
 			`UPDATE credit_products SET purposes=ARRAY['unknown'] WHERE code='turnover'`,
 			`UPDATE credit_products SET purposes=ARRAY[NULL]::text[] WHERE code='turnover'`,
 			`UPDATE credit_products SET min_business_age_months=-1 WHERE code='turnover'`,
