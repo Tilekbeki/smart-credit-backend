@@ -20,6 +20,7 @@ func submissionFields() application.Fields {
 func submissionInput() ValidationInput {
 	input := ValidationInput{Fields: submissionFields(), Product: &credit.Product{ID: "turnover", MinAmountRub: 100000, MaxAmountRub: 3000000, MinTermMonths: 6, MaxTermMonths: 24, Purposes: []string{"stock", "expenses", "seasonal"}, MinBusinessAgeMonths: 6}, Company: CompanySnapshot{FinancialDataSource: TrustedFinancialSource}}
 	input.Company.Profile.RegistrationDate = "2020-01-01"
+	input.Company.Profile.Financials.MonthlyExpensesRub = 1
 	return input
 }
 
@@ -86,20 +87,20 @@ func TestInvestmentRequiresInvoiceAndOtherPurposeDescription(t *testing.T) {
 	input.Company.FinancialDataSource = "unverified"
 	now := time.Now()
 	problems := ValidateSubmission(input, now)
-	if len(problems) != 1 || problems[0].Field != "documents.EQUIPMENT_INVOICE" {
+	if len(problems) != 2 || problems[1].Field != "documents.EQUIPMENT_INVOICE" {
 		t.Fatalf("invoice policy: %+v", problems)
 	}
-	input.Documents = []document.Metadata{{DocumentType: document.EquipmentInvoice, Status: "ready"}}
+	input.Documents = []document.Metadata{{DocumentType: document.BankStatement, Status: "ready"}, {DocumentType: document.EquipmentInvoice, Status: "ready"}}
 	if problems = ValidateSubmission(input, now); len(problems) != 0 {
 		t.Fatalf("invoice should suffice: %+v", problems)
 	}
 	input.Product.Purposes = []string{"other"}
 	input.Fields.Purpose = submissionPtr("other")
-	if problems = ValidateSubmission(input, now); len(problems) != 1 || problems[0].Field != "purposeDescription" {
+	if problems = ValidateSubmission(input, now); len(problems) != 2 || problems[0].Field != "purposeDescription" {
 		t.Fatalf("other purpose: %+v", problems)
 	}
 	input.Fields.PurposeDescription = submissionPtr("Оборудование")
-	if problems = ValidateSubmission(input, now); len(problems) != 0 {
+	if problems = ValidateSubmission(input, now); len(problems) != 1 || problems[0].Field != "purpose" {
 		t.Fatal(problems)
 	}
 }

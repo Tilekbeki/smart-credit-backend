@@ -34,12 +34,13 @@ const reviewColumns = `a.id::text,a.owner_id::text,a.company_id::text,a.status,a
 const reviewArtifacts = `,
  (SELECT jsonb_build_object('status',j.status,'stage',j.processing_stage,'hasError',j.last_error IS NOT NULL,
   'availableAt',j.available_at,'leaseUntil',j.lease_until,'readAt',statement_timestamp(),
+ 'attemptCount',CASE j.processing_stage WHEN 'prechecks' THEN j.attempt_count WHEN 'scoring' THEN j.scoring_attempt_count ELSE j.decision_attempt_count END,'maxAttempts',j.max_attempts,'recoveryCount',j.recovery_count,
   'prechecks',j.precheck_results,'scoring',j.scoring_response,'scoringAt',j.scoring_received_at,'assessment',j.assessment_result)
   FROM jobs j WHERE j.application_id=a.id AND j.type=$4),
  (SELECT jsonb_build_object('outcome',d.outcome,'reasons',d.reasons,'riskLevel',d.risk_category,
   'assessedAt',d.created_at,'reviewedBy',d.decided_by,
   'manualDecision',CASE WHEN d.source='MANUAL' AND d.internal_comment IS NOT NULL THEN
-   jsonb_build_object('decision',d.outcome,'comment',d.internal_comment,'reviewedBy',d.decided_by,'reviewedAt',d.created_at) END,
+   jsonb_build_object('decision',d.outcome,'comment',d.internal_comment,'internalComment',d.internal_comment,'customerExplanation',COALESCE(d.customer_explanation,d.reasons->>0),'reviewedBy',d.decided_by,'reviewedAt',d.created_at) END,
   'offer',(SELECT jsonb_build_object('offerId',o.id,'applicationId',o.application_id,
    'productId',a.product_snapshot->>'id','amountRub',o.amount,'termMonths',o.term_months,
    'annualRatePercent',o.annual_rate_percent,'monthlyPaymentRub',o.monthly_payment,'expiresAt',NULL,'status',o.status)
@@ -115,10 +116,12 @@ func readReview(ctx context.Context, query interface {
 	var owner, companyID *string
 	if scope != nil {
 		owner = &scope.UserID
-		companyID = &scope.CompanyID
+		if scope.CompanyID != "" {
+			companyID = &scope.CompanyID
+		}
 	}
 	result, err := scanReview(query.QueryRow(ctx, `SELECT `+reviewColumns+reviewArtifacts+` FROM applications a
- WHERE a.id=$1 AND (($2::uuid IS NOT NULL AND a.owner_id=$2 AND a.company_id=$3) OR
+ WHERE a.id=$1 AND (($2::uuid IS NOT NULL AND can_read_application($2,a.id) AND ($3::uuid IS NULL OR a.company_id=$3)) OR
  ($2::uuid IS NULL AND a.status<>'draft' AND a.submitted_at IS NOT NULL))`, id, owner, companyID, pipeline.JobType), true)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return review.Record{}, application.ErrNotFound

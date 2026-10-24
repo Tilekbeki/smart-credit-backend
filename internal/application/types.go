@@ -26,6 +26,7 @@ const (
 )
 
 var (
+	ErrCompanyRequired = errors.New("explicit company selection required")
 	ErrInvalidInput    = errors.New("invalid application input")
 	ErrNotFound        = errors.New("application not found")
 	ErrVersionConflict = errors.New("application version conflict")
@@ -105,6 +106,7 @@ type Detail struct {
 }
 
 type Summary struct {
+	CompanyID          string    `json:"companyId"`
 	ApplicationID      string    `json:"applicationId"`
 	ProductID          *string   `json:"productId"`
 	ProductName        *string   `json:"productName"`

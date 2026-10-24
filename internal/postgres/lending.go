@@ -57,6 +57,9 @@ func (r *LendingRepository) Execute(ctx context.Context, c lending.Command) (len
 	if err != nil {
 		return lending.Response{}, err
 	}
+	if c.Operation != lending.Manual {
+		c.CompanyID = a.companyID
+	}
 	op := c.Operation + ":" + c.ApplicationID
 	// The application lock is always acquired before any idempotency or offer
 	// lock. Access is rechecked before replay, including for already signed apps.
@@ -116,8 +119,8 @@ func lockLendingApplication(ctx context.Context, tx pgx.Tx, c lending.Command) (
 	 FROM applications a WHERE a.id=$1 AND (
 	 ($2='manual' AND a.status<>'draft' AND a.submitted_at IS NOT NULL
 	  AND EXISTS(SELECT 1 FROM users WHERE id=$3 AND role='BANK_EMPLOYEE')) OR
-	 ($2 IN ('accept','decline') AND a.owner_id=$3 AND a.company_id=$4::uuid
-	  AND EXISTS(SELECT 1 FROM users WHERE id=$3 AND role='CLIENT' AND company_id=$4::uuid))) FOR UPDATE OF a`,
+	 ($2 IN ('accept','decline') AND ($4::uuid IS NULL OR a.company_id=$4::uuid)
+	  AND lock_company_access($3,a.company_id,true))) FOR UPDATE OF a`,
 		c.ApplicationID, c.Operation, c.ActorID, nullableCompany(c.CompanyID)).Scan(&a.ownerID, &a.companyID, &a.status, &a.version, &a.submittedAt, &a.productID, &a.financial, &a.product)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return a, application.ErrNotFound
@@ -195,6 +198,18 @@ func manualLendingDecision(ctx context.Context, tx pgx.Tx, c lending.Command, a 
 	if c.Offer != nil {
 		amount, term = c.Offer.AmountRub, c.Offer.TermMonths
 	}
+	// A bank must verify the exact frozen amounts separately before approving.
+	if frozen.Fields.MonthlyRevenueRub != nil && frozen.Fields.MonthlyExpensesRub != nil {
+		var companyID string
+		if tx.QueryRow(ctx, `SELECT id::text FROM companies WHERE id=$1 FOR SHARE`, a.companyID).Scan(&companyID) != nil {
+			return application.ErrStorage
+		}
+		evidence, err := companyProvenance(ctx, tx, a.companyID)
+		if err != nil {
+			return application.ErrStorage
+		}
+		input.FinancialVerified = evidence != nil && evidence.Status == "verified" && evidence.MonthlyRevenueRub == *frozen.Fields.MonthlyRevenueRub && evidence.MonthlyExpensesRub == *frozen.Fields.MonthlyExpensesRub
+	}
 	offer, err := decision.PrepareManual(input, c.Decision, amount, term)
 	if errors.Is(err, decision.ErrManualTerms) {
 		return errors.Join(lending.ErrValidation, err)
@@ -218,12 +233,16 @@ func manualLendingDecision(ctx context.Context, tx pgx.Tx, c lending.Command, a 
 	if tx.QueryRow(ctx, `SELECT clock_timestamp()`).Scan(&decidedAt) != nil {
 		return application.ErrStorage
 	}
-	reasons, _ := json.Marshal(manualPublicReasons(c.Decision))
+	explanation := c.CustomerExplanation
+	if explanation == "" {
+		explanation = manualPublicReasons(c.Decision)[0]
+	}
+	reasons, _ := json.Marshal([]string{explanation})
 	var decisionID string
 	err = tx.QueryRow(ctx, `INSERT INTO credit_decisions(application_id,version,source,outcome,risk_category,approved_amount,
-	 reasons,policy_version,scoring_job_id,decided_by,internal_comment,created_at)
-	 SELECT $1,COALESCE(max(version),0)+1,'MANUAL',$2,$3,$4,$5,$6,$7,$8,$9,$10 FROM credit_decisions WHERE application_id=$1 RETURNING id::text`,
-		c.ApplicationID, c.Decision, assessment.Result.RiskLevel, amount, reasons, decision.PolicyVersion, jobID, c.ActorID, c.Comment, decidedAt).Scan(&decisionID)
+	 reasons,policy_version,scoring_job_id,decided_by,internal_comment,created_at,customer_explanation)
+	 SELECT $1,COALESCE(max(version),0)+1,'MANUAL',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11 FROM credit_decisions WHERE application_id=$1 RETURNING id::text`,
+		c.ApplicationID, c.Decision, assessment.Result.RiskLevel, amount, reasons, decision.PolicyVersion, jobID, c.ActorID, c.Comment, decidedAt, explanation).Scan(&decisionID)
 	if err != nil {
 		return application.ErrStorage
 	}

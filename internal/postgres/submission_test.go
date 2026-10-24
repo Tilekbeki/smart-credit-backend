@@ -298,6 +298,7 @@ func TestSubmissionRepositoryPatchRacePreservesNewestFields(t *testing.T) {
 	apps := NewApplicationRepository(pool, 5*time.Second)
 	repo := NewSubmissionRepository(pool, 5*time.Second)
 	for range 10 {
+		verifyFixtureFinancials(t, pool, draftOwner.CompanyID, draftFields())
 		draft := createDraft(t, apps, draftOwner, draftFields())
 		updated := draftFields()
 		updated.MonthlyRevenueRub = draftValue(int64(3_000_000))
@@ -322,6 +323,7 @@ func TestSubmissionRepositoryPatchRacePreservesNewestFields(t *testing.T) {
 			assertSubmissionCounts(t, pool, draft.ApplicationID, 2, 2, 1)
 		case patchErr == nil && errors.Is(submitErr, application.ErrVersionConflict):
 			assertSubmissionCounts(t, pool, draft.ApplicationID, 2, 2, 0)
+			verifyFixtureFinancials(t, pool, draftOwner.CompanyID, updated)
 			if _, err := repo.Submit(ctx, draftOwner, draft.ApplicationID, 2, nil); err != nil {
 				t.Fatalf("retry after patch: %v", err)
 			}

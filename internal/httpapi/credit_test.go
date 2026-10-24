@@ -166,6 +166,12 @@ func TestRecommendationHTTPPositiveAndExpectedNoMatch(t *testing.T) {
 				t.Fatal(err)
 			}
 			w := authRequest(h, http.MethodPost, "/api/v1/recommendations", string(body), token)
+			if tc.purpose == "other" {
+				if w.Code != 400 {
+					t.Fatalf("other must be rejected: %d", w.Code)
+				}
+				return
+			}
 			if w.Code != 200 {
 				t.Fatalf("valid selection should return 200, got %d", w.Code)
 			}
@@ -202,6 +208,12 @@ func TestRecommendationHTTPRejectsInvalidOrInjectedFields(t *testing.T) {
 		strings.TrimSuffix(valid, "}") + `,"companyId":"` + otherCompanyID + `"}`,
 	} {
 		w := authRequest(h, http.MethodPost, "/api/v1/recommendations", body, token)
+		if strings.Contains(body, `"companyId"`) {
+			if w.Code != 404 {
+				t.Fatalf("foreign selector: %d", w.Code)
+			}
+			continue
+		}
 		if w.Code != 400 || responseJSON(t, w)["error"] != "invalid_request" {
 			t.Fatalf("invalid recommendation body returned %d", w.Code)
 		}

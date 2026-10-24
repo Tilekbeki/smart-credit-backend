@@ -38,6 +38,7 @@ func documentScope(r *http.Request) document.Scope {
 	if u.CompanyID != nil {
 		scope.CompanyID = *u.CompanyID
 	}
+
 	return scope
 }
 

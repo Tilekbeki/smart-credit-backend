@@ -64,7 +64,7 @@ func TestCreatePartialDraftValidation(t *testing.T) {
 	}{
 		{"empty", Fields{}, nil},
 		{"product only", Fields{ProductID: ptr("turnover")}, nil},
-		{"purpose only", Fields{Purpose: ptr("other")}, nil},
+		{"purpose only", Fields{Purpose: ptr("other")}, ErrInvalidInput},
 		{"zero cash flow", Fields{MonthlyRevenueRub: ptr(int64(0)), MonthlyExpensesRub: ptr(int64(0))}, nil},
 		{"maximum global amount", Fields{RequestedAmountRub: ptr(int64(1e12))}, nil},
 		{"minimum global amount", Fields{RequestedAmountRub: ptr(int64(1))}, nil},

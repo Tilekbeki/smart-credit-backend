@@ -41,6 +41,9 @@ func (e *Engine) Evaluate(input Input) (Result, error) {
 	registered, dateErr := time.Parse(time.DateOnly, data.snapshot.Company.Profile.RegistrationDate)
 
 	manual := checkAmbiguities(data.prechecks.CompanyCheck)
+	if !company.FinancialsVerified(data.snapshot.Company.Profile, data.snapshot.Company.FinancialDataSource, data.request.MonthlyRevenue, data.request.MonthlyExpenses) {
+		manual = append(manual, Reason{"financial_verification_required", "Финансовые показатели заявлены клиентом и требуют отдельного подтверждения банком. Загрузка документа не подтверждает суммы."})
+	}
 	if profileConflict(data.prechecks.CompanyCheck, facts) {
 		manual = append(manual, Reason{"company_profile_conflict", "Сохранённые проверки не подтверждают регистрационные данные компании на момент отправки заявки."})
 	}
@@ -258,7 +261,7 @@ func checkAmbiguities(check companyCheck) []Reason {
 // ValidateResult guards the internal persistence boundary without re-running
 // policy or accepting a fabricated final decision for manual review.
 func ValidateResult(result Result) error {
-	if (result.PolicyVersion != PolicyVersion && result.PolicyVersion != "go-demo-v1") || result.Score < 0 || result.Score > 100 || result.RiskLevel != riskLevel(result.Score) || len(result.Reasons) == 0 || result.ManualReviewReasons == nil {
+	if (result.PolicyVersion != PolicyVersion && result.PolicyVersion != "go-demo-v1" && result.PolicyVersion != "go-demo-v2") || result.Score < 0 || result.Score > 100 || result.RiskLevel != riskLevel(result.Score) || len(result.Reasons) == 0 || result.ManualReviewReasons == nil {
 		return ErrInvalidData
 	}
 	for _, reason := range result.Reasons {

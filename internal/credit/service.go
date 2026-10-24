@@ -68,8 +68,12 @@ func (s *Service) Recommend(ctx context.Context, companyID string, input Input) 
 	}
 	surplus := input.MonthlyRevenueRub - input.MonthlyExpensesRub
 	budget := PaymentBudget(input.MonthlyRevenueRub, input.MonthlyExpensesRub, company.Financials.ExistingMonthlyPaymentsRub)
+	needsVerification := company.FinancialProvenance == nil || company.FinancialProvenance.Status != "verified" || company.FinancialProvenance.MonthlyRevenueRub != input.MonthlyRevenueRub || company.FinancialProvenance.MonthlyExpensesRub != input.MonthlyExpensesRub
+	if needsVerification {
+		budget = min(budget, PaymentBudget(company.Financials.MonthlyRevenueRub, company.Financials.MonthlyExpensesRub, company.Financials.ExistingMonthlyPaymentsRub))
+	}
 	result := Result{
-		CompanyID:                  companyID,
+		CompanyID: companyID, FinancialVerificationRequired: needsVerification,
 		BusinessAgeMonths:          BusinessAgeMonths(registered, s.now()),
 		SurplusRub:                 surplus,
 		ExistingMonthlyPaymentsRub: company.Financials.ExistingMonthlyPaymentsRub,
@@ -83,6 +87,9 @@ func (s *Service) Recommend(ctx context.Context, companyID string, input Input) 
 		recommendation, err := recommendProduct(product, input, result.BusinessAgeMonths, budget)
 		if err != nil {
 			return Result{}, ErrStorage
+		}
+		if needsVerification {
+			recommendation.Limitations = append(recommendation.Limitations, "Заявленные финансовые показатели требуют отдельного подтверждения. Предварительный бюджет ограничен исходными данными компании.")
 		}
 		result.Products = append(result.Products, recommendation)
 		// Products are sorted by ID, so equal payments retain a stable choice.
@@ -115,7 +122,7 @@ func validateInput(input Input) error {
 }
 
 func validPurpose(value string) bool {
-	return slices.Contains([]string{"stock", "expenses", "seasonal", "equipment", "upgrade", "other"}, value)
+	return slices.Contains([]string{"stock", "expenses", "seasonal", "equipment", "upgrade"}, value)
 }
 
 func validProduct(p Product) bool {

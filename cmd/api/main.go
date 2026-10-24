@@ -39,6 +39,9 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("configuration: %w", err)
 	}
+	if cfg.AppEnv != "demo" {
+		return errors.New("production integrations are not configured: real identity verification, registry, credit history and signing providers are required")
+	}
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: cfg.LogLevel}))
 	tokens, err := auth.NewTokens(cfg.JWTSecret, cfg.JWTIssuer, cfg.JWTAudience)
 	if err != nil {
@@ -54,6 +57,7 @@ func run() error {
 		return err
 	}
 	defer pool.Close()
+	managementHandler := httpapi.NewManagementHandler(company.NewManagementService(postgres.NewManagementRepository(pool, cfg.AuthDBTimeout)), auth.NewMiddleware(tokens, postgres.NewAuthRepository(pool, cfg.AuthDBTimeout), cfg.AuthDBTimeout))
 	authRepo := postgres.NewAuthRepository(pool, cfg.AuthDBTimeout)
 	authHandler := httpapi.NewAuthHandler(authRepo, tokens, cfg.DemoOTPCode, cfg.AuthDBTimeout, logger)
 	catalogRepo := postgres.NewCompanyCreditRepository(pool, cfg.AuthDBTimeout)
@@ -87,7 +91,7 @@ func run() error {
 	if err != nil {
 		return errors.New("background worker configuration is invalid")
 	}
-	server := httpapi.NewServer(cfg.HTTP, httpapi.NewHandler(pool, logger, cfg.Database.PingTimeout, authHandler, creditHandler.Register, applicationHandler.Register, documentHandler.Register, submissionHandler.Register, reviewHandler.Register, lendingHandler.Register), logger)
+	server := httpapi.NewServer(cfg.HTTP, httpapi.NewHandler(pool, logger, cfg.Database.PingTimeout, authHandler, creditHandler.Register, applicationHandler.Register, documentHandler.Register, submissionHandler.Register, reviewHandler.Register, lendingHandler.Register, managementHandler.Register, httpapi.RecoveryRoutes(postgres.NewPrecheckQueue(pool, cfg.AuthDBTimeout), auth.NewMiddleware(tokens, authRepo, cfg.AuthDBTimeout))), logger)
 	listener, err := net.Listen("tcp", server.Addr)
 	if err != nil {
 		return fmt.Errorf("listen HTTP: %w", err)

@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"smart-credit-backend/internal/auth"
+	"smart-credit-backend/internal/company"
 )
 
 // AuthRepository persists demo authentication. A user row is the common lock for
@@ -29,8 +30,8 @@ func (r *AuthRepository) ListProfiles(ctx context.Context) ([]auth.Profile, erro
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
 	rows, err := r.pool.Query(ctx, `
-		SELECT u.id::text, u.full_name, u.phone, u.role, c.name
-		FROM users u LEFT JOIN companies c ON c.id = u.company_id
+		SELECT u.id::text, u.display_name, u.phone, u.role, c.name
+		FROM users u LEFT JOIN companies c ON c.id::text = (SELECT CASE WHEN count(*)=1 THEN min(m.company_id::text) END FROM user_company_memberships m WHERE m.user_id=u.id AND m.status='active')
 		WHERE u.profile_key IN ('shop', 'workshop', 'cafe', 'bank_employee')
 		ORDER BY CASE u.profile_key
 		    WHEN 'shop' THEN 1 WHEN 'workshop' THEN 2
@@ -117,7 +118,7 @@ func (r *AuthRepository) VerifyOTP(ctx context.Context, requestID string, codeMa
 		return auth.User{}, auth.ErrStorage
 	}
 	var user auth.User
-	err = tx.QueryRow(ctx, `SELECT id::text, full_name, phone, role, company_id::text
+	err = tx.QueryRow(ctx, `SELECT id::text, display_name, phone, role, CASE WHEN role='CLIENT' THEN (SELECT CASE WHEN count(*)=1 THEN min(m.company_id::text) END FROM user_company_memberships m WHERE m.user_id=users.id AND m.status='active') END
 		FROM users WHERE id = $1 FOR UPDATE`, userID).
 		Scan(&user.ID, &user.Name, &user.Phone, &user.Role, &user.CompanyID)
 	if err != nil {
@@ -179,7 +180,7 @@ func (r *AuthRepository) UserByID(ctx context.Context, id string) (auth.User, er
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
 	var user auth.User
-	err := r.pool.QueryRow(ctx, `SELECT id::text, full_name, phone, role, company_id::text
+	err := r.pool.QueryRow(ctx, `SELECT id::text, display_name, phone, role, CASE WHEN role='CLIENT' THEN (SELECT CASE WHEN count(*)=1 THEN min(m.company_id::text) END FROM user_company_memberships m WHERE m.user_id=users.id AND m.status='active') END
 		FROM users WHERE id = $1`, id).
 		Scan(&user.ID, &user.Name, &user.Phone, &user.Role, &user.CompanyID)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -194,4 +195,8 @@ func (r *AuthRepository) UserByID(ctx context.Context, id string) (auth.User, er
 func validUUID(value string) bool {
 	var id pgtype.UUID
 	return id.Scan(value) == nil && id.Valid
+}
+
+func (r *AuthRepository) Profile(ctx context.Context, id string) (company.UserProfile, error) {
+	return NewManagementRepository(r.pool, r.timeout).Profile(ctx, id)
 }

@@ -1,12 +1,16 @@
 # Архитектура
 
-Go backend — модульный монолит. Он предоставляет все 26 операций OpenAPI v1 и
+Go backend — модульный монолит. Он предоставляет 41 операцию OpenAPI v1 и
 запускает worker в том же процессе. Redis, Kafka и отдельного сервиса очереди нет.
 
 ```mermaid
 flowchart LR
     F[React frontend] -->|REST / JWT| H[Go HTTP API]
     H --> A[Модули приложения]
+    A --> M[Членство и полномочия из PostgreSQL]
+    A --> V[Декларации и отдельное подтверждение банка]
+    V --> DB
+    M --> DB
     A --> DB[(PostgreSQL)]
     A --> D[Приватный volume документов]
     W[Worker в процессе Go] -->|jobs / lease| DB
@@ -47,7 +51,10 @@ Python не получает имя, ИНН, документы или кред�
 
 Используются существующие таблицы `companies`, `users`, `otp_challenges`,
 `credit_products`, `applications`, `documents`, `jobs`, `credit_decisions`, `offers`,
-`application_events`, `idempotency_keys`. Миграции запускаются до backend.
+`application_events`, `idempotency_keys`, а также `user_company_memberships`,
+`company_financial_declarations`, `company_change_requests`, `data_audit_events`.
+Новые миграции 000012–000014 сохраняют прежние данные; применяются до backend.
+Deprecated users.company_id не используется для проверки полномочий.
 
 Submit атомарно фиксирует анкету, компанию, условия продукта, событие и job.
 Снимки защищены от изменения триггером PostgreSQL. Worker захватывает задания
@@ -62,7 +69,9 @@ Lease проверяется до и после записи. Ручные ре�
 
 ## Документы и доступ
 
-CLIENT читает только свои заявки своей компании. BANK_EMPLOYEE не видит draft
+CLIENT читает собственные черновики и отправленные заявки компаний с действующим
+членством. VIEWER не изменяет данные; OWNER и AUTHORIZED_REPRESENTATIVE могут
+создавать и отправлять собственные черновики. BANK_EMPLOYEE не видит draft
 даже по UUID или через документы. После submit сотрудник читает историческую
 карточку из снимков, а не текущие сведения компании.
 
@@ -73,3 +82,11 @@ pending/ready/failed и восстановление загрузок защищ
 горутины внутри этого процесса безопасны.
 
 [Кредитная политика](credit-process.md) · [Состояния API](../api/FRONTEND_INTEGRATION.md).
+
+Изменения контактов, реквизитов и финансов разделены. Источники финансов сохраняются
+по конкретным суммам; загрузка документа не делает их достоверными. Банковский
+assessment читает сохранённые Python factors/reasons и Go policy, не запускает
+переоценку. Восстановление failed jobs сохраняет успешные этапы и использует
+существующую PostgreSQL очередь с lease-fencing.
+
+[Модель полномочий, подтверждений и безопасный порядок обновления](company-data.md).

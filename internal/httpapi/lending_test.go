@@ -271,3 +271,20 @@ func TestLendingMediaLimitAndInvalidStoredResponse(t *testing.T) {
 		}
 	}
 }
+
+func TestManualInternalCommentAliasAndCustomerExplanation(t *testing.T) {
+	repo := lendingFixture(201)
+	h, token := lendingHTTP(t, repo, auth.RoleBankEmployee)
+	body := `{"version":4,"decision":"rejected","internalComment":"  Только банку.  ","customerExplanation":"  Недостаточно подтверждённого бюджета.  ","offer":null}`
+	w := lendingRequest(h, "/api/v1/bank/applications/"+testApplicationID+"/decisions", body, token, lendingKey)
+	if w.Code != 201 || repo.command.Comment != "Только банку." || repo.command.CustomerExplanation != "Недостаточно подтверждённого бюджета." {
+		t.Fatalf("comment separation: %d %+v", w.Code, repo.command)
+	}
+	for _, bad := range []string{strings.Replace(body, `"offer":null`, `"comment":"duplicate","offer":null`, 1), strings.Replace(body, `"customerExplanation":"  Недостаточно подтверждённого бюджета.  "`, `"customerExplanation":null`, 1), strings.Replace(body, `"internalComment":"  Только банку.  "`, `"internalComment":null`, 1)} {
+		before := repo.calls
+		w = lendingRequest(h, "/api/v1/bank/applications/"+testApplicationID+"/decisions", bad, token, lendingKey)
+		if w.Code != 400 || repo.calls != before {
+			t.Fatal("invalid alias/null reached storage")
+		}
+	}
+}

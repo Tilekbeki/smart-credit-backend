@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -25,7 +26,9 @@ const (
 
 // Every invocation owns a schema and search_path. Even when the configured test
 // database is shared with development, its existing tables/data are untouched.
-func authTestPool(t *testing.T) *pgxpool.Pool {
+func authTestPool(t *testing.T) *pgxpool.Pool { return authTestPoolThrough(t, 999999) }
+
+func authTestPoolThrough(t *testing.T, through int) *pgxpool.Pool {
 	t.Helper()
 	dsn := os.Getenv("TEST_DATABASE_URL")
 	if dsn == "" {
@@ -73,6 +76,10 @@ func authTestPool(t *testing.T) *pgxpool.Pool {
 	}
 	sort.Strings(paths)
 	for _, path := range paths {
+		number, _ := strconv.Atoi(filepath.Base(path)[:6])
+		if number > through {
+			continue
+		}
 		migration, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatalf("cannot read migration %s", filepath.Base(path))

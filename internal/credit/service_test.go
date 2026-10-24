@@ -51,7 +51,7 @@ func demoProducts() []Product {
 
 func serviceFixture() (*Service, *fakeProducts, *fakeCompanies) {
 	products := &fakeProducts{items: demoProducts()}
-	companies := &fakeCompanies{item: company.Company{ID: "own-company", RegistrationDate: "2020-01-01", Financials: company.Financials{MonthlyRevenueRub: 99, MonthlyExpensesRub: 99, ExistingMonthlyPaymentsRub: 100_000}}}
+	companies := &fakeCompanies{item: company.Company{ID: "own-company", RegistrationDate: "2020-01-01", Financials: company.Financials{MonthlyRevenueRub: 1_000_000_000_000, MonthlyExpensesRub: 0, ExistingMonthlyPaymentsRub: 100_000}}}
 	service := NewService(products, companies)
 	service.now = func() time.Time { return time.Date(2026, 10, 23, 18, 0, 0, 0, time.UTC) }
 	return service, products, companies
@@ -108,7 +108,7 @@ func TestRecommendTurnoverAndInvestment(t *testing.T) {
 			if !reflect.DeepEqual(product.Matches, Matches{true, true, true, true, true}) {
 				t.Fatalf("matches = %+v", product.Matches)
 			}
-			if product.Limitations == nil || len(product.Limitations) != 0 || product.Adjustments == nil || len(product.Adjustments) != 0 || len(product.Reasons) == 0 {
+			if product.Limitations == nil || len(product.Limitations) != 1 || product.Adjustments == nil || len(product.Adjustments) != 0 || len(product.Reasons) == 0 {
 				t.Fatalf("invalid explanation arrays: %+v", product)
 			}
 			if !result.Simulation || result.Disclaimer == "" {
@@ -204,21 +204,12 @@ func TestRecommendBudgetAndNoSuitableProduct(t *testing.T) {
 			}
 		})
 	}
-	t.Run("unsupported purpose is expected outcome", func(t *testing.T) {
+	t.Run("unsupported purpose is rejected", func(t *testing.T) {
 		service, _, _ := serviceFixture()
 		input := demoInput()
 		input.Purpose = "other"
-		result, err := service.Recommend(context.Background(), "own-company", input)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if result.RecommendedProductID != nil || len(result.Products) != 2 {
-			t.Fatal("expected products without recommendation")
-		}
-		for _, product := range result.Products {
-			if product.Matches.Purpose || len(product.Adjustments) != 0 || len(product.Limitations) == 0 {
-				t.Fatal("invalid purpose mismatch")
-			}
+		if _, err := service.Recommend(context.Background(), "own-company", input); !errors.Is(err, ErrInvalidInput) {
+			t.Fatalf("unsupported purpose: %v", err)
 		}
 	})
 	t.Run("no active products", func(t *testing.T) {

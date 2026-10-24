@@ -8,6 +8,7 @@ import (
 
 	"smart-credit-backend/internal/application"
 	"smart-credit-backend/internal/auth"
+	"smart-credit-backend/internal/company"
 	"smart-credit-backend/internal/credit"
 	"smart-credit-backend/internal/document"
 )
@@ -77,7 +78,7 @@ func ValidateSubmission(input ValidationInput, now time.Time) []FieldError {
 	} else if credit.BusinessAgeMonths(registered, now) < input.Product.MinBusinessAgeMonths {
 		problems = append(problems, FieldError{"company.registrationDate", "business_too_young", fmt.Sprintf("Возраст компании должен быть не менее %d месяцев.", input.Product.MinBusinessAgeMonths)})
 	}
-	for _, kind := range document.RequiredTypes(input.Product.ID, input.Company.FinancialDataSource == TrustedFinancialSource) {
+	for _, kind := range document.RequiredTypes(input.Product.ID, input.Fields.MonthlyRevenueRub != nil && input.Fields.MonthlyExpensesRub != nil && company.FinancialsVerified(input.Company.Profile, input.Company.FinancialDataSource, *input.Fields.MonthlyRevenueRub, *input.Fields.MonthlyExpensesRub)) {
 		present := false
 		for _, meta := range input.Documents {
 			if meta.DocumentType == kind && meta.Status == "ready" {

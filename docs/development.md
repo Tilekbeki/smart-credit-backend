@@ -122,6 +122,20 @@ TEST_SCORING_URL=http://127.0.0.1:18013 \
 api/postman, в нём лежат синтетические PDF/PNG/JPEG. Сценарии сами получают JWT,
 applicationId, offerId, version и Idempotency-Key и сбрасывают их в новой итерации.
 
+Для Postman Desktop выберите в настройке **Working directory** полный локальный
+путь к `smart-credit-backend/api/postman`, а не к корню репозитория и не к `fixtures`.
+Относительный путь `fixtures/sample.pdf` должен разрешаться в существующий файл.
+Один импорт JSON коллекции не копирует тестовые файлы. Подробности — в
+[документации Postman](https://learning.postman.com/docs/getting-started/installation/settings/working-directory).
+
+Если первые ошибки возникают в загрузках 123–126 (400 вместо 201), проверьте
+вкладку Body запроса 123 и доступность локального PDF. Без файла последующие
+запросы используют пустой documentId, получают 404 и не могут отправить заявки,
+требующие документов (422). После исправления пути запустите коллекцию с начала:
+ID и JWT передаются автоматически. Пропущенные проверки scoring при выключенных
+expect-флагах не являются ошибками: в экспорте Runner у них может быть `false`,
+но счётчик `testPassFailCounts.fail` равен нулю.
+
 ```sh
 newman run api/postman/smart-credit.postman_collection.json --working-dir api/postman
 ```
@@ -138,9 +152,50 @@ newman run api/postman/smart-credit.postman_collection.json \
 
 scoringMode=fixture сохраняет прежние фиксированные тестовые сценарии для
 контролируемого HTTP-fixture. Это отдельный режим: настоящий Python не подменяется.
-В logreg_v1 меняются только финансовые данные семи дополнительных заявок;
-существующие проверки и отрицательные сценарии сохранены. Коллекция содержит
-397 запросов; polling может увеличить фактическое число HTTP-вызовов.
+В logreg_v1 используются финансовые данные семи дополнительных заявок;
+коллекция отдельно подаёт и подтверждает их через банковский API деклараций.
+Существующие проверки и отрицательные сценарии сохранены. Коллекция содержит
+465 запросов; polling может увеличить фактическое число HTTP-вызовов.
+
+### Режимы коллекции и повторный запуск
+
+| Настройки | Проверка |
+| --- | --- |
+| По умолчанию, scoring отсутствует | API, права, технический failed и однократное восстановление |
+| По умолчанию, scoring доступен | API и корректный запрет восстановления завершённой заявки |
+| `expectScoringResult=true`, остальные expect=false | Ожидание сохранённого scoring без требования конкретного исхода Go |
+| `scoringMode=logreg_v1`, все четыре expect=true | Все кредитные исходы, ручные решения, accept/decline и объяснения |
+
+Флаги включают ожидания и дополнительные проверки, а не управляют backend.
+Recovery определяется фактическим status/processing и банковской диагностикой;
+идемпотентный повтор проверяет исходный ответ и отсутствие второго пакета попыток.
+Если worker успел законно завершить обработку после восстановления, проверка
+учитывает ровно соответствующие переходам изменения версии.
+
+Последняя проверка Newman, по две последовательные итерации каждого режима:
+
+| Режим | Assertions | Failures |
+| --- | ---: | ---: |
+| Стандартные настройки, настоящий scoring доступен | 4109 | 0 |
+| Стандартные настройки, scoring отсутствует | 4206 | 0 |
+| Полный logreg_v1 со всеми expect=true | 5287 | 0 |
+| Только expectScoringResult=true | 4172 | 0 |
+
+Дополнительно настоящий scorer подключён после исчерпания попыток перед recovery,
+а worker завершил решение до проверки replay: ещё 266 assertions, 0 failures.
+Контрольный GET допускает только версии, соответствующие фактическим переходам
+конвейера; recoveryCount и maxAttempts подтверждают отсутствие второго пакета.
+
+Для проверки повторного запуска добавьте `--iteration-count 2`. Каждая итерация
+создаёт собственные заявки и сбрасывает JWT, ID, версии и выбранную ветку recovery.
+Проверены имена профиля с кавычками, обратным слешем и буквальным `{{…}}`:
+данные сериализуются в JSON и не интерпретируются как переменные Postman.
+
+Коллекция рассчитана на контролируемые синтетические fixtures: стандартные
+профили, исходные финансовые данные и начальные полномочия seed. Она создаёт
+заявки, подтверждает тестовые финансовые декларации и проверяет выдачу/отзыв
+второго членства. Произвольно изменённые финансовые данные или дополнительные
+исходные членства меняют корректные ответы API и требуют отдельного fixture setup.
 
 ## Восстановление и миграции
 
@@ -148,10 +203,12 @@ scoringMode=fixture сохраняет прежние фиксированные
 решения и ответы идемпотентности сохраняются в БД/volumes. Worker восстанавливает
 незавершённый lease; успешный scoring повторно не вызывается. При недоступности
 scoring выполняются ограниченные повторы, затем processing.state=failed без rejected.
-После исчерпания попыток нужна диагностика оператора: публичного retry API нет.
+После исчерпания попыток нужна диагностика оператора. Банк может возобновить failed job
+через POST /bank/applications/{id}/retry-processing: версия, причина, Idempotency-Key,
+не более трёх восстановлений. Успешные этапы сохраняются.
 
-Исторические SQL-файлы не переименовываются и не редактируются. Версия схемы 11;
-новые таблицы для интеграции scoring не потребовались. Down миграции с долговечным
+Исторические SQL-файлы не переименовываются и не редактируются. Версия схемы 14;
+новые таблицы членства, подтверждений и аудита описаны в company-data.md. Down миграции с долговечным
 решением/аудитом могут намеренно запрещать потерю данных. Используйте migrate CLI
 только для осознанного управления тестовой схемой; обычному запуску это не нужно.
 
@@ -164,3 +221,132 @@ scoring выполняются ограниченные повторы, зате
 `python3 -m unittest discover -s tests -v` проверяет его отдельно от Go.
 Зависимости Go закреплены в go.mod/go.sum; лицензии зависимостей и notices
 сохраняются. Scoring и его THIRD_PARTY_NOTICES остаются в отдельном проекте.
+
+## Обновление схемы и режимы
+
+Миграции 000001–000011 не изменяются. 000012 переносит принадлежность в членства;
+000013 добавляет версии, финансовую историю и исправления; 000014 защищает историю
+и отправленные поля от изменения. Перед обновлением остановите старые backend,
+сохраните БД и файловый volume. Старые и новые бинарники одновременно не запускаются.
+Откат новых миграций блокируется; необходима проверенная резервная копия. Рабочие
+Docker volumes не удаляйте. [Порядок и модель](company-data.md).
+
+Compose по умолчанию явно задаёт APP_ENV=demo. При APP_ENV=production процесс
+отказывается стартовать до настоящих интеграций идентификации, реестров, БКИ и
+подписания. Синтетические профили, фиксированный OTP, симуляторы, ML и signed
+не являются production-провайдерами. Это ограничение запуска, а не банковская
+сертификация. Реальные SMS/ФНС/БКИ/ЭП в репозитории не реализованы.
+
+Новые регрессионные тесты используют отдельные PostgreSQL schemas и проверяют
+также обновление заполненной схемы 000011, несколько компаний, отзыв JWT-доступа,
+конкурентные изменения, финансовое происхождение и восстановление jobs.
+Подтверждение точных сумм в fixture выполняется отдельно от кредитного решения.
+
+## Проверка этапа 10
+
+Проверены `go fmt ./...`, `go vet ./...`, `go build ./...`,
+`go test -count=1 ./...` и `go test -race -count=1 ./...` с PostgreSQL
+и настоящим Python logreg_v1. Полные прогоны проходят. Сохранённые восемь тестов
+Python-прототипа проходят. OpenAPI проходит структурную проверку; 41 implemented
+операция соответствует 41 зарегистрированному HTTP-маршруту.
+
+Единая Postman Collection содержит 465 запросов. На проверенном запуске Newman
+с настоящим scoring выполнил 481 HTTP-запрос и 2637 assertions без ошибок; без
+scoring — 381 запрос и 2096 assertions без ошибок. Число HTTP-запросов зависит от
+polling. JWT, идентификаторы, версии и ключи передаются автоматически.
+
+Миграции проверены на чистых схемах и заполненной схеме 000011. Исторические
+заявки, документы, решения, события и idempotency responses сохраняются.
+Базовый Compose собирается и запускается без .env и без соседнего scoring;
+дополнительный Compose использует оригинальный Dockerfile scoring без изменений.
+
+Отдельный интеграционный сценарий остановил настоящий scorer, исчерпал пять
+попыток без кредитного отказа, затем возобновил обработку через банковский API.
+Получены score=97, одно решение, одно предложение и одно событие восстановления.
+После принятия предложения и перезапуска backend прежний JWT действителен,
+recovery/accept replay совпадают побайтно, контрольное состояние заявки не
+изменилось, число вызовов scorer не выросло. Тестовые Docker volumes сохранены.
+
+Проверки секретов не нашли заполненных JWT в коллекции, приватных ключей или
+новых токенов доступа в изменяемых файлах; .env игнорируется Git и Docker context.
+Python scoring, frontend, Python-прототип и миграции 000001–000011 не изменялись.
+
+### Изменённые и добавленные файлы
+
+- `.github/workflows/ci.yml`
+- `README.md`
+- `api/FRONTEND_INTEGRATION.md`
+- `api/openapi.yaml`
+- `api/postman/smart-credit.postman_collection.json`
+- `cmd/api/main.go`
+- `cmd/api/main_test.go`
+- `docs/architecture.md`
+- `docs/company-data.md`
+- `docs/credit-process.md`
+- `docs/development.md`
+- `docs/scoring-integration.md`
+- `internal/application/service.go`
+- `internal/application/service_test.go`
+- `internal/application/types.go`
+- `internal/auth/middleware.go`
+- `internal/auth/middleware_test.go`
+- `internal/company/company.go`
+- `internal/company/company_test.go`
+- `internal/company/management.go`
+- `internal/company/provenance.go`
+- `internal/company/provenance_test.go`
+- `internal/credit/service.go`
+- `internal/credit/service_test.go`
+- `internal/credit/types.go`
+- `internal/decision/decode.go`
+- `internal/decision/engine.go`
+- `internal/decision/engine_test.go`
+- `internal/decision/manual.go`
+- `internal/decision/provenance_test.go`
+- `internal/decision/types.go`
+- `internal/document/service.go`
+- `internal/document/service_test.go`
+- `internal/document/types.go`
+- `internal/httpapi/application.go`
+- `internal/httpapi/auth.go`
+- `internal/httpapi/credit.go`
+- `internal/httpapi/credit_test.go`
+- `internal/httpapi/document.go`
+- `internal/httpapi/lending.go`
+- `internal/httpapi/lending_test.go`
+- `internal/httpapi/management.go`
+- `internal/httpapi/membership_test.go`
+- `internal/httpapi/recovery.go`
+- `internal/lending/service.go`
+- `internal/lending/service_test.go`
+- `internal/lending/types.go`
+- `internal/pipeline/recovery.go`
+- `internal/pipeline/submission.go`
+- `internal/pipeline/submission_test.go`
+- `internal/postgres/application.go`
+- `internal/postgres/auth.go`
+- `internal/postgres/auth_test.go`
+- `internal/postgres/company_credit.go`
+- `internal/postgres/decision_jobs.go`
+- `internal/postgres/decision_jobs_test.go`
+- `internal/postgres/document.go`
+- `internal/postgres/governance_test.go`
+- `internal/postgres/lending.go`
+- `internal/postgres/lending_test.go`
+- `internal/postgres/management.go`
+- `internal/postgres/membership.go`
+- `internal/postgres/recovery.go`
+- `internal/postgres/review.go`
+- `internal/postgres/review_test.go`
+- `internal/postgres/scoring_integration_test.go`
+- `internal/postgres/submission.go`
+- `internal/postgres/submission_test.go`
+- `internal/postgres/upgrade_test.go`
+- `internal/review/service.go`
+- `internal/review/types.go`
+- `migrations/000012_company_memberships.down.sql`
+- `migrations/000012_company_memberships.up.sql`
+- `migrations/000013_data_governance.down.sql`
+- `migrations/000013_data_governance.up.sql`
+- `migrations/000014_history_integrity.down.sql`
+- `migrations/000014_history_integrity.up.sql`

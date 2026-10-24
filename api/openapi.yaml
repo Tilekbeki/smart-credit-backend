@@ -1,31 +1,12 @@
 openapi: 3.0.3
 info:
   title: Smart Credit Go backend
-  version: 1.0.0
-  description: 'Demonstration authentication, own-company data, synthetic credit products and preliminary
-    financing selection for a hackathon. DEMO_OTP_CODE defaults to 1234; no SMS is sent. Public profile
-    selection includes a bank employee and must not be used for production access. Product conditions
-    and company data are synthetic and are not actual Alfa-Bank offers. Recommendations neither create
-    applications nor constitute or guarantee credit decisions; the recommendations endpoint does not
-    call Python scoring. All responses
-    use Cache-Control: no-store. CLIENT users can persist partial credit drafts and inspect their history;
-    a separate submit operation validates and atomically queues preliminary checks. A durable worker in
-    the same process performs synthetic company and credit-history checks, calls a separately configured
-    Python scoring HTTP service and durably saves its validated recommendation. The same worker claims
-    awaiting_decision jobs and applies Go credit policy, producing approved, rejected, counter_offer or
-    manual_review. Final automatic decisions and applicable offers are persisted atomically; manual_review
-    stores the assessment without a fictitious final decision. Private application documents can be uploaded by their CLIENT owner and read by their owner
-    or BANK_EMPLOYEE after successful submit. Drafts are private to their CLIENT owner.
-    All 26 API v1 operations are implemented, including manual bank decisions and client offer actions.
-    Internal employee comments are visible only in the bank assessment. CLIENT can confirm or decline
-    the current active offer; signed means demonstration confirmation without loan disbursement.
-    Scoring integration follows the local JSON Schema and has been verified with the separate real
-    Python logreg_v1 service. Its source and model artifact remain in the scoring repository; an optional
-    local Compose configuration uses that unchanged checkout. Mandatory financial limits are enforced
-    by Go for automatic and manual proposals. Monetary amounts use integer rubles,
-    annualRatePercent uses percent, and
-    timestamps use RFC 3339 UTC. Clients may keep unlimited independent drafts, including several
-    drafts of the same product; submitting one does not alter the others.'
+  version: 1.1.0
+  description: 'Демонстрационный кредитный конвейер. 41 реализованная операция: многокомпанейное членство, раздельные
+    контактные и подтверждаемые данные, финансовое происхождение, документы, сохранённый Python scoring и Go-политика.
+    APP_ENV=demo явно включает синтетические интеграции; production-запуск закрыт до подключения настоящей идентификации,
+    реестров, БКИ и подписания. JWT идентифицирует пользователя, доступ определяется актуальным членством PostgreSQL.
+    Старые снимки и решения не пересчитываются. signed — демонстрационное подтверждение без выдачи денег.'
 x-application-lifecycle:
   transitions:
   - from: draft
@@ -71,9 +52,9 @@ x-application-lifecycle:
   - rejected
   - signed
   - closed
-  technicalFailure: Retain submitted/processing. Decision and bank assessment APIs expose a safe Processing
-    state without private job errors. awaiting_scoring and awaiting_decision
-    are internal job states, never application statuses.
+  technicalFailure: Retain submitted/processing. Decision and bank assessment APIs expose a safe Processing state
+    without private job errors. awaiting_scoring and awaiting_decision are internal job states, never application
+    statuses.
   signedMeaning: MVP demonstration confirmation only; no loan disbursement or legally binding bank agreement.
 x-bank-draft-policy:
   visibilityStartsAt: successful submit
@@ -265,8 +246,8 @@ paths:
         '415':
           $ref: '#/components/responses/UnsupportedMediaType'
         '429':
-          description: Five failed verification attempts exhausted the challenge (otp_attempts_exceeded);
-            request a new OTP
+          description: Five failed verification attempts exhausted the challenge (otp_attempts_exceeded); request
+            a new OTP
           content:
             application/json:
               schema:
@@ -309,16 +290,84 @@ paths:
           $ref: '#/components/responses/ServiceUnavailable'
         '500':
           $ref: '#/components/responses/InternalError'
+    patch:
+      operationId: patchMyProfile
+      summary: Изменить отображаемое имя и дополнительный email
+      description: 'Проверка текущих полномочий в PostgreSQL. Неизвестные поля, null, дубликаты ключей и неверный
+        UTF-8 запрещены. version — текущая версия изменяемой записи; для изменений компании — GET компании. При
+        конфликте 409 version_conflict. Повторяемые операции требуют UUID Idempotency-Key: точный повтор воспроизводит
+        ответ, другое тело даёт 409 idempotency_conflict. Аудит и изменения атомарны.'
+      x-implementation-status: implemented
+      x-roles:
+      - CLIENT
+      - BANK_EMPLOYEE
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Успешная операция
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUser'
+        '400':
+          description: invalid_request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: company_not_found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: version_conflict / invalid_status / idempotency_conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: unsupported_media_type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: service_unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfilePatchInput'
   /api/v1/companies/{companyId}:
     get:
       x-implementation-status: implemented
       operationId: getOwnCompany
       x-roles:
       - CLIENT
-      summary: Get the authenticated client’s own company
-      description: CLIENT only. Company ownership is checked before reading details. BANK_EMPLOYEE and
-        access to another company return 403; no foreign company existence is disclosed. All legal and
-        contact details are synthetic.
+      summary: Получить компанию с действующим членством
+      description: Действующее членство в компании проверяется по PostgreSQL. VIEWER может читать сведения. Чужая
+        компания возвращает 403 без раскрытия существования. Источники и время подтверждения финансов не означают
+        реальную банковскую проверку в demo.
       security:
       - BearerAuth: []
       responses:
@@ -351,7 +400,81 @@ paths:
         schema:
           type: string
           format: uuid
-        description: Nonzero UUID matching the authenticated user’s companyId.
+        description: UUID доступной компании; не ограничивается совместимым companyId из /me.
+    patch:
+      operationId: patchCompanyContacts
+      summary: Изменить контакты компании
+      description: 'Проверка текущих полномочий в PostgreSQL. Неизвестные поля, null, дубликаты ключей и неверный
+        UTF-8 запрещены. version — текущая версия изменяемой записи; для изменений компании — GET компании. При
+        конфликте 409 version_conflict. Повторяемые операции требуют UUID Idempotency-Key: точный повтор воспроизводит
+        ответ, другое тело даёт 409 idempotency_conflict. Аудит и изменения атомарны.'
+      x-implementation-status: implemented
+      x-roles:
+      - CLIENT
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Успешная операция
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyContactPatchResponse'
+        '400':
+          description: invalid_request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: company_not_found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: version_conflict / invalid_status / idempotency_conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: unsupported_media_type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: service_unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: companyId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyContactPatchInput'
   /api/v1/credit-products:
     get:
       x-implementation-status: implemented
@@ -360,8 +483,8 @@ paths:
       - CLIENT
       - BANK_EMPLOYEE
       summary: List active synthetic credit products
-      description: CLIENT and BANK_EMPLOYEE. Products and conditions are read from PostgreSQL. No product
-        is created by this request.
+      description: CLIENT and BANK_EMPLOYEE. Products and conditions are read from PostgreSQL. No product is created
+        by this request.
       security:
       - BearerAuth: []
       responses:
@@ -387,8 +510,8 @@ paths:
       - CLIENT
       - BANK_EMPLOYEE
       summary: Get an active product by public code
-      description: CLIENT and BANK_EMPLOYEE. The path uses turnover/investment codes, not UUIDs. Conditions
-        are synthetic, not actual bank offers.
+      description: CLIENT and BANK_EMPLOYEE. The path uses turnover/investment codes, not UUIDs. Conditions are
+        synthetic, not actual bank offers.
       security:
       - BearerAuth: []
       responses:
@@ -426,13 +549,12 @@ paths:
       x-roles:
       - CLIENT
       summary: Calculate an explainable preliminary financing selection
-      description: CLIENT only. The company and existing monthly debt payments come from PostgreSQL. Request
-        revenue/expenses override the company figures for this calculation only and are not persisted.
-        Uses exact rational arithmetic; monthly payments are rounded up, budgets and available amounts
-        down to whole rubles. A valid request without eligible products returns 200 with recommendedProductId=null
-        and explanations. Suggested amount/term corrections must be explicitly resubmitted to become the
-        selected request. This endpoint does not call Python scoring, create a credit decision, application
-        or background job, or modify any status.
+      description: CLIENT only. The company and existing monthly debt payments come from PostgreSQL. Request revenue/expenses
+        override the company figures for this calculation only and are not persisted. Uses exact rational arithmetic;
+        monthly payments are rounded up, budgets and available amounts down to whole rubles. A valid request without
+        eligible products returns 200 with recommendedProductId=null and explanations. Suggested amount/term corrections
+        must be explicitly resubmitted to become the selected request. This endpoint does not call Python scoring,
+        create a credit decision, application or background job, or modify any status.
       security:
       - BearerAuth: []
       responses:
@@ -456,6 +578,12 @@ paths:
           $ref: '#/components/responses/RequestTooLarge'
         '415':
           $ref: '#/components/responses/UnsupportedMediaType'
+        '409':
+          description: 'company_required: выберите компанию явно'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
       requestBody:
         required: true
         content:
@@ -469,13 +597,12 @@ paths:
       x-roles:
       - CLIENT
       summary: Create a partial client-owned credit draft
-      description: CLIENT only. Owner and company come from the current PostgreSQL user;
-        they must not be supplied in JSON. An empty object or nullable editable fields
-        are accepted. Provided values must be valid; when productId is selected, any
-        present purpose, amount and term must satisfy that active product. Creation
-        and draft_created event are committed atomically. No scoring, decision or background
-        job is created. Multiple independent drafts, including drafts of the same product,
-        are allowed without an MVP count limit. Submitting one never submits or deletes the others.
+      description: CLIENT only. Owner and company come from the current PostgreSQL user; they must not be supplied
+        in JSON. An empty object or nullable editable fields are accepted. Provided values must be valid; when productId
+        is selected, any present purpose, amount and term must satisfy that active product. Creation and draft_created
+        event are committed atomically. No scoring, decision or background job is created. Multiple independent
+        drafts, including drafts of the same product, are allowed without an MVP count limit. Submitting one never
+        submits or deletes the others.
       security:
       - BearerAuth: []
       requestBody:
@@ -525,7 +652,7 @@ paths:
         '400':
           $ref: '#/components/responses/InvalidRequest'
         '404':
-          description: Unknown or inactive product (product_not_found).
+          description: company_not_found для недоступного селектора компании либо product_not_found для продукта.
           content:
             application/json:
               schema:
@@ -542,18 +669,21 @@ paths:
           $ref: '#/components/responses/ServiceUnavailable'
         '500':
           $ref: '#/components/responses/InternalError'
+        '409':
+          description: 'company_required: выберите компанию явно'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     get:
       x-implementation-status: implemented
       operationId: listOwnApplications
       x-roles:
       - CLIENT
-      summary: List applications owned by the current client in their company
-      description: CLIENT only. SQL pagination and status filtering apply to both owner
-        and company scope; other owners are never included. Ordered by createdAt descending,
-        then applicationId descending. total counts all matching rows before pagination.
-        Unknown/repeated query parameters and malformed limits, offsets or statuses
-        are rejected. Creating a draft does not submit it; the separate submit operation
-        advances complete applications to submitted and asynchronous processing.
+      summary: Доступные заявки с фильтром компании
+      description: 'CLIENT: собственные черновики и отправленные заявки компаний с действующим членством. companyId
+        сужает выборку; чужой фильтр даёт пустую страницу. Порядок createdAt DESC/applicationId DESC, total после
+        фильтров до пагинации. Неизвестные и повторные параметры отклоняются.'
       security:
       - BearerAuth: []
       parameters:
@@ -575,6 +705,14 @@ paths:
         in: query
         schema:
           $ref: '#/components/schemas/ApplicationStatus'
+      - name: companyId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+        description: Фильтр по доступной компании. Без фильтра — все доступные отправленные заявки и собственные
+          приватные черновики.
       responses:
         '200':
           description: Matching applications and pagination metadata
@@ -597,8 +735,7 @@ paths:
     - name: applicationId
       in: path
       required: true
-      description: Nonzero application UUID. Ownership is checked using both authenticated
-        user ID and company ID.
+      description: Nonzero application UUID. Ownership is checked using both authenticated user ID and company ID.
       schema:
         type: string
         format: uuid
@@ -608,11 +745,11 @@ paths:
       x-roles:
       - CLIENT
       summary: Open the current client’s saved application
-      description: CLIENT only, owner and company must match the current user. Missing
-        and foreign UUIDs both return 404 application_not_found without disclosing existence.
-        Includes permitted company details and the selected product summary. Draft availableActions
-        is [edit, submit]; approved/counter_offer expose [accept, decline] only while the current offer is active.
-        Other client states expose []. Submit still validates completeness and documents.
+      description: 'CLIENT: требуется действующее членство; чужой draft скрыт даже от коллег компании. Missing and
+        foreign UUIDs both return 404 application_not_found without disclosing existence. Includes permitted company
+        details and the selected product summary. Draft availableActions is [edit, submit]; approved/counter_offer
+        expose [accept, decline] only while the current offer is active. Other client states expose []. Submit still
+        validates completeness and documents.'
       security:
       - BearerAuth: []
       responses:
@@ -644,14 +781,12 @@ paths:
       x-roles:
       - CLIENT
       summary: Edit a draft using optimistic locking
-      description: CLIENT owner only. Positive non-null version and at least one editable
-        field are required. An absent field is unchanged; an explicit null clears that
-        editable field. Immutable/unknown fields are rejected. Validation uses the merged
-        draft and the selected active product. A successful PATCH, including assignment
-        of an existing value, increments version exactly once and appends draft_updated
-        in the same transaction. Stale/concurrent versions return 409 version_conflict;
-        a non-draft application returns 409 invalid_status. Neither error changes the
-        draft or timeline.
+      description: CLIENT owner only. Positive non-null version and at least one editable field are required. An
+        absent field is unchanged; an explicit null clears that editable field. Immutable/unknown fields are rejected.
+        Validation uses the merged draft and the selected active product. A successful PATCH, including assignment
+        of an existing value, increments version exactly once and appends draft_updated in the same transaction.
+        Stale/concurrent versions return 409 version_conflict; a non-draft application returns 409 invalid_status.
+        Neither error changes the draft or timeline.
       security:
       - BearerAuth: []
       requestBody:
@@ -674,8 +809,8 @@ paths:
         '400':
           $ref: '#/components/responses/InvalidRequest'
         '404':
-          description: Unknown/inactive product (product_not_found); for an application
-            path, a missing or foreign application (application_not_found).
+          description: Unknown/inactive product (product_not_found); for an application path, a missing or foreign
+            application (application_not_found).
           content:
             application/json:
               schema:
@@ -685,8 +820,7 @@ paths:
         '415':
           $ref: '#/components/responses/UnsupportedMediaType'
         '409':
-          description: Stale version (version_conflict) or an application whose status
-            is not draft (invalid_status).
+          description: Stale version (version_conflict) or an application whose status is not draft (invalid_status).
           content:
             application/json:
               schema:
@@ -706,32 +840,25 @@ paths:
       x-roles:
       - CLIENT
       summary: Submit the current client's complete draft for asynchronous preliminary checks
-      description: >-
-        CLIENT owner in the authenticated company only. No body is required; a nonempty
-        body is rejected. Missing and foreign applications both return 404
-        application_not_found. Requires productId, purpose, requestedAmountRub, termMonths,
-        monthlyRevenueRub and monthlyExpensesRub; purposeDescription is also required for
-        other. The active product's purpose, amount, term and minimum company age must
-        match. A turnover loan requires a ready BANK_STATEMENT unless the company's
-        private server-controlled profile has a trusted financial source. An investment
-        loan requires a ready EQUIPMENT_INVOICE. Pending uploads never satisfy these
-        requirements. Validation failures return detailed 422 errors without changing
-        the application, events or jobs.
-        In one PostgreSQL transaction the backend rechecks ownership, state and the
-        draft revision, saves immutable financial and product snapshots, changes draft
-        to submitted, sets submittedAt, appends APPLICATION_SUBMITTED and creates one
-        durable job. A concurrent draft change can produce 409 version_conflict.
-        The HTTP response does not wait for checks. The in-process worker changes the
-        application to processing and durably stores synthetic company and credit-history
-        results. The same worker calls the configured Python scoring service after prechecks, validates and
-        persists its recommendation, then moves the job to awaiting_decision. The same worker applies Go
-        credit policy and atomically persists approved, rejected or counter_offer with the final decision
-        and applicable offer, or manual_review with its assessment and reasons. An unavailable scoring service uses bounded retries;
-        technical failures never produce rejected.
-        Repeated or concurrent submits of a submitted/processing application return 202
-        with the same submittedAt and do not duplicate jobs or submission events.
-        Other non-draft states return 409 invalid_status. Poll the existing application
-        and timeline APIs to observe progress; internal job results are not public.
+      description: 'CLIENT: создатель черновика с действующим правом записи в компании. No body is required; a nonempty
+        body is rejected. Missing and foreign applications both return 404 application_not_found. Requires productId,
+        purpose, requestedAmountRub, termMonths, monthlyRevenueRub and monthlyExpensesRub; other запрещён уже при
+        создании черновика. The active product''s purpose, amount, term and minimum company age must match. BANK_STATEMENT
+        требуется для любого продукта без актуального подтверждения точных сумм выручки и расходов. An investment
+        loan requires a ready EQUIPMENT_INVOICE. Pending uploads never satisfy these requirements. Validation failures
+        return detailed 422 errors without changing the application, events or jobs. In one PostgreSQL transaction
+        the backend rechecks ownership, state and the draft revision, saves immutable financial and product snapshots,
+        changes draft to submitted, sets submittedAt, appends APPLICATION_SUBMITTED and creates one durable job.
+        A concurrent draft change can produce 409 version_conflict. The HTTP response does not wait for checks.
+        The in-process worker changes the application to processing and durably stores synthetic company and credit-history
+        results. The same worker calls the configured Python scoring service after prechecks, validates and persists
+        its recommendation, then moves the job to awaiting_decision. The same worker applies Go credit policy and
+        atomically persists approved, rejected or counter_offer with the final decision and applicable offer, or
+        manual_review with its assessment and reasons. An unavailable scoring service uses bounded retries; technical
+        failures never produce rejected. Repeated or concurrent submits of a submitted/processing application return
+        202 with the same submittedAt and do not duplicate jobs or submission events. Other non-draft states return
+        409 invalid_status. Poll the existing application and timeline APIs to observe progress; internal job results
+        are not public.'
       security:
       - BearerAuth: []
       parameters:
@@ -808,26 +935,24 @@ paths:
       x-roles:
       - CLIENT
       summary: Read the ordered history of the current client’s application
-      description: CLIENT owner only. Missing and foreign applications both return 404
-        application_not_found. Events are ordered by increasing sequence. Draft writes
-        record draft_created and draft_updated. Submission records APPLICATION_SUBMITTED
-        with the client actorId; processing records PROCESSING_STARTED,
-        COMPANY_CHECK_COMPLETED, CREDIT_HISTORY_CHECK_COMPLETED and PRECHECKS_COMPLETED
-        with null actorId for system actions. Scoring adds SCORING_STARTED and, only after its result
-        is durably saved, SCORING_COMPLETED. These events have null actorId and processing status.
-        Go policy then records DECISION_PROCESSING_STARTED with processing status, followed by exactly one
-        of APPLICATION_APPROVED (approved), APPLICATION_REJECTED (rejected), COUNTER_OFFER_CREATED
-        (counter_offer) or MANUAL_REVIEW_REQUIRED (manual_review), all with null actorId.
-        Retries do not duplicate durable events. Timeline never contains OTP, JWT,
-        internal errors, score, factors or editable financial values.
+      description: CLIENT с действующим членством; draft виден только создателю. Missing and foreign applications
+        both return 404 application_not_found. Events are ordered by increasing sequence. Draft writes record draft_created
+        and draft_updated. Submission records APPLICATION_SUBMITTED with the client actorId; processing records
+        PROCESSING_STARTED, COMPANY_CHECK_COMPLETED, CREDIT_HISTORY_CHECK_COMPLETED and PRECHECKS_COMPLETED with
+        null actorId for system actions. Scoring adds SCORING_STARTED and, only after its result is durably saved,
+        SCORING_COMPLETED. These events have null actorId and processing status. Go policy then records DECISION_PROCESSING_STARTED
+        with processing status, followed by exactly one of APPLICATION_APPROVED (approved), APPLICATION_REJECTED
+        (rejected), COUNTER_OFFER_CREATED (counter_offer) or MANUAL_REVIEW_REQUIRED (manual_review), all with null
+        actorId. Retries do not duplicate durable events. Timeline never contains OTP, JWT, internal errors, score,
+        factors or editable financial values.
       security:
       - BearerAuth: []
       parameters:
       - name: applicationId
         in: path
         required: true
-        description: Nonzero application UUID. Ownership is checked using both authenticated
-          user ID and company ID.
+        description: Nonzero application UUID. Ownership is checked using both authenticated user ID and company
+          ID.
         schema:
           type: string
           format: uuid
@@ -863,19 +988,16 @@ paths:
       x-roles:
       - CLIENT
       summary: Upload a private document to the current client's draft
-      description: >-
-        CLIENT owner in the authenticated company only. Authorization and draft status
-        are checked before reading the body and checked again before activation.
-        Exactly one file and one documentType multipart part are required; unknown or
-        duplicate parts are rejected. PDF, PNG and JPEG are detected from actual bytes,
-        independently of the claimed part MIME type. The original filename must be a
-        safe basename with a matching .pdf, .png, .jpg or .jpeg extension; path separators,
-        traversal and control characters are rejected. File size is 1..5242880 bytes
-        (5 MiB); the entire request, including fields and boundaries, is limited to
-        5308416 bytes (5 MiB + 64 KiB). Multiple documents of the same type are allowed.
-        Storage keys, checksums and filesystem paths are never returned. The application
-        remains a draft and its optimistic version does not change. Required-document
-        checks are performed separately by submit; no OCR is performed.
+      description: 'CLIENT: создатель черновика с действующим правом записи в компании. Authorization and draft
+        status are checked before reading the body and checked again before activation. Exactly one file and one
+        documentType multipart part are required; unknown or duplicate parts are rejected. PDF, PNG and JPEG are
+        detected from actual bytes, independently of the claimed part MIME type. The original filename must be a
+        safe basename with a matching .pdf, .png, .jpg or .jpeg extension; path separators, traversal and control
+        characters are rejected. File size is 1..5242880 bytes (5 MiB); the entire request, including fields and
+        boundaries, is limited to 5308416 bytes (5 MiB + 64 KiB). Multiple documents of the same type are allowed.
+        Storage keys, checksums and filesystem paths are never returned. The application remains a draft and its
+        optimistic version does not change. Required-document checks are performed separately by submit; no OCR
+        is performed.'
       security:
       - BearerAuth: []
       requestBody:
@@ -900,7 +1022,7 @@ paths:
                 contentType: application/pdf, image/png, image/jpeg
             example:
               documentType: BANK_STATEMENT
-              file: '(binary contents of sample.pdf)'
+              file: (binary contents of sample.pdf)
       responses:
         '201':
           description: Document is durably readable and its metadata is active in PostgreSQL
@@ -947,9 +1069,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '415':
-          description: >-
-            Content-Type is not multipart/form-data (unsupported_media_type), or actual
-            content is unsupported or does not match the filename extension (unsupported_file_type)
+          description: Content-Type is not multipart/form-data (unsupported_media_type), or actual content is unsupported
+            or does not match the filename extension (unsupported_file_type)
           content:
             application/json:
               schema:
@@ -974,15 +1095,13 @@ paths:
       - CLIENT
       - BANK_EMPLOYEE
       summary: List readable documents of an accessible application
-      description: >-
-        CLIENT can read only their own application in their company. BANK_EMPLOYEE can
-        read documents only after successful submit, across the MVP's single bank;
-        there is no branch or bank organization model. A draft is private to its CLIENT
-        owner and returns 404 application_not_found to BANK_EMPLOYEE, even when its UUID is known. Employees cannot upload documents. Missing and
-        foreign applications return the same 404 application_not_found. Only ready,
-        readable documents are returned; pending or failed uploads are excluded.
-        No pagination is exposed in this MVP. Documents remain readable after a
-        future application status change; no deletion or replacement API is available.
+      description: CLIENT читает документы доступных по членству отправленных заявок и собственных черновиков. BANK_EMPLOYEE
+        can read documents only after successful submit, across the MVP's single bank; there is no branch or bank
+        organization model. A draft is private to its CLIENT owner and returns 404 application_not_found to BANK_EMPLOYEE,
+        even when its UUID is known. Employees cannot upload documents. Missing and foreign applications return
+        the same 404 application_not_found. Only ready, readable documents are returned; pending or failed uploads
+        are excluded. No pagination is exposed in this MVP. Documents remain readable after a future application
+        status change; no deletion or replacement API is available.
       security:
       - BearerAuth: []
       responses:
@@ -1021,15 +1140,13 @@ paths:
       - CLIENT
       - BANK_EMPLOYEE
       summary: Download a private document as an attachment
-      description: >-
-        CLIENT owner in their company, including their own draft; BANK_EMPLOYEE only
-        after successful submit. A draft returns 404 application_not_found to BANK_EMPLOYEE. The application
-        scope is checked before the document lookup; a document ID from another
-        application cannot be substituted. A missing or foreign application returns
-        application_not_found; a missing, unreadable or wrong-application document
-        returns document_not_found. The private volume is never exposed as static
-        files. No absolute path or storage key is returned. Binary content uses its
-        detected MIME type and a safe attachment filename, with no-store and nosniff.
+      description: CLIENT с действующим членством; черновик доступен только создателю; BANK_EMPLOYEE only after
+        successful submit. A draft returns 404 application_not_found to BANK_EMPLOYEE. The application scope is
+        checked before the document lookup; a document ID from another application cannot be substituted. A missing
+        or foreign application returns application_not_found; a missing, unreadable or wrong-application document
+        returns document_not_found. The private volume is never exposed as static files. No absolute path or storage
+        key is returned. Binary content uses its detected MIME type and a safe attachment filename, with no-store
+        and nosniff.
       security:
       - BearerAuth: []
       responses:
@@ -1077,7 +1194,8 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
-          description: Missing or inaccessible application, including a draft requested by BANK_EMPLOYEE (application_not_found), or missing/unreadable/wrong-application document (document_not_found)
+          description: Missing or inaccessible application, including a draft requested by BANK_EMPLOYEE (application_not_found),
+            or missing/unreadable/wrong-application document (document_not_found)
           content:
             application/json:
               schema:
@@ -1095,10 +1213,10 @@ paths:
       - BearerAuth: []
       operationId: getApplicationDecision
       summary: Read the current client-owned credit decision or processing state
-      description: 'CLIENT owner and company must both match. Returns
-        200 in all nine application states, including a null decision before completion. Missing and foreign
-        applications both return 404. manual_review has decision=null and processing=null. signed/closed
-        preserve the credit decision; technical errors never mean rejected.'
+      description: 'CLIENT: действующее членство, приватность чужих черновиков. Returns 200 in all nine application
+        states, including a null decision before completion. Missing and foreign applications both return 404. manual_review
+        has decision=null and processing=null. signed/closed preserve the credit decision; technical errors never
+        mean rejected.'
       x-roles:
       - CLIENT
       responses:
@@ -1220,16 +1338,15 @@ paths:
       - BearerAuth: []
       operationId: acceptApplicationOffer
       summary: Accept the current active primary offer
-      description: 'CLIENT owner and company only. Allowed in approved/counter_offer
-        with a current active primary offer. Changes application to signed and offer to accepted atomically
-        with an event. Credit decision is preserved. signed is demonstration confirmation only, without
-        disbursement or a legally binding bank agreement. Repeating the same completed action on the same
-        offer succeeds without another event/version increment, including after idempotency retention expires,
-        only when durable audit confirms the actor, offer, operation and original/result version.
-        Opposite actions or stale/different offers return 409. State/version/offer checks and mutations
-        use one transaction and application row locking. Same Idempotency-Key and body replay the original
-        result before stale-version validation; changed body gives 409 idempotency_conflict. Authorization and
-        ownership are checked before replay. Keys live 24 hours; transactional
+      description: 'CLIENT: действующий OWNER/AUTHORIZED_REPRESENTATIVE компании заявки. Allowed in approved/counter_offer
+        with a current active primary offer. Changes application to signed and offer to accepted atomically with
+        an event. Credit decision is preserved. signed is demonstration confirmation only, without disbursement
+        or a legally binding bank agreement. Repeating the same completed action on the same offer succeeds without
+        another event/version increment, including after idempotency retention expires, only when durable audit
+        confirms the actor, offer, operation and original/result version. Opposite actions or stale/different offers
+        return 409. State/version/offer checks and mutations use one transaction and application row locking. Same
+        Idempotency-Key and body replay the original result before stale-version validation; changed body gives
+        409 idempotency_conflict. Authorization and ownership are checked before replay. Keys live 24 hours; transactional
         state guards remain afterwards.'
       x-roles:
       - CLIENT
@@ -1300,16 +1417,15 @@ paths:
       - BearerAuth: []
       operationId: declineApplicationOffer
       summary: Decline the current active primary offer
-      description: 'CLIENT owner and company only. Allowed in approved/counter_offer
-        with a current active primary offer. Changes application to closed and offer to withdrawn atomically
-        with an event. Credit decision is preserved. signed is demonstration confirmation only, without
-        disbursement or a legally binding bank agreement. Repeating the same completed action on the same
-        offer succeeds without another event/version increment, including after idempotency retention expires,
-        only when durable audit confirms the actor, offer, operation and original/result version.
-        Opposite actions or stale/different offers return 409. State/version/offer checks and mutations
-        use one transaction and application row locking. Same Idempotency-Key and body replay the original
-        result before stale-version validation; changed body gives 409 idempotency_conflict. Authorization and
-        ownership are checked before replay. Keys live 24 hours; transactional
+      description: 'CLIENT: действующий OWNER/AUTHORIZED_REPRESENTATIVE компании заявки. Allowed in approved/counter_offer
+        with a current active primary offer. Changes application to closed and offer to withdrawn atomically with
+        an event. Credit decision is preserved. signed is demonstration confirmation only, without disbursement
+        or a legally binding bank agreement. Repeating the same completed action on the same offer succeeds without
+        another event/version increment, including after idempotency retention expires, only when durable audit
+        confirms the actor, offer, operation and original/result version. Opposite actions or stale/different offers
+        return 409. State/version/offer checks and mutations use one transaction and application row locking. Same
+        Idempotency-Key and body replay the original result before stale-version validation; changed body gives
+        409 idempotency_conflict. Authorization and ownership are checked before replay. Keys live 24 hours; transactional
         state guards remain afterwards.'
       x-roles:
       - CLIENT
@@ -1378,12 +1494,11 @@ paths:
       - BearerAuth: []
       operationId: listBankApplications
       summary: List submitted applications visible to bank employees
-      description: 'BANK_EMPLOYEE only. Server-side access excludes
-        drafts regardless of knowing their UUID. Bank visibility starts only after successful submit. With
-        no status filter returns all eight bank-visible statuses. status=draft is 400 invalid_request. Optional
-        filters are status and companyId; limit/offset pagination follows the client-list convention. Repeated/unknown
-        query parameters are rejected. Sort: createdAt DESC, applicationId DESC; total is counted after
-        filters and before pagination. No draft counts or data are exposed.'
+      description: 'BANK_EMPLOYEE only. Server-side access excludes drafts regardless of knowing their UUID. Bank
+        visibility starts only after successful submit. With no status filter returns all eight bank-visible statuses.
+        status=draft is 400 invalid_request. Optional filters are status and companyId; limit/offset pagination
+        follows the client-list convention. Repeated/unknown query parameters are rejected. Sort: createdAt DESC,
+        applicationId DESC; total is counted after filters and before pagination. No draft counts or data are exposed.'
       x-roles:
       - BANK_EMPLOYEE
       parameters:
@@ -1440,11 +1555,10 @@ paths:
       - BearerAuth: []
       operationId: getBankApplication
       summary: Read a submitted application with frozen company/product data
-      description: 'BANK_EMPLOYEE only. Server-side access excludes
-        drafts regardless of knowing their UUID. Bank visibility starts only after successful submit. A
-        draft and a missing application both return 404 application_not_found. Financial/company and product
-        data are read from the submitted snapshots. No employee edit, upload or submit operation is provided.
-        Documents use the existing protected list/download endpoints.'
+      description: BANK_EMPLOYEE only. Server-side access excludes drafts regardless of knowing their UUID. Bank
+        visibility starts only after successful submit. A draft and a missing application both return 404 application_not_found.
+        Financial/company and product data are read from the submitted snapshots. No employee edit, upload or submit
+        operation is provided. Documents use the existing protected list/download endpoints.
       x-roles:
       - BANK_EMPLOYEE
       responses:
@@ -1533,13 +1647,11 @@ paths:
       - BearerAuth: []
       operationId: getBankApplicationAssessment
       summary: Read normalized checks, risk assessment and review recommendations
-      description: 'BANK_EMPLOYEE only. Server-side access excludes
-        drafts regardless of knowing their UUID. Bank visibility starts only after successful submit. A
-        draft and a missing application both return 404 application_not_found. Existing check results are
-        reused. Empty assessments use null fields and empty arrays; do not manufacture a zero score. Go
-        policy owns final decisions and categories; demo policy uses LOW for score >= 80, MEDIUM for
-        50 <= score < 80 and HIGH for score < 50.
-        Private manual comments are bank-only.'
+      description: BANK_EMPLOYEE only. Server-side access excludes drafts regardless of knowing their UUID. Bank
+        visibility starts only after successful submit. A draft and a missing application both return 404 application_not_found.
+        Existing check results are reused. Empty assessments use null fields and empty arrays; do not manufacture
+        a zero score. Go policy owns final decisions and categories; demo policy uses LOW for score >= 80, MEDIUM
+        for 50 <= score < 80 and HIGH for score < 50. Private manual comments are bank-only.
       x-roles:
       - BANK_EMPLOYEE
       responses:
@@ -1550,38 +1662,88 @@ paths:
               schema:
                 $ref: '#/components/schemas/BankAssessment'
               example:
-                applicationId: 40000000-0000-4000-8000-000000000001
-                status: manual_review
-                version: 7
+                processingDetails:
+                  stage: decision
+                  attemptCount: 1
+                  maxAttempts: 10
+                  recoveryCount: 1
+                  canRetry: false
+                applicationId: 7273a184-7043-48ad-9aeb-6d5c1a140de0
+                goDecision:
+                  status: approved
+                  score: 97
+                  riskLevel: LOW
+                  reasons:
+                  - Компания прошла обязательные проверки.
+                  - Низкий кредитный риск и допустимая финансовая нагрузка.
+                  manualReviewReasons: []
+                  offer:
+                    productId: turnover
+                    amountRub: 1500000
+                    termMonths: 12
+                    annualRatePercent: 22.0
+                    monthlyPaymentRub: 140392
+                    totalPaymentRub: 1684704
+                    overpaymentRub: 184704
+                  policyVersion: go-demo-v3
+                status: approved
+                version: 5
                 companyCheck:
                   status: passed
                   checks:
+                  - code: company_name
+                    passed: true
+                  - code: organization_type
+                    passed: true
+                  - code: inn_format
+                    passed: true
+                  - code: registration_number_format
+                    passed: true
+                  - code: registration_date
+                    passed: true
+                  - code: okved_format
+                    passed: true
+                  - code: director_name
+                    passed: true
                   - code: registration_active
                     passed: true
                   problems: []
-                  checkedAt: '2026-10-24T09:31:00Z'
-                  durationMs: 2
+                  checkedAt: '2026-10-24T15:15:28.914265513Z'
+                  durationMs: 0
                   simulation: true
                 creditHistory:
-                  existingDebtRub: 1200000
-                  existingMonthlyPaymentsRub: 180000
+                  existingDebtRub: 500000
+                  existingMonthlyPaymentsRub: 90000
                   overdueCount: 0
-                  checkedAt: '2026-10-24T09:31:00Z'
+                  checkedAt: '2026-10-24T15:15:28.914276046Z'
                   simulation: true
                 scoring:
-                  score: 62
-                  assessedAt: '2026-10-24T09:32:00Z'
-                riskLevel: MEDIUM
-                manualReviewReasons:
-                - code: policy_review_required
-                  message: Требуется подтверждение условий сотрудником банка.
-                recommendations:
-                - decision: counter_offer
+                  score: 97
+                  model: null
+                  modelVersion: null
+                  decision: approved
+                  approvedAmountRub: 1500000
                   reasons:
-                  - Рассмотреть уменьшение суммы.
+                  - Операционный поток покрывает оценочный платёж по запрошенной сумме.
+                  - В синтетической кредитной истории нет просрочек.
+                  factors:
+                    operating_cash_flow: 900000
+                    operating_margin: 0.375
+                    estimated_new_monthly_payment: 138951.76
+                    debt_service_share: 0.2544
+                    existing_debt_to_annual_revenue: 0.0174
+                    overdue_count: 0
+                  assessedAt: '2026-10-24T15:18:36.515072Z'
+                riskLevel: LOW
+                manualReviewReasons: []
+                recommendations:
+                - decision: approved
+                  reasons:
+                  - Компания прошла обязательные проверки.
+                  - Низкий кредитный риск и допустимая финансовая нагрузка.
                   offer:
-                    amountRub: 800000
-                    termMonths: 24
+                    amountRub: 1500000
+                    termMonths: 12
                 manualDecision: null
                 processing: null
         '400':
@@ -1605,19 +1767,18 @@ paths:
       - BearerAuth: []
       operationId: createManualCreditDecision
       summary: Record an employee decision for a manual-review application
-      description: 'BANK_EMPLOYEE only. Server-side access excludes
-        drafts regardless of knowing their UUID. Bank visibility starts only after successful submit. Only
-        manual_review may be decided. A draft is hidden with 404 application_not_found, before state validation.
-        Current application version and a trimmed 1..1000-character internal comment are required. approved
-        preserves submitted amount/term; counter_offer amount cannot exceed requested amount, both conditions
-        satisfy frozen product limits, and at least one changes. Frozen rate and product are unchanged;
-        backend calculates the payment and validates it against the frozen financial budget and hard product limits.
-        All decisions require the offer property; rejected requires offer=null. Employee identity comes from authentication,
-        not JSON. Application/decision/offer/event/idempotency result commit in one transaction with application
-        locking. Same key and canonical typed body replay original 201 before stale-version validation; changed body
-        gives 409 idempotency_conflict. Keys live 24 hours; state/version
-        constraints still prevent repeating the decision after expiry. Manual approval does not redefine
-        the scoring result or original risk assessment.'
+      description: BANK_EMPLOYEE only. Server-side access excludes drafts regardless of knowing their UUID. Bank
+        visibility starts only after successful submit. Only manual_review may be decided. A draft is hidden with
+        404 application_not_found, before state validation. Current application version and a trimmed 1..1000-character
+        internal comment are required. approved preserves submitted amount/term; counter_offer amount cannot exceed
+        requested amount, both conditions satisfy frozen product limits, and at least one changes. Frozen rate and
+        product are unchanged; backend calculates the payment and validates it against the frozen financial budget
+        and hard product limits. All decisions require the offer property; rejected requires offer=null. Employee
+        identity comes from authentication, not JSON. Application/decision/offer/event/idempotency result commit
+        in one transaction with application locking. Same key and canonical typed body replay original 201 before
+        stale-version validation; changed body gives 409 idempotency_conflict. Keys live 24 hours; state/version
+        constraints still prevent repeating the decision after expiry. Manual approval does not redefine the scoring
+        result or original risk assessment.
       x-roles:
       - BANK_EMPLOYEE
       parameters:
@@ -1711,6 +1872,967 @@ paths:
                 - field: offer.amountRub
                   code: out_of_range
                   message: Сумма выходит за допустимые границы.
+  /api/v1/me/companies:
+    get:
+      operationId: listMyCompanies
+      summary: Доступные компании и полномочия
+      description: 'Проверка текущих полномочий в PostgreSQL. Неизвестные поля, null, дубликаты ключей и неверный
+        UTF-8 запрещены. version — текущая версия изменяемой записи; для изменений компании — GET компании. При
+        конфликте 409 version_conflict. Повторяемые операции требуют UUID Idempotency-Key: точный повтор воспроизводит
+        ответ, другое тело даёт 409 idempotency_conflict. Аудит и изменения атомарны.'
+      x-implementation-status: implemented
+      x-roles:
+      - CLIENT
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Успешная операция
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyMemberships'
+        '400':
+          description: invalid_request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: company_not_found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: version_conflict / invalid_status / idempotency_conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: unsupported_media_type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: service_unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/companies/{companyId}/change-requests:
+    get:
+      operationId: listMyCompanyCorrections
+      summary: История запросов исправления реквизитов (последние 100)
+      description: 'Проверка текущих полномочий в PostgreSQL. Неизвестные поля, null, дубликаты ключей и неверный
+        UTF-8 запрещены. version — текущая версия изменяемой записи; для изменений компании — GET компании. При
+        конфликте 409 version_conflict. Повторяемые операции требуют UUID Idempotency-Key: точный повтор воспроизводит
+        ответ, другое тело даёт 409 idempotency_conflict. Аудит и изменения атомарны.'
+      x-implementation-status: implemented
+      x-roles:
+      - CLIENT
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Успешная операция
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyChangeRequests'
+        '400':
+          description: invalid_request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: company_not_found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: version_conflict / invalid_status / idempotency_conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: unsupported_media_type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: service_unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: companyId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: requestCompanyCorrection
+      summary: Предложить исправление регистрационных сведений
+      description: 'Проверка текущих полномочий в PostgreSQL. Неизвестные поля, null, дубликаты ключей и неверный
+        UTF-8 запрещены. version — текущая версия изменяемой записи; для изменений компании — GET компании. При
+        конфликте 409 version_conflict. Повторяемые операции требуют UUID Idempotency-Key: точный повтор воспроизводит
+        ответ, другое тело даёт 409 idempotency_conflict. Аудит и изменения атомарны.'
+      x-implementation-status: implemented
+      x-roles:
+      - CLIENT
+      security:
+      - BearerAuth: []
+      responses:
+        '201':
+          description: Успешная операция
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyChangeRequest'
+        '400':
+          description: invalid_request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: company_not_found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: version_conflict / invalid_status / idempotency_conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: unsupported_media_type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: service_unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: companyId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyChangeInput'
+  /api/v1/companies/{companyId}/financial-declarations:
+    get:
+      operationId: listMyFinancialDeclarations
+      summary: История финансовых деклараций (последние 100)
+      description: 'Проверка текущих полномочий в PostgreSQL. Неизвестные поля, null, дубликаты ключей и неверный
+        UTF-8 запрещены. version — текущая версия изменяемой записи; для изменений компании — GET компании. При
+        конфликте 409 version_conflict. Повторяемые операции требуют UUID Idempotency-Key: точный повтор воспроизводит
+        ответ, другое тело даёт 409 idempotency_conflict. Аудит и изменения атомарны.'
+      x-implementation-status: implemented
+      x-roles:
+      - CLIENT
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Успешная операция
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinancialDeclarations'
+        '400':
+          description: invalid_request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: company_not_found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: version_conflict / invalid_status / idempotency_conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: unsupported_media_type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: service_unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: companyId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: declareCompanyFinancials
+      summary: Заявить выручку и расходы без автоматического подтверждения
+      description: 'Проверка текущих полномочий в PostgreSQL. Неизвестные поля, null, дубликаты ключей и неверный
+        UTF-8 запрещены. version — текущая версия изменяемой записи; для изменений компании — GET компании. При
+        конфликте 409 version_conflict. Повторяемые операции требуют UUID Idempotency-Key: точный повтор воспроизводит
+        ответ, другое тело даёт 409 idempotency_conflict. Аудит и изменения атомарны.'
+      x-implementation-status: implemented
+      x-roles:
+      - CLIENT
+      security:
+      - BearerAuth: []
+      responses:
+        '201':
+          description: Успешная операция
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinancialDeclaration'
+        '400':
+          description: invalid_request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: company_not_found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: version_conflict / invalid_status / idempotency_conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: unsupported_media_type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: service_unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: companyId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FinancialDeclarationInput'
+  /api/v1/companies/{companyId}/change-requests/{requestId}/cancel:
+    post:
+      operationId: cancelCompanyCorrection
+      summary: Отменить ещё не рассмотренный запрос
+      description: 'Проверка текущих полномочий в PostgreSQL. Неизвестные поля, null, дубликаты ключей и неверный
+        UTF-8 запрещены. version — текущая версия изменяемой записи; для изменений компании — GET компании. При
+        конфликте 409 version_conflict. Повторяемые операции требуют UUID Idempotency-Key: точный повтор воспроизводит
+        ответ, другое тело даёт 409 idempotency_conflict. Аудит и изменения атомарны.'
+      x-implementation-status: implemented
+      x-roles:
+      - CLIENT
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Успешная операция
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyChangeRequest'
+        '400':
+          description: invalid_request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: company_not_found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: version_conflict / invalid_status / idempotency_conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: unsupported_media_type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: service_unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: companyId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: requestId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DataCancelInput'
+  /api/v1/bank/companies/{companyId}/change-requests:
+    get:
+      operationId: listBankCompanyCorrections
+      summary: История запросов исправления реквизитов (последние 100)
+      description: 'Проверка текущих полномочий в PostgreSQL. Неизвестные поля, null, дубликаты ключей и неверный
+        UTF-8 запрещены. version — текущая версия изменяемой записи; для изменений компании — GET компании. При
+        конфликте 409 version_conflict. Повторяемые операции требуют UUID Idempotency-Key: точный повтор воспроизводит
+        ответ, другое тело даёт 409 idempotency_conflict. Аудит и изменения атомарны.'
+      x-implementation-status: implemented
+      x-roles:
+      - BANK_EMPLOYEE
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Успешная операция
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyChangeRequests'
+        '400':
+          description: invalid_request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: company_not_found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: version_conflict / invalid_status / idempotency_conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: unsupported_media_type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: service_unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: companyId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /api/v1/bank/companies/{companyId}/financial-declarations:
+    get:
+      operationId: listBankFinancialDeclarations
+      summary: История финансовых деклараций (последние 100)
+      description: 'Проверка текущих полномочий в PostgreSQL. Неизвестные поля, null, дубликаты ключей и неверный
+        UTF-8 запрещены. version — текущая версия изменяемой записи; для изменений компании — GET компании. При
+        конфликте 409 version_conflict. Повторяемые операции требуют UUID Idempotency-Key: точный повтор воспроизводит
+        ответ, другое тело даёт 409 idempotency_conflict. Аудит и изменения атомарны.'
+      x-implementation-status: implemented
+      x-roles:
+      - BANK_EMPLOYEE
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Успешная операция
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinancialDeclarations'
+        '400':
+          description: invalid_request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: company_not_found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: version_conflict / invalid_status / idempotency_conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: unsupported_media_type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: service_unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: companyId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /api/v1/bank/companies/{companyId}/change-requests/{requestId}/review:
+    post:
+      operationId: reviewCompanyCorrection
+      summary: Принять или отклонить исправление реквизитов
+      description: 'Проверка текущих полномочий в PostgreSQL. Неизвестные поля, null, дубликаты ключей и неверный
+        UTF-8 запрещены. version — текущая версия изменяемой записи; для изменений компании — GET компании. При
+        конфликте 409 version_conflict. Повторяемые операции требуют UUID Idempotency-Key: точный повтор воспроизводит
+        ответ, другое тело даёт 409 idempotency_conflict. Аудит и изменения атомарны.'
+      x-implementation-status: implemented
+      x-roles:
+      - BANK_EMPLOYEE
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Успешная операция
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyChangeRequest'
+        '400':
+          description: invalid_request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: company_not_found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: version_conflict / invalid_status / idempotency_conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: unsupported_media_type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: service_unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: companyId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: requestId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DataReviewInput'
+  /api/v1/bank/companies/{companyId}/financial-declarations/{requestId}/review:
+    post:
+      operationId: reviewFinancialDeclaration
+      summary: Отдельно подтвердить или отклонить финансовые суммы
+      description: 'Проверка текущих полномочий в PostgreSQL. Неизвестные поля, null, дубликаты ключей и неверный
+        UTF-8 запрещены. version — текущая версия изменяемой записи; для изменений компании — GET компании. При
+        конфликте 409 version_conflict. Повторяемые операции требуют UUID Idempotency-Key: точный повтор воспроизводит
+        ответ, другое тело даёт 409 idempotency_conflict. Аудит и изменения атомарны.'
+      x-implementation-status: implemented
+      x-roles:
+      - BANK_EMPLOYEE
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Успешная операция
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinancialDeclaration'
+        '400':
+          description: invalid_request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: company_not_found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: version_conflict / invalid_status / idempotency_conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: unsupported_media_type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: service_unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: companyId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: requestId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DataReviewInput'
+  /api/v1/bank/companies/{companyId}/memberships:
+    get:
+      operationId: listCompanyMemberships
+      summary: Полномочия представителей компании
+      description: 'Проверка текущих полномочий в PostgreSQL. Неизвестные поля, null, дубликаты ключей и неверный
+        UTF-8 запрещены. version — текущая версия изменяемой записи; для изменений компании — GET компании. При
+        конфликте 409 version_conflict. Повторяемые операции требуют UUID Idempotency-Key: точный повтор воспроизводит
+        ответ, другое тело даёт 409 idempotency_conflict. Аудит и изменения атомарны.'
+      x-implementation-status: implemented
+      x-roles:
+      - BANK_EMPLOYEE
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Успешная операция
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyMemberships'
+        '400':
+          description: invalid_request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: company_not_found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: version_conflict / invalid_status / idempotency_conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: unsupported_media_type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: service_unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: companyId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /api/v1/bank/companies/{companyId}/memberships/{userId}:
+    put:
+      operationId: setCompanyMembership
+      summary: Предоставить, изменить или отозвать доступ
+      description: 'Проверка текущих полномочий в PostgreSQL. Неизвестные поля, null, дубликаты ключей и неверный
+        UTF-8 запрещены. version — текущая версия изменяемой записи; для изменений компании — GET компании. При
+        конфликте 409 version_conflict. Повторяемые операции требуют UUID Idempotency-Key: точный повтор воспроизводит
+        ответ, другое тело даёт 409 idempotency_conflict. Аудит и изменения атомарны.'
+      x-implementation-status: implemented
+      x-roles:
+      - BANK_EMPLOYEE
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Успешная операция
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MembershipRecord'
+        '400':
+          description: invalid_request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: company_not_found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: version_conflict / invalid_status / idempotency_conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: unsupported_media_type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: service_unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: companyId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MembershipInput'
+  /api/v1/bank/applications/{applicationId}/retry-processing:
+    post:
+      operationId: recoverFailedProcessing
+      summary: Возобновить failed job с аудитом, максимум три раза
+      description: 'Проверка текущих полномочий в PostgreSQL. Неизвестные поля, null, дубликаты ключей и неверный
+        UTF-8 запрещены. version — текущая версия изменяемой записи; для изменений компании — GET компании. При
+        конфликте 409 version_conflict. Повторяемые операции требуют UUID Idempotency-Key: точный повтор воспроизводит
+        ответ, другое тело даёт 409 idempotency_conflict. Аудит и изменения атомарны.'
+      x-implementation-status: implemented
+      x-roles:
+      - BANK_EMPLOYEE
+      security:
+      - BearerAuth: []
+      responses:
+        '202':
+          description: Успешная операция
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecoveryResponse'
+        '400':
+          description: invalid_request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: company_not_found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: version_conflict / invalid_status / idempotency_conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: unsupported_media_type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: service_unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: applicationId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecoveryInput'
 components:
   securitySchemes:
     BearerAuth:
@@ -1723,7 +2845,8 @@ components:
       name: applicationId
       in: path
       required: true
-      description: Nonzero application UUID; CLIENT access requires both owner and company match; BANK_EMPLOYEE reads only successfully submitted applications and receives 404 for draft
+      description: UUID заявки. Требуется действующее членство; чужие черновики скрыты даже от коллег компании и
+        банка. Сервис повторно проверяет права в PostgreSQL.
       schema:
         type: string
         format: uuid
@@ -1731,8 +2854,8 @@ components:
       name: applicationId
       in: path
       required: true
-      description: Nonzero UUID. CLIENT access requires both authenticated owner and company; foreign and
-        absent applications both return 404.
+      description: UUID заявки. Требуется действующее членство; чужие черновики скрыты даже от коллег компании и
+        банка. Сервис повторно проверяет права в PostgreSQL.
       schema:
         type: string
         format: uuid
@@ -1740,8 +2863,8 @@ components:
       name: applicationId
       in: path
       required: true
-      description: Nonzero UUID of a successfully submitted application. A draft and an absent application
-        both return 404 application_not_found for BANK_EMPLOYEE.
+      description: Nonzero UUID of a successfully submitted application. A draft and an absent application both
+        return 404 application_not_found for BANK_EMPLOYEE.
       schema:
         type: string
         format: uuid
@@ -1749,12 +2872,13 @@ components:
       name: Idempotency-Key
       in: header
       required: true
-      description: UUID generated once per logical new POST operation. Scoped by authenticated user, operation
-        and application. Canonical typed JSON is hashed; formatting and object-key ordering do not change identity.
-        Same canonical body/key replays original status/body before stale-version validation; changed body
-        returns 409 idempotency_conflict. Retention is 24 hours. Access and ownership are rechecked before
-        replay; state/transaction guards prevent duplicate actions after expiry. Manual decisions then conflict;
-        a completed identical offer action requires matching durable audit and original/result version. Existing submit does not require this header.
+      description: UUID generated once per logical new POST operation. Scoped by authenticated user, operation and
+        application. Canonical typed JSON is hashed; formatting and object-key ordering do not change identity.
+        Same canonical body/key replays original status/body before stale-version validation; changed body returns
+        409 idempotency_conflict. Retention is 24 hours. Access and ownership are rechecked before replay; state/transaction
+        guards prevent duplicate actions after expiry. Manual decisions then conflict; a completed identical offer
+        action requires matching durable audit and original/result version. Existing submit does not require this
+        header.
       schema:
         type: string
         format: uuid
@@ -1823,7 +2947,8 @@ components:
         companyName:
           type: string
           nullable: true
-          description: Null for BANK_EMPLOYEE
+          description: Название единственной доступной компании; null для банка, отсутствия членства или нескольких
+            компаний. Выбор компании происходит после входа через /me/companies.
           example: ИП «Лавка у дома»
     DemoProfilesResponse:
       type: object
@@ -1918,6 +3043,10 @@ components:
       - phone
       - role
       - companyId
+      - displayName
+      - legalName
+      - additionalEmail
+      - version
       properties:
         id:
           type: string
@@ -1933,7 +3062,21 @@ components:
           type: string
           format: uuid
           nullable: true
-          description: Null for BANK_EMPLOYEE
+          description: 'Совместимый контекст: UUID только при единственном активном членстве, иначе null; для банка
+            null. Не является правом доступа.'
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 160
+        legalName:
+          type: string
+        additionalEmail:
+          type: string
+          nullable: true
+        version:
+          type: integer
+          format: int64
+          minimum: 1
     Error:
       type: object
       required:
@@ -1942,8 +3085,7 @@ components:
       properties:
         error:
           type: string
-          description: Stable machine-readable error code; role middleware returns forbidden with HTTP
-            403
+          description: Stable machine-readable error code; role middleware returns forbidden with HTTP 403
         message:
           type: string
           description: Safe human-readable explanation without database or credential details
@@ -1964,6 +3106,7 @@ components:
           format: email
         address:
           type: string
+      additionalProperties: false
     CompanyFinancials:
       type: object
       required:
@@ -2040,6 +3183,19 @@ components:
           type: boolean
           enum:
           - true
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        registrationDataSource:
+          type: string
+          enum:
+          - demo_registry
+          - bank_confirmed
+        financialProvenance:
+          $ref: '#/components/schemas/FinancialProvenance'
+      description: Текущие сведения компании. financials хранит исходные/подтверждённые показатели, декларации доступны
+        отдельным GET. Наличие simulation=true не заменяет источник и статус конкретных сумм.
     CreditProduct:
       type: object
       required:
@@ -2131,8 +3287,7 @@ components:
           - seasonal
           - equipment
           - upgrade
-          - other
-          description: Other is a valid goal; currently neither product matches it.
+          description: 'Допустимая цель из каталога продукта: stock/expenses/seasonal/equipment/upgrade. other запрещён.'
         requestedAmountRub:
           type: integer
           format: int64
@@ -2153,9 +3308,15 @@ components:
           format: int64
           minimum: 0
           maximum: 1000000000000
+        companyId:
+          type: string
+          format: uuid
+          description: Явный выбор из GET /me/companies; при единственном активном членстве можно опустить. Null
+            запрещён. Сам UUID не предоставляет доступ.
+          nullable: false
       additionalProperties: false
-      description: All five fields are required, non-null. Amounts are integer rubles. companyId is forbidden;
-        the company comes from the authenticated user.
+      description: All five fields are required, non-null. Amounts are integer rubles. companyId is forbidden; the
+        company comes from the authenticated user.
       example:
         purpose: stock
         requestedAmountRub: 1500000
@@ -2181,8 +3342,8 @@ components:
           type: boolean
         affordability:
           type: boolean
-          description: True when the term is allowed and the requested rounded monthly payment does not
-            exceed the budget; independent of purpose, amount bounds and business age.
+          description: True when the term is allowed and the requested rounded monthly payment does not exceed the
+            budget; independent of purpose, amount bounds and business age.
     FinancingAdjustment:
       type: object
       required:
@@ -2223,21 +3384,21 @@ components:
           $ref: '#/components/schemas/ProductMatches'
         eligible:
           type: boolean
-          description: All five matches are true for the original request. An adjustment does not make
-            the original request eligible.
+          description: All five matches are true for the original request. An adjustment does not make the original
+            request eligible.
         preliminaryAvailableAmountRub:
           type: integer
           format: int64
           minimum: 0
-          description: floor(paymentBudget / annuityCoefficient), capped at product maximum; zero if requested
-            term is outside the product limits. Does not itself indicate eligibility.
+          description: floor(paymentBudget / annuityCoefficient), capped at product maximum; zero if requested term
+            is outside the product limits. Does not itself indicate eligibility.
         monthlyPaymentRub:
           type: integer
           format: int64
           minimum: 0
           nullable: true
-          description: Annuity payment rounded up to the next whole ruble; null if requested term is outside
-            the product limits.
+          description: Annuity payment rounded up to the next whole ruble; null if requested term is outside the
+            product limits.
         reasons:
           type: array
           items:
@@ -2262,6 +3423,7 @@ components:
       - recommendedProductId
       - disclaimer
       - simulation
+      - financialVerificationRequired
       properties:
         companyId:
           type: string
@@ -2292,14 +3454,17 @@ components:
         recommendedProductId:
           type: string
           nullable: true
-          description: Eligible product with the lowest monthly payment, then lexicographic product ID;
-            null when none is eligible. Suggested adjustments are not automatically selected.
+          description: Eligible product with the lowest monthly payment, then lexicographic product ID; null when
+            none is eligible. Suggested adjustments are not automatically selected.
         disclaimer:
           type: string
         simulation:
           type: boolean
           enum:
           - true
+        financialVerificationRequired:
+          type: boolean
+          description: Заявленные суммы требуют проверки; бюджет ограничен исходными сведениями компании.
     ApplicationStatus:
       type: string
       enum:
@@ -2312,23 +3477,23 @@ components:
       - counter_offer
       - signed
       - closed
-      description: Create and PATCH work with draft. Submit advances draft to submitted;
-        the worker advances it to processing, saves scoring and applies Go policy to produce approved,
-        rejected, counter_offer or manual_review. A bank employee resolves manual_review; CLIENT accept/decline
-        transitions an active approved/counter_offer proposal to signed/closed respectively;
-        technical errors are stored separately and never imply a credit refusal.
+      description: Create and PATCH work with draft. Submit advances draft to submitted; the worker advances it
+        to processing, saves scoring and applies Go policy to produce approved, rejected, counter_offer or manual_review.
+        A bank employee resolves manual_review; CLIENT accept/decline transitions an active approved/counter_offer
+        proposal to signed/closed respectively; technical errors are stored separately and never imply a credit
+        refusal.
     ApplicationDraftInput:
       type: object
       additionalProperties: false
-      description: All seven editable fields are optional and nullable. Empty object is
-        a valid draft. Caller-supplied owner, company, status and service fields are forbidden.
+      description: Поля анкеты необязательны и nullable. companyId — отдельный необязательный, но не nullable селектор
+        компании. При нескольких членствах его отсутствие возвращает 409 company_required.
       properties:
         productId:
           type: string
           nullable: true
           pattern: ^[a-z][a-z0-9_-]{0,31}$
-          description: Public active product code, currently turnover or investment; internal
-            product UUID is never accepted.
+          description: Public active product code, currently turnover or investment; internal product UUID is never
+            accepted.
         purpose:
           type: string
           nullable: true
@@ -2338,17 +3503,13 @@ components:
           - seasonal
           - equipment
           - upgrade
-          - other
           - null
-          description: With a selected product the purpose must be listed in its purposes.
-            other may be saved without a product; its description is not required for
-            a draft.
+          description: 'Допустимая цель из каталога продукта: stock/expenses/seasonal/equipment/upgrade. other запрещён.'
         purposeDescription:
           type: string
           nullable: true
           maxLength: 300
-          description: Trimmed nonblank text, at most 300 Unicode characters, no NUL.
-            null clears the description.
+          description: Trimmed nonblank text, at most 300 Unicode characters, no NUL. null clears the description.
         requestedAmountRub:
           type: integer
           nullable: true
@@ -2374,15 +3535,20 @@ components:
           format: int64
           minimum: 0
           maximum: 1000000000000
+        companyId:
+          type: string
+          format: uuid
+          description: Явный выбор из GET /me/companies; при единственном активном членстве можно опустить. Null
+            запрещён. Сам UUID не предоставляет доступ.
+          nullable: false
     ApplicationPatchInput:
       type: object
       additionalProperties: false
       required:
       - version
       minProperties: 2
-      description: A positive current version and at least one editable field. Missing
-        editable fields stay unchanged; explicit null clears. Updated combined values
-        must meet the selected product constraints.
+      description: A positive current version and at least one editable field. Missing editable fields stay unchanged;
+        explicit null clears. Updated combined values must meet the selected product constraints.
       properties:
         version:
           type: integer
@@ -2392,8 +3558,8 @@ components:
           type: string
           nullable: true
           pattern: ^[a-z][a-z0-9_-]{0,31}$
-          description: Public active product code, currently turnover or investment; internal
-            product UUID is never accepted.
+          description: Public active product code, currently turnover or investment; internal product UUID is never
+            accepted.
         purpose:
           type: string
           nullable: true
@@ -2403,17 +3569,13 @@ components:
           - seasonal
           - equipment
           - upgrade
-          - other
           - null
-          description: With a selected product the purpose must be listed in its purposes.
-            other may be saved without a product; its description is not required for
-            a draft.
+          description: 'Допустимая цель из каталога продукта: stock/expenses/seasonal/equipment/upgrade. other запрещён.'
         purposeDescription:
           type: string
           nullable: true
           maxLength: 300
-          description: Trimmed nonblank text, at most 300 Unicode characters, no NUL.
-            null clears the description.
+          description: Trimmed nonblank text, at most 300 Unicode characters, no NUL. null clears the description.
         requestedAmountRub:
           type: integer
           nullable: true
@@ -2474,9 +3636,8 @@ components:
           type: string
           nullable: true
           pattern: ^[a-z][a-z0-9_-]{0,31}$
-          description: Public selected product code, currently turnover or investment.
-            An existing application can retain a subsequently inactive product; writes
-            require an active product.
+          description: Public selected product code, currently turnover or investment. An existing application can
+            retain a subsequently inactive product; writes require an active product.
         purpose:
           type: string
           nullable: true
@@ -2486,17 +3647,13 @@ components:
           - seasonal
           - equipment
           - upgrade
-          - other
           - null
-          description: With a selected product the purpose must be listed in its purposes.
-            other may be saved without a product; its description is not required for
-            a draft.
+          description: 'Допустимая цель из каталога продукта: stock/expenses/seasonal/equipment/upgrade. other запрещён.'
         purposeDescription:
           type: string
           nullable: true
           maxLength: 300
-          description: Trimmed nonblank text, at most 300 Unicode characters, no NUL.
-            null clears the description.
+          description: Trimmed nonblank text, at most 300 Unicode characters, no NUL. null clears the description.
         requestedAmountRub:
           type: integer
           nullable: true
@@ -2552,9 +3709,11 @@ components:
             - submit
             - accept
             - decline
-          description: '[edit, submit] for draft; [accept, decline] in approved/counter_offer only with
-            a current active offer; [] otherwise. Submit availability does not imply successful validation;
-            completeness and mandatory documents are checked by POST submit.'
+          description: '[edit, submit] for draft; [accept, decline] in approved/counter_offer only with a current
+            active offer; [] otherwise. Submit availability does not imply successful validation; completeness and
+            mandatory documents are checked by POST submit.'
+      description: Заявка сохраняет creator userId и companyId отдельно; чужой draft скрыт. Доступ проверяется по
+        текущему членству.
     ApplicationSubmitResponse:
       type: object
       additionalProperties: false
@@ -2581,9 +3740,9 @@ components:
           enum:
           - prechecks
           - awaiting_scoring
-          description: Frozen coarse progress marker. prechecks means preliminary checks are queued/running;
-            awaiting_scoring means prechecks are durably saved, including scoring in progress or
-            already saved while the internal Decision Engine is pending. It does not prove a scoring result exists.
+          description: Frozen coarse progress marker. prechecks means preliminary checks are queued/running; awaiting_scoring
+            means prechecks are durably saved, including scoring in progress or already saved while the internal
+            Decision Engine is pending. It does not prove a scoring result exists.
     ApplicationSubmitValidationError:
       type: object
       additionalProperties: false
@@ -2637,8 +3796,7 @@ components:
           description: Public product code.
         name:
           type: string
-      description: Selected product code and display name, or null when no product is
-        selected.
+      description: Selected product code and display name, or null when no product is selected.
     ApplicationDetail:
       allOf:
       - $ref: '#/components/schemas/Application'
@@ -2651,6 +3809,8 @@ components:
             $ref: '#/components/schemas/Company'
           product:
             $ref: '#/components/schemas/ApplicationProductSummary'
+      description: Заявка сохраняет creator userId и companyId отдельно; чужой draft скрыт. Доступ проверяется по
+        текущему членству.
     ApplicationSummary:
       type: object
       required:
@@ -2663,6 +3823,7 @@ components:
       - version
       - createdAt
       - updatedAt
+      - companyId
       properties:
         applicationId:
           type: string
@@ -2671,8 +3832,7 @@ components:
           type: string
           nullable: true
           pattern: ^[a-z][a-z0-9_-]{0,31}$
-          description: Public selected product code; a saved application can retain an
-            inactive product.
+          description: Public selected product code; a saved application can retain an inactive product.
         productName:
           type: string
           nullable: true
@@ -2702,6 +3862,11 @@ components:
         updatedAt:
           type: string
           format: date-time
+        companyId:
+          type: string
+          format: uuid
+      description: Заявка сохраняет creator userId и companyId отдельно; чужой draft скрыт. Доступ проверяется по
+        текущему членству.
     ApplicationPage:
       type: object
       required:
@@ -2742,11 +3907,9 @@ components:
           format: uuid
         eventType:
           type: string
-          description: >-
-            draft_created, draft_updated, APPLICATION_SUBMITTED, PROCESSING_STARTED,
-            COMPANY_CHECK_COMPLETED, CREDIT_HISTORY_CHECK_COMPLETED, PRECHECKS_COMPLETED,
-            SCORING_STARTED, SCORING_COMPLETED, DECISION_PROCESSING_STARTED, APPLICATION_APPROVED,
-            APPLICATION_REJECTED, COUNTER_OFFER_CREATED, MANUAL_REVIEW_REQUIRED, MANUAL_DECISION_APPROVED,
+          description: draft_created, draft_updated, APPLICATION_SUBMITTED, PROCESSING_STARTED, COMPANY_CHECK_COMPLETED,
+            CREDIT_HISTORY_CHECK_COMPLETED, PRECHECKS_COMPLETED, SCORING_STARTED, SCORING_COMPLETED, DECISION_PROCESSING_STARTED,
+            APPLICATION_APPROVED, APPLICATION_REJECTED, COUNTER_OFFER_CREATED, MANUAL_REVIEW_REQUIRED, MANUAL_DECISION_APPROVED,
             MANUAL_DECISION_REJECTED, MANUAL_COUNTER_OFFER_CREATED, OFFER_ACCEPTED or OFFER_DECLINED. System events
             contain no financial results, score or private decision details.
         sequence:
@@ -2762,7 +3925,8 @@ components:
           type: string
           nullable: true
           format: uuid
-          description: Acting user for draft/submission, manual decision and client offer-action events; null for system processing events.
+          description: Acting user for draft/submission, manual decision and client offer-action events; null for
+            system processing events.
         title:
           type: string
           example: Черновик создан
@@ -2777,11 +3941,9 @@ components:
             $ref: '#/components/schemas/ApplicationEvent'
     DocumentType:
       type: string
-      description: >-
-        BANK_STATEMENT is required on turnover submit without a trusted server-controlled
-        financial source; EQUIPMENT_INVOICE is required on investment submit. Draft
-        upload permits either type without checking completeness; only ready documents
-        satisfy submit validation.
+      description: BANK_STATEMENT нужен для любого продукта без актуального подтверждения точных финансовых сумм;
+        EQUIPMENT_INVOICE is required on investment submit. Draft upload permits either type without checking completeness;
+        only ready documents satisfy submit validation.
       enum:
       - BANK_STATEMENT
       - EQUIPMENT_INVOICE
@@ -2844,8 +4006,7 @@ components:
       - rejected
       - signed
       - closed
-      description: Only submitted applications are visible to BANK_EMPLOYEE. draft is never a bank-visible
-        state.
+      description: Only submitted applications are visible to BANK_EMPLOYEE. draft is never a bank-visible state.
     RiskLevel:
       type: string
       nullable: true
@@ -2854,8 +4015,8 @@ components:
       - MEDIUM
       - HIGH
       - null
-      description: Demo risk category assigned by Go backend policy. Higher score means lower risk;
-        LOW for score >= 80, MEDIUM for 50 <= score < 80, HIGH for score < 50. null means not available.
+      description: Demo risk category assigned by Go backend policy. Higher score means lower risk; LOW for score
+        >= 80, MEDIUM for 50 <= score < 80, HIGH for score < 50. null means not available.
     CreditOutcome:
       type: string
       nullable: true
@@ -2864,8 +4025,8 @@ components:
       - counter_offer
       - rejected
       - null
-      description: Final credit decision made by Go backend; scoring recommendations are not final decisions.
-        null before a final decision, including manual_review.
+      description: Final credit decision made by Go backend; scoring recommendations are not final decisions. null
+        before a final decision, including manual_review.
     CreditOffer:
       type: object
       additionalProperties: false
@@ -2920,8 +4081,8 @@ components:
           - active
           - accepted
           - withdrawn
-      description: One current primary offer. Null when no offer exists; rejected decisions have no offer.
-        All monetary amounts are integer rubles.
+      description: One current primary offer. Null when no offer exists; rejected decisions have no offer. All monetary
+        amounts are integer rubles.
       nullable: true
     Processing:
       type: object
@@ -2953,10 +4114,10 @@ components:
         message:
           type: string
           nullable: true
-          description: Safe user-facing message. Never contains raw errors, SQL, addresses, lease data or
-            scoring payloads.
-      description: Normalized background-processing state. Null for drafts, final states and manual_review.
-        A technical failure never implies a rejected credit decision.
+          description: Safe user-facing message. Never contains raw errors, SQL, addresses, lease data or scoring
+            payloads.
+      description: Normalized background-processing state. Null for drafts, final states and manual_review. A technical
+        failure never implies a rejected credit decision.
       nullable: true
     CreditDecision:
       type: object
@@ -2983,8 +4144,7 @@ components:
           type: integer
           format: int64
           minimum: 1
-          description: Application revision used for optimistic locking; not a decision, product or offer
-            version.
+          description: Application revision used for optimistic locking; not a decision, product or offer version.
         decision:
           $ref: '#/components/schemas/CreditOutcome'
         score:
@@ -2992,16 +4152,16 @@ components:
           nullable: true
           minimum: 0
           maximum: 100
-          description: Python scoring integer scale 0..100; higher score means lower risk in the demo policy.
-            LOW >= 80, MEDIUM 50..79, HIGH < 50. null means not available, not zero.
+          description: Python scoring integer scale 0..100; higher score means lower risk in the demo policy. LOW
+            >= 80, MEDIUM 50..79, HIGH < 50. null means not available, not zero.
         riskLevel:
           $ref: '#/components/schemas/RiskLevel'
         reasons:
           type: array
           items:
             type: string
-          description: Safe client-facing reasons generated by backend. Private employee comments are not
-            exposed here.
+          description: Safe client-facing reasons generated by backend. Private employee comments are not exposed
+            here.
         assessedAt:
           type: string
           format: date-time
@@ -3016,10 +4176,10 @@ components:
           $ref: '#/components/schemas/CreditOffer'
         processing:
           $ref: '#/components/schemas/Processing'
-      description: Decision view for every client-owned application state. manual_review has decision=null
+      description: Представление решения доступной по членству заявки; чужой draft скрыт. manual_review has decision=null
         and processing=null; score and riskLevel may be present. signed/closed preserve the last credit decision.
-        Declining a proposal does not turn the bank decision into rejected. Score examples are synthetic and
-        do not define risk thresholds.
+        Declining a proposal does not turn the bank decision into rejected. Score examples are synthetic and do
+        not define risk thresholds.
     OfferActionInput:
       type: object
       additionalProperties: false
@@ -3032,13 +4192,13 @@ components:
           format: int64
           minimum: 1
           description: Current application revision. Exact idempotent replay precedes stale-version validation.
-            A completed same-offer action may repeat with its original or resulting revision if durable audit
-            confirms the actor, offer and operation; any unrelated revision conflicts.
+            A completed same-offer action may repeat with its original or resulting revision if durable audit confirms
+            the actor, offer and operation; any unrelated revision conflicts.
         offerId:
           type: string
           format: uuid
-      description: The current active primary offer of the current decision. Only CLIENT owner in the same
-        company may act.
+      description: The current active primary offer of the current decision. Действовать может CLIENT с членством
+        OWNER/AUTHORIZED_REPRESENTATIVE в компании заявки.
     ManualOfferInput:
       type: object
       additionalProperties: false
@@ -3055,15 +4215,14 @@ components:
           type: integer
           minimum: 1
           maximum: 120
-      description: Product and fixed rate come from the submitted snapshot. Amount and term must be within
-        its product limits; monthly payment is calculated by backend.
+      description: Product and fixed rate come from the submitted snapshot. Amount and term must be within its product
+        limits; monthly payment is calculated by backend.
     ApprovedDecisionInput:
       type: object
       additionalProperties: false
       required:
       - version
       - decision
-      - comment
       - offer
       properties:
         version:
@@ -3082,14 +4241,35 @@ components:
             Never copied automatically to client-facing reasons.'
         offer:
           $ref: '#/components/schemas/ManualOfferInput'
+        internalComment:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: Банковский внутренний комментарий. Передайте ровно одно из internalComment и совместимого
+            comment.
+        customerExplanation:
+          type: string
+          maxLength: 1000
+          description: Публичное объяснение клиенту; пробелы по краям удаляются. Отсутствие или пустой текст включает
+            стандартную содержательную причину.
       description: Both amountRub and termMonths must equal the original submitted request.
+      oneOf:
+      - required:
+        - comment
+        not:
+          required:
+          - internalComment
+      - required:
+        - internalComment
+        not:
+          required:
+          - comment
     CounterOfferDecisionInput:
       type: object
       additionalProperties: false
       required:
       - version
       - decision
-      - comment
       - offer
       properties:
         version:
@@ -3108,15 +4288,36 @@ components:
             Never copied automatically to client-facing reasons.'
         offer:
           $ref: '#/components/schemas/ManualOfferInput'
-      description: Amount must not exceed the original requested amount; amount and term must satisfy frozen
-        product limits; at least one must differ. Rate stays fixed.
+        internalComment:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: Банковский внутренний комментарий. Передайте ровно одно из internalComment и совместимого
+            comment.
+        customerExplanation:
+          type: string
+          maxLength: 1000
+          description: Публичное объяснение клиенту; пробелы по краям удаляются. Отсутствие или пустой текст включает
+            стандартную содержательную причину.
+      description: Amount must not exceed the original requested amount; amount and term must satisfy frozen product
+        limits; at least one must differ. Rate stays fixed.
+      oneOf:
+      - required:
+        - comment
+        not:
+          required:
+          - internalComment
+      - required:
+        - internalComment
+        not:
+          required:
+          - comment
     RejectedDecisionInput:
       type: object
       additionalProperties: false
       required:
       - version
       - decision
-      - comment
       - offer
       properties:
         version:
@@ -3138,7 +4339,29 @@ components:
           nullable: true
           enum:
           - null
+        internalComment:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: Банковский внутренний комментарий. Передайте ровно одно из internalComment и совместимого
+            comment.
+        customerExplanation:
+          type: string
+          maxLength: 1000
+          description: Публичное объяснение клиенту; пробелы по краям удаляются. Отсутствие или пустой текст включает
+            стандартную содержательную причину.
       description: 'No proposal is allowed: offer must be null.'
+      oneOf:
+      - required:
+        - comment
+        not:
+          required:
+          - internalComment
+      - required:
+        - internalComment
+        not:
+          required:
+          - comment
     ManualDecisionInput:
       type: object
       oneOf:
@@ -3266,8 +4489,8 @@ components:
           type: integer
           minimum: 0
           maximum: 2147483647
-      description: Filtered total before pagination. Ordered by createdAt DESC, applicationId DESC. With no
-        status filter all eight bank-visible statuses are included, never draft.
+      description: Filtered total before pagination. Ordered by createdAt DESC, applicationId DESC. With no status
+        filter all eight bank-visible statuses are included, never draft.
     BankApplicationDetail:
       type: object
       additionalProperties: false
@@ -3307,8 +4530,8 @@ components:
         productId:
           type: string
           pattern: ^[a-z][a-z0-9_-]{0,31}$
-          description: Public selected product code, currently turnover or investment. An existing application
-            can retain a subsequently inactive product; writes require an active product.
+          description: Public selected product code, currently turnover or investment. An existing application can
+            retain a subsequently inactive product; writes require an active product.
         purpose:
           type: string
           enum:
@@ -3317,15 +4540,13 @@ components:
           - seasonal
           - equipment
           - upgrade
-          - other
-          description: Submitted purpose validated against the product snapshot. other requires a nonblank
-            purposeDescription at submit.
+          description: 'Допустимая цель из каталога продукта: stock/expenses/seasonal/equipment/upgrade. other запрещён.'
         purposeDescription:
           type: string
           nullable: true
           maxLength: 300
-          description: Submitted explanation, at most 300 Unicode characters, no NUL. Null when no explanation
-            was supplied for a purpose other than other.
+          description: Submitted explanation, at most 300 Unicode characters, no NUL. Null when no explanation was
+            supplied for a purpose other than other.
         requestedAmountRub:
           type: integer
           format: int64
@@ -3481,6 +4702,12 @@ components:
       required:
       - score
       - assessedAt
+      - model
+      - modelVersion
+      - decision
+      - approvedAmountRub
+      - reasons
+      - factors
       properties:
         score:
           type: integer
@@ -3489,8 +4716,30 @@ components:
         assessedAt:
           type: string
           format: date-time
-      description: Normalized existing scoring result, not a final credit decision. Demo policy treats higher
-        score as lower risk; LOW >= 80, MEDIUM 50..79, HIGH < 50.
+        model:
+          type: string
+          nullable: true
+        modelVersion:
+          type: string
+          nullable: true
+        decision:
+          type: string
+          enum:
+          - approved
+          - counter_offer
+          - rejected
+        approvedAmountRub:
+          type: integer
+          format: int64
+          minimum: 0
+        reasons:
+          type: array
+          items:
+            type: string
+        factors:
+          $ref: '#/components/schemas/ScoringFactors'
+      description: 'Сохранённый ответ Python. model/modelVersion=null: сервис не передаёт достоверные метаданные.
+        GET не запускает scoring повторно.'
       nullable: true
     AssessmentRecommendation:
       type: object
@@ -3526,8 +4775,7 @@ components:
               type: integer
               minimum: 1
               maximum: 120
-      description: 'Advisory Go-policy recommendation. Not an active CreditOffer: no offerId. For rejected,
-        offer=null.'
+      description: 'Advisory Go-policy recommendation. Not an active CreditOffer: no offerId. For rejected, offer=null.'
     ManualDecisionAudit:
       type: object
       additionalProperties: false
@@ -3536,6 +4784,8 @@ components:
       - comment
       - reviewedBy
       - reviewedAt
+      - internalComment
+      - customerExplanation
       properties:
         decision:
           type: string
@@ -3553,6 +4803,14 @@ components:
         reviewedAt:
           type: string
           format: date-time
+        internalComment:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        customerExplanation:
+          type: string
+          minLength: 1
+          maxLength: 1000
       description: Bank-only audit of a manual final decision. Null before a manual decision.
       nullable: true
     BankAssessment:
@@ -3570,6 +4828,8 @@ components:
       - recommendations
       - manualDecision
       - processing
+      - goDecision
+      - processingDetails
       properties:
         applicationId:
           type: string
@@ -3600,10 +4860,13 @@ components:
           $ref: '#/components/schemas/ManualDecisionAudit'
         processing:
           $ref: '#/components/schemas/Processing'
-      description: Bank-only normalized assessment of a submitted application. Draft returns 404. Missing
-        results are null; missing reason/recommendation lists are []. Risk policy is authoritative in Go;
-        Python scoring provides recommendations. No raw service response or private infrastructure details
-        are exposed.
+        goDecision:
+          $ref: '#/components/schemas/GoAssessmentResult'
+        processingDetails:
+          $ref: '#/components/schemas/ProcessingDetails'
+      description: Bank-only normalized assessment of a submitted application. Draft returns 404. Missing results
+        are null; missing reason/recommendation lists are []. Risk policy is authoritative in Go; Python scoring
+        provides recommendations. No raw service response or private infrastructure details are exposed.
     DecisionValidationError:
       type: object
       additionalProperties: false
@@ -3631,7 +4894,7 @@ components:
             properties:
               field:
                 type: string
-                description: comment, offer.amountRub or offer.termMonths.
+                description: comment, customerExplanation, financials, offer.amountRub или offer.termMonths.
               code:
                 type: string
                 enum:
@@ -3639,14 +4902,757 @@ components:
                 - out_of_range
                 - invalid_value
                 - unchanged_offer
+                - verification_required
               message:
                 type: string
-      description: Business validation failures; the application, decision, offer, timeline and idempotency
-        result are not partially committed.
+      description: Business validation failures; the application, decision, offer, timeline and idempotency result
+        are not partially committed.
+    MembershipRole:
+      type: string
+      enum:
+      - OWNER
+      - AUTHORIZED_REPRESENTATIVE
+      - VIEWER
+    CompanyMembership:
+      type: object
+      additionalProperties: false
+      required:
+      - membershipId
+      - userId
+      - companyId
+      - companyName
+      - organizationType
+      - membershipRole
+      - status
+      - version
+      - availableActions
+      properties:
+        membershipId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        companyId:
+          type: string
+          format: uuid
+        companyName:
+          type: string
+        organizationType:
+          type: string
+        membershipRole:
+          $ref: '#/components/schemas/MembershipRole'
+        status:
+          type: string
+          enum:
+          - active
+          - revoked
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        availableActions:
+          type: array
+          items:
+            type: string
+    CompanyMemberships:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CompanyMembership'
+    MembershipInput:
+      type: object
+      additionalProperties: false
+      required:
+      - version
+      - membershipRole
+      - status
+      - reason
+      properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 0
+        membershipRole:
+          $ref: '#/components/schemas/MembershipRole'
+        status:
+          type: string
+          enum:
+          - active
+          - revoked
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+    MembershipRecord:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - userId
+      - companyId
+      - membershipRole
+      - status
+      - version
+      - createdAt
+      - updatedAt
+      - revokedAt
+      - grantedBy
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        companyId:
+          type: string
+          format: uuid
+        membershipRole:
+          $ref: '#/components/schemas/MembershipRole'
+        status:
+          type: string
+          enum:
+          - active
+          - revoked
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        revokedAt:
+          type: string
+          format: date-time
+          nullable: true
+        grantedBy:
+          type: string
+          format: uuid
+          nullable: true
+    ProfilePatchInput:
+      type: object
+      additionalProperties: false
+      required:
+      - version
+      properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 160
+        additionalEmail:
+          type: string
+          maxLength: 254
+      description: Хотя бы displayName или additionalEmail. Пустой additionalEmail очищает контакт. Телефон входа,
+        legalName, роли и членство здесь неизменяемы.
+    CompanyContactPatchInput:
+      type: object
+      additionalProperties: false
+      required:
+      - version
+      - contact
+      properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        contact:
+          $ref: '#/components/schemas/CompanyContact'
+    FinancialProvenance:
+      type: object
+      additionalProperties: false
+      required:
+      - declarationId
+      - source
+      - status
+      - monthlyRevenueRub
+      - monthlyExpensesRub
+      - receivedAt
+      - verifiedAt
+      - declaredBy
+      - reviewedBy
+      - supportingDocumentId
+      properties:
+        declarationId:
+          type: string
+          format: uuid
+        source:
+          type: string
+          enum:
+          - demo_bank_feed
+          - client_declared
+          - legacy_unverified
+          - bank_confirmed
+        status:
+          type: string
+          enum:
+          - verified
+          - pending_review
+          - rejected
+        monthlyRevenueRub:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 1000000000000
+        monthlyExpensesRub:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 1000000000000
+        receivedAt:
+          type: string
+          format: date-time
+        verifiedAt:
+          type: string
+          format: date-time
+          nullable: true
+        declaredBy:
+          type: string
+          format: uuid
+          nullable: true
+        reviewedBy:
+          type: string
+          format: uuid
+          nullable: true
+        supportingDocumentId:
+          type: string
+          format: uuid
+          nullable: true
+    CompanyContactPatchResponse:
+      type: object
+      additionalProperties: false
+      required:
+      - companyId
+      - version
+      - contact
+      properties:
+        companyId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        contact:
+          $ref: '#/components/schemas/CompanyContact'
+    RegistrationChanges:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 160
+        inn:
+          type: string
+          pattern: ^([0-9]{10}|[0-9]{12})$
+        registrationNumber:
+          type: string
+          pattern: ^([0-9]{13}|[0-9]{15})$
+        registrationDate:
+          type: string
+          format: date
+        okved:
+          type: string
+          pattern: ^[0-9]{2}(\.[0-9]{1,2}){0,2}$
+        directorName:
+          type: string
+          minLength: 1
+          maxLength: 160
+      minProperties: 1
+    CompanyChangeInput:
+      type: object
+      additionalProperties: false
+      required:
+      - version
+      - changes
+      - reason
+      properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        changes:
+          $ref: '#/components/schemas/RegistrationChanges'
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+    FinancialDeclarationInput:
+      type: object
+      additionalProperties: false
+      required:
+      - version
+      - monthlyRevenueRub
+      - monthlyExpensesRub
+      - reason
+      properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        monthlyRevenueRub:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 1000000000000
+        monthlyExpensesRub:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 1000000000000
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        supportingDocumentId:
+          type: string
+          format: uuid
+    DataReviewInput:
+      type: object
+      additionalProperties: false
+      required:
+      - version
+      - outcome
+      - reason
+      properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        outcome:
+          type: string
+          enum:
+          - approved
+          - rejected
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+    DataCancelInput:
+      type: object
+      additionalProperties: false
+      required:
+      - version
+      - reason
+      properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+    CompanyChangeRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - companyId
+      - initiatedBy
+      - companyVersionAtRequest
+      - version
+      - originalValues
+      - proposedValues
+      - reason
+      - status
+      - createdAt
+      - reviewedAt
+      - reviewedBy
+      - reviewComment
+      properties:
+        id:
+          type: string
+          format: uuid
+        companyId:
+          type: string
+          format: uuid
+        initiatedBy:
+          type: string
+          format: uuid
+        companyVersionAtRequest:
+          type: integer
+          format: int64
+          minimum: 1
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        originalValues:
+          $ref: '#/components/schemas/OriginalRegistrationValues'
+        proposedValues:
+          $ref: '#/components/schemas/RegistrationChanges'
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        status:
+          type: string
+          enum:
+          - pending_review
+          - approved
+          - rejected
+          - cancelled
+        createdAt:
+          type: string
+          format: date-time
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+        reviewedBy:
+          type: string
+          format: uuid
+          nullable: true
+        reviewComment:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          nullable: true
+        companyVersion:
+          type: integer
+          format: int64
+          minimum: 1
+    CompanyChangeRequests:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CompanyChangeRequest'
+    FinancialDeclaration:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - companyId
+      - monthlyRevenueRub
+      - monthlyExpensesRub
+      - source
+      - status
+      - version
+      - declaredBy
+      - supportingDocumentId
+      - reason
+      - receivedAt
+      - verifiedAt
+      - reviewedAt
+      - reviewedBy
+      - reviewComment
+      - applicationId
+      properties:
+        id:
+          type: string
+          format: uuid
+        companyId:
+          type: string
+          format: uuid
+        monthlyRevenueRub:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 1000000000000
+        monthlyExpensesRub:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 1000000000000
+        source:
+          type: string
+          enum:
+          - demo_bank_feed
+          - client_declared
+          - legacy_unverified
+        status:
+          type: string
+          enum:
+          - verified
+          - pending_review
+          - rejected
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        declaredBy:
+          type: string
+          format: uuid
+          nullable: true
+        supportingDocumentId:
+          type: string
+          format: uuid
+          nullable: true
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        receivedAt:
+          type: string
+          format: date-time
+        verifiedAt:
+          type: string
+          format: date-time
+          nullable: true
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+        reviewedBy:
+          type: string
+          format: uuid
+          nullable: true
+        reviewComment:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          nullable: true
+        applicationId:
+          type: string
+          format: uuid
+          nullable: true
+        companyVersion:
+          type: integer
+          format: int64
+          minimum: 1
+    FinancialDeclarations:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FinancialDeclaration'
+    RecoveryInput:
+      type: object
+      additionalProperties: false
+      required:
+      - version
+      - reason
+      properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+    RecoveryResponse:
+      type: object
+      additionalProperties: false
+      required:
+      - applicationId
+      - version
+      - status
+      - stage
+      - recoveryCount
+      properties:
+        applicationId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        status:
+          type: string
+          enum:
+          - submitted
+          - processing
+        stage:
+          type: string
+          enum:
+          - prechecks
+          - scoring
+          - decision
+        recoveryCount:
+          type: integer
+          minimum: 1
+          maximum: 3
+    ScoringFactors:
+      type: object
+      additionalProperties: false
+      required:
+      - operating_cash_flow
+      - operating_margin
+      - estimated_new_monthly_payment
+      - debt_service_share
+      - existing_debt_to_annual_revenue
+      - overdue_count
+      properties:
+        operating_cash_flow:
+          type: number
+        operating_margin:
+          type: number
+        estimated_new_monthly_payment:
+          type: number
+          minimum: 0
+        debt_service_share:
+          type: number
+          nullable: true
+        existing_debt_to_annual_revenue:
+          type: number
+          nullable: true
+        overdue_count:
+          type: integer
+          minimum: 0
+    GoAssessmentResult:
+      type: object
+      additionalProperties: false
+      required:
+      - status
+      - score
+      - riskLevel
+      - reasons
+      - manualReviewReasons
+      - offer
+      - policyVersion
+      properties:
+        status:
+          type: string
+          enum:
+          - approved
+          - rejected
+          - counter_offer
+          - manual_review
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        riskLevel:
+          type: string
+          enum:
+          - LOW
+          - MEDIUM
+          - HIGH
+        reasons:
+          type: array
+          items:
+            type: string
+        manualReviewReasons:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssessmentProblem'
+        offer:
+          type: object
+          nullable: true
+          additionalProperties: false
+          required:
+          - productId
+          - amountRub
+          - termMonths
+          - annualRatePercent
+          - monthlyPaymentRub
+          - totalPaymentRub
+          - overpaymentRub
+          properties:
+            productId:
+              type: string
+            amountRub:
+              type: integer
+              format: int64
+              minimum: 0
+              maximum: 1000000000000
+            termMonths:
+              type: integer
+            annualRatePercent:
+              type: number
+            monthlyPaymentRub:
+              type: integer
+              format: int64
+              minimum: 0
+            totalPaymentRub:
+              type: integer
+              format: int64
+              minimum: 0
+            overpaymentRub:
+              type: integer
+              format: int64
+              minimum: 0
+        policyVersion:
+          type: string
+      nullable: true
+    OriginalRegistrationValues:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 160
+          nullable: true
+        inn:
+          type: string
+          pattern: ^([0-9]{10}|[0-9]{12})$
+          nullable: true
+        registrationNumber:
+          type: string
+          pattern: ^([0-9]{13}|[0-9]{15})$
+          nullable: true
+        registrationDate:
+          type: string
+          format: date
+          nullable: true
+        okved:
+          type: string
+          pattern: ^[0-9]{2}(\.[0-9]{1,2}){0,2}$
+          nullable: true
+        directorName:
+          type: string
+          minLength: 1
+          maxLength: 160
+          nullable: true
+    ProcessingDetails:
+      type: object
+      nullable: true
+      additionalProperties: false
+      required:
+      - stage
+      - attemptCount
+      - maxAttempts
+      - recoveryCount
+      - canRetry
+      properties:
+        stage:
+          type: string
+          enum:
+          - prechecks
+          - scoring
+          - decision
+        attemptCount:
+          type: integer
+          minimum: 0
+        maxAttempts:
+          type: integer
+          minimum: 1
+        recoveryCount:
+          type: integer
+          minimum: 0
+          maximum: 3
+        canRetry:
+          type: boolean
+      description: 'Только банковский assessment: ограниченный бюджет попыток, число восстановлений и возможность
+        операторского повтора. Не содержит ошибок HTTP, URL, lease или секретов.'
   responses:
     InvalidRequest:
-      description: Invalid fields, UUID or JSON (invalid_request); unknown fields and trailing JSON values
-        are rejected
+      description: Invalid fields, UUID or JSON (invalid_request); unknown fields and trailing JSON values are rejected
       content:
         application/json:
           schema:
@@ -3688,7 +5694,8 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
     DocumentApplicationNotFound:
-      description: Missing application, application inaccessible to this CLIENT, or draft requested by BANK_EMPLOYEE (application_not_found)
+      description: Missing application, application inaccessible to this CLIENT, or draft requested by BANK_EMPLOYEE
+        (application_not_found)
       content:
         application/json:
           schema:
@@ -3700,8 +5707,8 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
     ApplicationNotFound:
-      description: 'Application absent or inaccessible: for CLIENT, owner/company mismatch; for BANK_EMPLOYEE,
-        includes every draft (application_not_found).'
+      description: 'Application absent or inaccessible: for CLIENT, owner/company mismatch; for BANK_EMPLOYEE, includes
+        every draft (application_not_found).'
       content:
         application/json:
           schema:

@@ -80,8 +80,14 @@ type BankDetail struct {
 	ManualReviewRequired bool                       `json:"manualReviewRequired"`
 }
 type ScoringAssessment struct {
-	Score      int       `json:"score"`
-	AssessedAt time.Time `json:"assessedAt"`
+	Score          int             `json:"score"`
+	Model          *string         `json:"model"`
+	ModelVersion   *string         `json:"modelVersion"`
+	Decision       string          `json:"decision"`
+	ApprovedAmount int64           `json:"approvedAmountRub"`
+	Reasons        []string        `json:"reasons"`
+	Factors        scoring.Factors `json:"factors"`
+	AssessedAt     time.Time       `json:"assessedAt"`
 }
 type RecommendedOffer struct {
 	AmountRub  int64 `json:"amountRub"`
@@ -93,13 +99,24 @@ type Recommendation struct {
 	Offer    *RecommendedOffer `json:"offer"`
 }
 type ManualDecision struct {
-	Decision   string    `json:"decision"`
-	Comment    string    `json:"comment"`
-	ReviewedBy string    `json:"reviewedBy"`
-	ReviewedAt time.Time `json:"reviewedAt"`
+	Decision            string    `json:"decision"`
+	Comment             string    `json:"comment"`
+	InternalComment     string    `json:"internalComment"`
+	CustomerExplanation string    `json:"customerExplanation"`
+	ReviewedBy          string    `json:"reviewedBy"`
+	ReviewedAt          time.Time `json:"reviewedAt"`
+}
+type ProcessingDetails struct {
+	Stage         string `json:"stage"`
+	AttemptCount  int    `json:"attemptCount"`
+	MaxAttempts   int    `json:"maxAttempts"`
+	RecoveryCount int    `json:"recoveryCount"`
+	CanRetry      bool   `json:"canRetry"`
 }
 type BankAssessment struct {
+	ProcessingDetails   *ProcessingDetails      `json:"processingDetails"`
 	ApplicationID       string                  `json:"applicationId"`
+	GoDecision          *decision.Result        `json:"goDecision"`
 	Status              application.Status      `json:"status"`
 	Version             int64                   `json:"version"`
 	CompanyCheck        *pipeline.CompanyCheck  `json:"companyCheck"`
@@ -128,16 +145,19 @@ type Record struct {
 	Final             *Final
 }
 type Job struct {
-	Status      string            `json:"status"`
-	Stage       string            `json:"stage"`
-	HasError    bool              `json:"hasError"`
-	AvailableAt time.Time         `json:"availableAt"`
-	LeaseUntil  *time.Time        `json:"leaseUntil"`
-	ReadAt      time.Time         `json:"readAt"`
-	Prechecks   *pipeline.Results `json:"prechecks"`
-	Scoring     *scoring.Response `json:"scoring"`
-	ScoringAt   *time.Time        `json:"scoringAt"`
-	Assessment  *Assessment       `json:"assessment"`
+	AttemptCount  int               `json:"attemptCount"`
+	MaxAttempts   int               `json:"maxAttempts"`
+	RecoveryCount int               `json:"recoveryCount"`
+	Status        string            `json:"status"`
+	Stage         string            `json:"stage"`
+	HasError      bool              `json:"hasError"`
+	AvailableAt   time.Time         `json:"availableAt"`
+	LeaseUntil    *time.Time        `json:"leaseUntil"`
+	ReadAt        time.Time         `json:"readAt"`
+	Prechecks     *pipeline.Results `json:"prechecks"`
+	Scoring       *scoring.Response `json:"scoring"`
+	ScoringAt     *time.Time        `json:"scoringAt"`
+	Assessment    *Assessment       `json:"assessment"`
 }
 type Assessment struct {
 	SchemaVersion int             `json:"schemaVersion"`

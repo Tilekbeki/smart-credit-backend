@@ -10,11 +10,12 @@ import (
 	"smart-credit-backend/internal/application"
 )
 
-const PolicyVersion = "go-demo-v2"
+const PolicyVersion = "go-demo-v3"
 
 var ErrInvalidData = errors.New("invalid persisted decision data")
 
 type Input struct {
+	FinancialVerified bool // Set only by the repository after checking bank-confirmed evidence.
 	ApplicationID     string
 	FinancialSnapshot json.RawMessage
 	ProductSnapshot   json.RawMessage

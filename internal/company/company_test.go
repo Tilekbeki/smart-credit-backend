@@ -37,3 +37,10 @@ func TestCompanyServicePreservesRepositoryErrors(t *testing.T) {
 		}
 	}
 }
+
+func (f repositoryFunc) ResolveCompany(_ context.Context, actor, selected string, _ bool) (string, error) {
+	if actor == "own" && selected == "own" {
+		return selected, nil
+	}
+	return "", ErrForbidden
+}

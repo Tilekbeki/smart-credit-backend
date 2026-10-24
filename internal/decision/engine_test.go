@@ -65,6 +65,8 @@ func (f *fixture) input(t *testing.T) Input {
 		return raw
 	}
 	fields, history := f.snapshot.Fields, f.checks.CreditHistory
+	f.snapshot.Company.Profile.Financials.MonthlyRevenueRub = *fields.MonthlyRevenueRub
+	f.snapshot.Company.Profile.Financials.MonthlyExpensesRub = *fields.MonthlyExpensesRub
 	request := scoring.Request{ApplicationID: f.snapshot.ApplicationID, MonthlyRevenue: *fields.MonthlyRevenueRub,
 		MonthlyExpenses: *fields.MonthlyExpensesRub, ExistingDebt: history.ExistingDebtRub,
 		MonthlyDebtPayments: history.ExistingMonthlyPaymentsRub, OverdueCount: history.OverdueCount,

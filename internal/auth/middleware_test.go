@@ -48,7 +48,7 @@ func TestAuthenticationCurrentUser(t *testing.T) {
 		if err := r.Context().Err(); err != nil {
 			t.Fatalf("downstream context canceled: %v", err)
 		}
-		if !OwnsCompany(r.Context(), company) || OwnsCompany(r.Context(), "another-company") {
+		if !HasSingleCompanyContext(r.Context(), company) || HasSingleCompanyContext(r.Context(), "another-company") {
 			t.Fatal("company ownership is not scoped to the current client")
 		}
 		w.WriteHeader(http.StatusOK)
@@ -203,14 +203,14 @@ func TestRolesComeFromDatabase(t *testing.T) {
 	assertAuthError(t, w, http.StatusForbidden, "forbidden")
 }
 
-func TestOwnsCompany(t *testing.T) {
+func TestHasSingleCompanyContext(t *testing.T) {
 	company := "company-id"
-	if OwnsCompany(context.Background(), company) {
+	if HasSingleCompanyContext(context.Background(), company) {
 		t.Fatal("unauthenticated identity owns a company")
 	}
 	for _, user := range []User{{Role: RoleClient}, {Role: RoleBankEmployee, CompanyID: &company}} {
 		ctx := context.WithValue(context.Background(), userContextKey{}, user)
-		if OwnsCompany(ctx, company) {
+		if HasSingleCompanyContext(ctx, company) {
 			t.Fatal("unexpected ownership")
 		}
 	}

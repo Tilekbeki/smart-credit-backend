@@ -3,6 +3,7 @@ package decision
 import (
 	"errors"
 
+	"smart-credit-backend/internal/company"
 	"smart-credit-backend/internal/credit"
 )
 
@@ -34,6 +35,9 @@ func PrepareManual(input Input, outcome string, amount int64, term int) (*Offer,
 	}
 	if outcome != "approved" && outcome != "counter_offer" {
 		return nil, invalidManualTerm("offer.amountRub", "invalid_value", "Недопустимый вид ручного решения.")
+	}
+	if !input.FinancialVerified && !company.FinancialsVerified(data.snapshot.Company.Profile, data.snapshot.Company.FinancialDataSource, data.request.MonthlyRevenue, data.request.MonthlyExpenses) {
+		return nil, invalidManualTerm("financials", "verification_required", "Сначала подтвердите финансовую декларацию с точными суммами из снимка заявки.")
 	}
 	if len(criticalGrounds(data, input.SubmittedAt)) != 0 {
 		return nil, invalidManualTerm("offer.amountRub", "invalid_value", "Предложение не соответствует обязательным условиям кредитной политики.")

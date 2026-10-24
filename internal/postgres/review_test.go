@@ -119,6 +119,7 @@ func TestReadAPIFullPipelineAllOutcomes(t *testing.T) {
 			fields := draftFields()
 			fields.MonthlyExpensesRub = draftValue(tc.expenses)
 			pool, submit, app := submissionFixture(t, fields)
+			verifyFixtureFinancials(t, pool, draftOwner.CompanyID, fields)
 			if _, err := submit.Submit(ctx, draftOwner, app.ApplicationID, 1, nil); err != nil {
 				t.Fatal(err)
 			}
@@ -309,6 +310,7 @@ func TestBankListPrivacyFiltersSortingAndPagination(t *testing.T) {
 	ids := []string{}
 	for range 3 {
 		for _, scope := range []application.Scope{draftOwner, otherDraftOwner} {
+			verifyFixtureFinancials(t, pool, scope.CompanyID, draftFields())
 			a := createDraft(t, apps, scope, draftFields())
 			ids = append(ids, a.ApplicationID)
 			if _, err := pool.Exec(ctx, `UPDATE applications SET created_at='2026-10-24T09:00:00Z' WHERE id=$1`, a.ApplicationID); err != nil {

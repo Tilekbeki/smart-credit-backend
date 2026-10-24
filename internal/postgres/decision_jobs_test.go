@@ -192,6 +192,7 @@ func TestDecisionFullPipelineAllOutcomesAndRestart(t *testing.T) {
 			fields := draftFields()
 			fields.MonthlyExpensesRub = draftValue(tc.expenses)
 			pool, submit, app := submissionFixture(t, fields)
+			verifyFixtureFinancials(t, pool, draftOwner.CompanyID, fields)
 			if _, err := submit.Submit(context.Background(), draftOwner, app.ApplicationID, 1, nil); err != nil {
 				t.Fatal(err)
 			}

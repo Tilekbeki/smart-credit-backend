@@ -86,9 +86,9 @@ func CurrentUser(ctx context.Context) (User, bool) {
 	return user, ok
 }
 
-// OwnsCompany is intentionally restricted to clients. Bank employee access must
-// be granted explicitly by the corresponding handler's role policy.
-func OwnsCompany(ctx context.Context, companyID string) bool {
+// HasSingleCompanyContext is a deprecated display-context comparison, never an authorization
+// check. Data repositories check current PostgreSQL membership for every operation.
+func HasSingleCompanyContext(ctx context.Context, companyID string) bool {
 	user, ok := CurrentUser(ctx)
 	return ok && user.Role == RoleClient && user.CompanyID != nil && *user.CompanyID == companyID
 }

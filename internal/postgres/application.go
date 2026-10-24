@@ -12,7 +12,7 @@ import (
 	"smart-credit-backend/internal/credit"
 )
 
-// ApplicationRepository scopes every application read and write to its owner and company.
+// ApplicationRepository checks live membership and keeps drafts private to their creator.
 type ApplicationRepository struct {
 	pool    *pgxpool.Pool
 	timeout time.Duration
@@ -29,16 +29,16 @@ const applicationColumns = `a.id::text, a.owner_id::text, a.company_id::text,
 	a.monthly_revenue, a.monthly_expenses, p.name, a.status, a.version,
 	a.created_at, a.updated_at, a.submitted_at,
 	EXISTS(SELECT 1 FROM offers o WHERE o.application_id=a.id AND o.status='active' AND o.is_primary
-	 AND o.decision_id=(SELECT id FROM credit_decisions WHERE application_id=a.id ORDER BY version DESC LIMIT 1))`
+	 AND o.decision_id=(SELECT id FROM credit_decisions WHERE application_id=a.id ORDER BY version DESC LIMIT 1)),has_company_access($2,a.company_id,true)`
 
 func scanApplication(row pgx.Row) (application.Application, error) {
 	var result application.Application
-	var activeOffer bool
+	var activeOffer, writing bool
 	err := row.Scan(&result.ApplicationID, &result.UserID, &result.CompanyID,
 		&result.ProductID, &result.Purpose, &result.PurposeDescription,
 		&result.RequestedAmountRub, &result.TermMonths, &result.MonthlyRevenueRub,
 		&result.MonthlyExpensesRub, &result.ProductName, &result.Status, &result.Version,
-		&result.CreatedAt, &result.UpdatedAt, &result.SubmittedAt, &activeOffer)
+		&result.CreatedAt, &result.UpdatedAt, &result.SubmittedAt, &activeOffer, &writing)
 	if err != nil {
 		return application.Application{}, err
 	}
@@ -49,16 +49,16 @@ func scanApplication(row pgx.Row) (application.Application, error) {
 		result.SubmittedAt = &utc
 	}
 	result.AvailableActions = []string{}
-	if result.Status == application.Draft {
+	if result.Status == application.Draft && writing {
 		result.AvailableActions = []string{"edit", "submit"}
-	} else if (result.Status == application.Approved || result.Status == application.CounterOffer) && activeOffer {
+	} else if (result.Status == application.Approved || result.Status == application.CounterOffer) && activeOffer && writing {
 		result.AvailableActions = []string{"accept", "decline"}
 	}
 	return result, nil
 }
 
 func validApplicationScope(scope application.Scope) bool {
-	return validUUID(scope.UserID) && validUUID(scope.CompanyID)
+	return validUUID(scope.UserID) && (scope.CompanyID == "" || validUUID(scope.CompanyID))
 }
 
 func applicationByID(ctx context.Context, query interface {
@@ -66,7 +66,7 @@ func applicationByID(ctx context.Context, query interface {
 }, scope application.Scope, id string) (application.Application, error) {
 	result, err := scanApplication(query.QueryRow(ctx, `SELECT `+applicationColumns+`
 		FROM applications a LEFT JOIN credit_products p ON p.id=a.product_id
-		WHERE a.id=$1 AND a.owner_id=$2 AND a.company_id=$3`, id, scope.UserID, scope.CompanyID))
+		WHERE a.id=$1 AND can_read_application($2,a.id) AND ($3::uuid IS NULL OR a.company_id=$3)`, id, scope.UserID, nullableCompany(scope.CompanyID)))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return application.Application{}, application.ErrNotFound
 	}
@@ -107,7 +107,7 @@ func applicationProductID(ctx context.Context, tx pgx.Tx, fields application.Fie
 }
 
 func (r *ApplicationRepository) Create(ctx context.Context, scope application.Scope, fields application.Fields) (application.Application, error) {
-	if !validApplicationScope(scope) {
+	if r.pool == nil || !validApplicationScope(scope) {
 		return application.Application{}, application.ErrNotFound
 	}
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
@@ -117,6 +117,10 @@ func (r *ApplicationRepository) Create(ctx context.Context, scope application.Sc
 		return application.Application{}, application.ErrStorage
 	}
 	defer tx.Rollback(ctx)
+	scope.CompanyID, err = resolveCompany(ctx, tx, scope.UserID, scope.CompanyID, true)
+	if err != nil {
+		return application.Application{}, err
+	}
 	productID, err := applicationProductID(ctx, tx, fields)
 	if err != nil {
 		return application.Application{}, err
@@ -136,6 +140,9 @@ func (r *ApplicationRepository) Create(ctx context.Context, scope application.Sc
 		VALUES ($1,1,'draft_created','draft','Черновик создан',$2,clock_timestamp())`, id, scope.UserID); err != nil {
 		return application.Application{}, application.ErrStorage
 	}
+	if err := recordDraftFinancials(ctx, tx, scope, id, fields); err != nil {
+		return application.Application{}, err
+	}
 	result, err := applicationByID(ctx, tx, scope, id)
 	if err != nil {
 		return application.Application{}, err
@@ -147,7 +154,7 @@ func (r *ApplicationRepository) Create(ctx context.Context, scope application.Sc
 }
 
 func (r *ApplicationRepository) Get(ctx context.Context, scope application.Scope, id string) (application.Application, error) {
-	if !validApplicationScope(scope) || !validUUID(id) {
+	if r.pool == nil || !validApplicationScope(scope) || !validUUID(id) {
 		return application.Application{}, application.ErrNotFound
 	}
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
@@ -156,7 +163,7 @@ func (r *ApplicationRepository) Get(ctx context.Context, scope application.Scope
 }
 
 func (r *ApplicationRepository) List(ctx context.Context, scope application.Scope, filter application.ListFilter) (application.Page, error) {
-	if !validApplicationScope(scope) {
+	if r.pool == nil || !validApplicationScope(scope) {
 		return application.Page{}, application.ErrNotFound
 	}
 	if filter.Limit < 1 || filter.Limit > 100 || filter.Offset < 0 ||
@@ -176,23 +183,23 @@ func (r *ApplicationRepository) List(ctx context.Context, scope application.Scop
 		status = string(*filter.Status)
 	}
 	result := application.Page{Items: []application.Summary{}, Limit: filter.Limit, Offset: filter.Offset}
-	const scopeWhere = ` WHERE a.owner_id=$1 AND a.company_id=$2 AND ($3::text IS NULL OR a.status=$3)`
+	const scopeWhere = ` WHERE can_read_application($1,a.id) AND ($2::uuid IS NULL OR a.company_id=$2) AND ($3::text IS NULL OR a.status=$3)`
 	if err := tx.QueryRow(ctx, `SELECT count(*) FROM applications a`+scopeWhere,
-		scope.UserID, scope.CompanyID, status).Scan(&result.Total); err != nil {
+		scope.UserID, nullableCompany(scope.CompanyID), status).Scan(&result.Total); err != nil {
 		return application.Page{}, application.ErrStorage
 	}
-	rows, err := tx.Query(ctx, `SELECT a.id::text, p.code, p.name, a.amount, a.term_months,
+	rows, err := tx.Query(ctx, `SELECT a.id::text, a.company_id::text, p.code, p.name, a.amount, a.term_months,
 		a.status, a.version, a.created_at, a.updated_at
 		FROM applications a LEFT JOIN credit_products p ON p.id=a.product_id`+scopeWhere+`
 		ORDER BY a.created_at DESC, a.id DESC LIMIT $4 OFFSET $5`,
-		scope.UserID, scope.CompanyID, status, filter.Limit, filter.Offset)
+		scope.UserID, nullableCompany(scope.CompanyID), status, filter.Limit, filter.Offset)
 	if err != nil {
 		return application.Page{}, application.ErrStorage
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var item application.Summary
-		if err := rows.Scan(&item.ApplicationID, &item.ProductID, &item.ProductName,
+		if err := rows.Scan(&item.ApplicationID, &item.CompanyID, &item.ProductID, &item.ProductName,
 			&item.RequestedAmountRub, &item.TermMonths, &item.Status, &item.Version,
 			&item.CreatedAt, &item.UpdatedAt); err != nil {
 			return application.Page{}, application.ErrStorage
@@ -210,7 +217,7 @@ func (r *ApplicationRepository) List(ctx context.Context, scope application.Scop
 }
 
 func (r *ApplicationRepository) UpdateDraft(ctx context.Context, scope application.Scope, id string, expectedVersion int64, fields application.Fields) (application.Application, error) {
-	if !validApplicationScope(scope) || !validUUID(id) {
+	if r.pool == nil || !validApplicationScope(scope) || !validUUID(id) {
 		return application.Application{}, application.ErrNotFound
 	}
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
@@ -222,14 +229,16 @@ func (r *ApplicationRepository) UpdateDraft(ctx context.Context, scope applicati
 	defer tx.Rollback(ctx)
 	var status application.Status
 	var version int64
-	err = tx.QueryRow(ctx, `SELECT status, version FROM applications
-		WHERE id=$1 AND owner_id=$2 AND company_id=$3 FOR UPDATE`, id, scope.UserID, scope.CompanyID).Scan(&status, &version)
+	var actualCompany string
+	err = tx.QueryRow(ctx, `SELECT status, version,company_id::text FROM applications
+		WHERE id=$1 AND owner_id=$2 AND ($3::uuid IS NULL OR company_id=$3) AND lock_company_access($2,company_id,true) FOR UPDATE`, id, scope.UserID, nullableCompany(scope.CompanyID)).Scan(&status, &version, &actualCompany)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return application.Application{}, application.ErrNotFound
 	}
 	if err != nil {
 		return application.Application{}, application.ErrStorage
 	}
+	scope.CompanyID = actualCompany
 	if status != application.Draft {
 		return application.Application{}, application.ErrInvalidStatus
 	}
@@ -243,8 +252,8 @@ func (r *ApplicationRepository) UpdateDraft(ctx context.Context, scope applicati
 	updated, err := tx.Exec(ctx, `UPDATE applications SET product_id=$4, goal_id=$5,
 		goal_description=$6, amount=$7, term_months=$8, monthly_revenue=$9, monthly_expenses=$10,
 		version=version+1, updated_at=clock_timestamp()
-		WHERE id=$1 AND owner_id=$2 AND company_id=$3 AND status='draft' AND version=$11`,
-		id, scope.UserID, scope.CompanyID, productID, fields.Purpose, fields.PurposeDescription,
+		WHERE id=$1 AND owner_id=$2 AND ($3::uuid IS NULL OR company_id=$3) AND status='draft' AND version=$11`,
+		id, scope.UserID, nullableCompany(scope.CompanyID), productID, fields.Purpose, fields.PurposeDescription,
 		fields.RequestedAmountRub, fields.TermMonths, fields.MonthlyRevenueRub, fields.MonthlyExpensesRub, expectedVersion)
 	if err != nil {
 		return application.Application{}, application.ErrStorage
@@ -259,6 +268,9 @@ func (r *ApplicationRepository) UpdateDraft(ctx context.Context, scope applicati
 		FROM application_events WHERE application_id=$1`, id, scope.UserID); err != nil {
 		return application.Application{}, application.ErrStorage
 	}
+	if err := recordDraftFinancials(ctx, tx, scope, id, fields); err != nil {
+		return application.Application{}, err
+	}
 	result, err := applicationByID(ctx, tx, scope, id)
 	if err != nil {
 		return application.Application{}, err
@@ -270,7 +282,7 @@ func (r *ApplicationRepository) UpdateDraft(ctx context.Context, scope applicati
 }
 
 func (r *ApplicationRepository) Timeline(ctx context.Context, scope application.Scope, id string) ([]application.Event, error) {
-	if !validApplicationScope(scope) || !validUUID(id) {
+	if r.pool == nil || !validApplicationScope(scope) || !validUUID(id) {
 		return nil, application.ErrNotFound
 	}
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
@@ -282,7 +294,7 @@ func (r *ApplicationRepository) Timeline(ctx context.Context, scope application.
 	defer tx.Rollback(ctx)
 	var exists bool
 	err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM applications
-		WHERE id=$1 AND owner_id=$2 AND company_id=$3)`, id, scope.UserID, scope.CompanyID).Scan(&exists)
+		WHERE id=$1 AND can_read_application($2,id) AND ($3::uuid IS NULL OR company_id=$3))`, id, scope.UserID, nullableCompany(scope.CompanyID)).Scan(&exists)
 	if err != nil {
 		return nil, application.ErrStorage
 	}
@@ -292,8 +304,8 @@ func (r *ApplicationRepository) Timeline(ctx context.Context, scope application.
 	rows, err := tx.Query(ctx, `SELECT e.id::text, e.event_type, e.sequence, e.status,
 		e.created_at, e.actor_id::text, e.title FROM application_events e
 		JOIN applications a ON a.id=e.application_id
-		WHERE e.application_id=$1 AND a.owner_id=$2 AND a.company_id=$3 ORDER BY e.sequence`,
-		id, scope.UserID, scope.CompanyID)
+		WHERE e.application_id=$1 AND can_read_application($2,a.id) AND ($3::uuid IS NULL OR a.company_id=$3) ORDER BY e.sequence`,
+		id, scope.UserID, nullableCompany(scope.CompanyID))
 	if err != nil {
 		return nil, application.ErrStorage
 	}

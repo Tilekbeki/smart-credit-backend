@@ -157,18 +157,20 @@ func (s *Service) BankAssessment(ctx context.Context, id string) (BankAssessment
 		return v, nil
 	}
 	j := r.Job
+	v.ProcessingDetails = &ProcessingDetails{Stage: j.Stage, AttemptCount: j.AttemptCount, MaxAttempts: j.MaxAttempts, RecoveryCount: j.RecoveryCount, CanRetry: j.Status == "failed" && (a.Status == application.Submitted || a.Status == application.Processing) && j.RecoveryCount < 3 && j.Assessment == nil && r.Final == nil}
 	if j.Prechecks != nil {
 		v.CompanyCheck = &j.Prechecks.CompanyCheck
 		v.CreditHistory = &j.Prechecks.CreditHistory
 	}
 	if j.Scoring != nil && j.ScoringAt != nil {
-		v.Scoring = &ScoringAssessment{Score: j.Scoring.Score, AssessedAt: *j.ScoringAt}
+		v.Scoring = &ScoringAssessment{Score: j.Scoring.Score, AssessedAt: *j.ScoringAt, Decision: j.Scoring.Decision, ApprovedAmount: j.Scoring.ApprovedAmount, Reasons: j.Scoring.Reasons, Factors: j.Scoring.Factors}
 	}
 	if j.Assessment != nil {
 		result := j.Assessment.Result
 		if !validAssessment(j.Assessment) {
 			return BankAssessment{}, application.ErrStorage
 		}
+		v.GoDecision = &result
 		v.RiskLevel = &result.RiskLevel
 		if a.Status == application.ManualReview {
 			v.ManualReviewReasons = result.ManualReviewReasons

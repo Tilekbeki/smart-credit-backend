@@ -69,15 +69,16 @@ type ProductRecommendation struct {
 }
 
 type Result struct {
-	CompanyID                  string                  `json:"companyId"`
-	BusinessAgeMonths          int                     `json:"businessAgeMonths"`
-	SurplusRub                 int64                   `json:"surplusRub"`
-	ExistingMonthlyPaymentsRub int64                   `json:"existingMonthlyPaymentsRub"`
-	PaymentBudgetRub           int64                   `json:"paymentBudgetRub"`
-	Products                   []ProductRecommendation `json:"products"`
-	RecommendedProductID       *string                 `json:"recommendedProductId"`
-	Disclaimer                 string                  `json:"disclaimer"`
-	Simulation                 bool                    `json:"simulation"`
+	FinancialVerificationRequired bool                    `json:"financialVerificationRequired"`
+	CompanyID                     string                  `json:"companyId"`
+	BusinessAgeMonths             int                     `json:"businessAgeMonths"`
+	SurplusRub                    int64                   `json:"surplusRub"`
+	ExistingMonthlyPaymentsRub    int64                   `json:"existingMonthlyPaymentsRub"`
+	PaymentBudgetRub              int64                   `json:"paymentBudgetRub"`
+	Products                      []ProductRecommendation `json:"products"`
+	RecommendedProductID          *string                 `json:"recommendedProductId"`
+	Disclaimer                    string                  `json:"disclaimer"`
+	Simulation                    bool                    `json:"simulation"`
 }
 
 type CompanyReader interface {

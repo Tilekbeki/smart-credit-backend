@@ -120,7 +120,7 @@ func TestDocumentTypeAndRequiredTypes(t *testing.T) {
 		want     []Type
 	}{
 		{"turnover", true, []Type{}}, {"turnover", false, []Type{BankStatement}},
-		{"investment", true, []Type{EquipmentInvoice}}, {"investment", false, []Type{EquipmentInvoice}},
+		{"investment", true, []Type{EquipmentInvoice}}, {"investment", false, []Type{BankStatement, EquipmentInvoice}},
 	} {
 		actual := RequiredTypes(item.product, item.reliable)
 		if len(actual) != len(item.want) {
@@ -189,7 +189,7 @@ func TestServiceAuthorizationAndEarlyValidation(t *testing.T) {
 	}{
 		{"employee upload", employeeScope, application.Draft, nil, BankStatement, ErrForbidden},
 		{"unknown role", Scope{UserID: clientScope.UserID, CompanyID: clientScope.CompanyID, Role: "OTHER"}, application.Draft, nil, BankStatement, ErrForbidden},
-		{"missing company", Scope{UserID: clientScope.UserID, Role: auth.RoleClient}, application.Draft, nil, BankStatement, ErrForbidden},
+		{"invalid company", Scope{UserID: clientScope.UserID, CompanyID: "invalid", Role: auth.RoleClient}, application.Draft, nil, BankStatement, ErrForbidden},
 		{"foreign application", clientScope, application.Draft, ErrApplicationNotFound, BankStatement, ErrApplicationNotFound},
 		{"not draft", clientScope, application.Submitted, nil, BankStatement, ErrInvalidStatus},
 		{"invalid type", clientScope, application.Draft, nil, "OTHER", ErrInvalidInput},

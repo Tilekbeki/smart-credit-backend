@@ -35,23 +35,35 @@ func (r *CompanyCreditRepository) CompanyByID(ctx context.Context, id string) (c
 	}
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
+	tx, err := r.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	if err != nil {
+		return company.Company{}, company.ErrStorage
+	}
+	defer tx.Rollback(ctx)
 	var result company.Company
-	err := r.pool.QueryRow(ctx, `SELECT id::text, name, organization_type, inn,
+	err = tx.QueryRow(ctx, `SELECT id::text, name, organization_type, inn,
 		registration_number, to_char(registration_date, 'YYYY-MM-DD'), okved,
 		director_name, contact_phone, contact_email, contact_address,
-		monthly_revenue, monthly_expenses, existing_debt, monthly_debt_payments, overdue_count
+		monthly_revenue, monthly_expenses, existing_debt, monthly_debt_payments, overdue_count,version,registration_data_source
 		FROM companies WHERE id = $1`, id).Scan(
 		&result.ID, &result.Name, &result.OrganizationType, &result.INN,
 		&result.RegistrationNumber, &result.RegistrationDate, &result.OKVED,
 		&result.DirectorName, &result.Contact.Phone, &result.Contact.Email, &result.Contact.Address,
 		&result.Financials.MonthlyRevenueRub, &result.Financials.MonthlyExpensesRub,
 		&result.Financials.ExistingDebtRub, &result.Financials.ExistingMonthlyPaymentsRub,
-		&result.Financials.OverdueCount,
+		&result.Financials.OverdueCount, &result.Version, &result.RegistrationDataSource,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return company.Company{}, company.ErrNotFound
 	}
 	if err != nil {
+		return company.Company{}, company.ErrStorage
+	}
+	result.FinancialProvenance, err = companyProvenance(ctx, tx, id)
+	if err != nil {
+		return company.Company{}, company.ErrStorage
+	}
+	if tx.Commit(ctx) != nil {
 		return company.Company{}, company.ErrStorage
 	}
 	result.Simulation = true
@@ -112,4 +124,20 @@ func (r *CompanyCreditRepository) ProductByID(ctx context.Context, code string) 
 		return credit.Product{}, credit.ErrStorage
 	}
 	return product, nil
+}
+
+func companyProvenance(ctx context.Context, q interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}, id string) (*company.Provenance, error) {
+
+	var p company.Provenance
+	err := q.QueryRow(ctx, `SELECT id::text,CASE WHEN reviewed_by IS NOT NULL AND status='verified' THEN 'bank_confirmed' ELSE source END,status,monthly_revenue,monthly_expenses,received_at,verified_at,declared_by::text,reviewed_by::text,supporting_document_id::text
+ FROM company_financial_declarations WHERE company_id=$1 AND (source<>'demo_bank_feed' OR EXISTS(SELECT 1 FROM companies WHERE id=$1 AND financial_data_source='demo_bank_feed')) ORDER BY (status='verified') DESC,verified_at DESC NULLS LAST,received_at DESC,id DESC LIMIT 1`, id).Scan(&p.DeclarationID, &p.Source, &p.Status, &p.MonthlyRevenueRub, &p.MonthlyExpensesRub, &p.ReceivedAt, &p.VerifiedAt, &p.DeclaredBy, &p.ReviewedBy, &p.SupportingDocumentID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
 }

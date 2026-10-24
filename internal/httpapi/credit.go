@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"smart-credit-backend/internal/application"
 	"smart-credit-backend/internal/auth"
 	"smart-credit-backend/internal/company"
 	"smart-credit-backend/internal/credit"
@@ -38,11 +39,7 @@ func (h *CreditHandler) company(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	user, _ := auth.CurrentUser(r.Context())
-	if user.CompanyID == nil {
-		writeCreditError(w, company.ErrForbidden)
-		return
-	}
-	result, err := h.companies.Get(r.Context(), *user.CompanyID, id)
+	result, err := h.companies.Get(r.Context(), user.ID, id)
 	if err != nil {
 		writeCreditError(w, err)
 		return
@@ -75,11 +72,12 @@ func (h *CreditHandler) product(w http.ResponseWriter, r *http.Request) {
 
 func (h *CreditHandler) recommend(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		Purpose            *string `json:"purpose"`
-		RequestedAmountRub *int64  `json:"requestedAmountRub"`
-		TermMonths         *int    `json:"termMonths"`
-		MonthlyRevenueRub  *int64  `json:"monthlyRevenueRub"`
-		MonthlyExpensesRub *int64  `json:"monthlyExpensesRub"`
+		CompanyID          application.Optional[string] `json:"companyId"`
+		Purpose            *string                      `json:"purpose"`
+		RequestedAmountRub *int64                       `json:"requestedAmountRub"`
+		TermMonths         *int                         `json:"termMonths"`
+		MonthlyRevenueRub  *int64                       `json:"monthlyRevenueRub"`
+		MonthlyExpensesRub *int64                       `json:"monthlyExpensesRub"`
 	}
 	if !readJSON(w, r, &input) {
 		return
@@ -89,11 +87,29 @@ func (h *CreditHandler) recommend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	user, _ := auth.CurrentUser(r.Context())
-	if user.CompanyID == nil {
-		writeCreditError(w, company.ErrForbidden)
+	selected := ""
+	if input.CompanyID.Present {
+		if input.CompanyID.Value == nil {
+			writeApplicationError(w, application.ErrInvalidInput)
+			return
+		}
+		var ok bool
+		selected, ok = parseID(*input.CompanyID.Value)
+		if !ok {
+			writeApplicationError(w, application.ErrInvalidInput)
+			return
+		}
+	}
+	selected, err := h.companies.ResolveCompany(r.Context(), user.ID, selected, false)
+	if err != nil {
+		if errors.Is(err, company.ErrForbidden) {
+			writeAPIError(w, http.StatusNotFound, "company_not_found", "Компания не найдена.")
+		} else {
+			writeApplicationError(w, err)
+		}
 		return
 	}
-	result, err := h.credit.Recommend(r.Context(), *user.CompanyID, credit.Input{
+	result, err := h.credit.Recommend(r.Context(), selected, credit.Input{
 		Purpose: *input.Purpose, RequestedAmountRub: *input.RequestedAmountRub, TermMonths: *input.TermMonths,
 		MonthlyRevenueRub: *input.MonthlyRevenueRub, MonthlyExpensesRub: *input.MonthlyExpensesRub,
 	})

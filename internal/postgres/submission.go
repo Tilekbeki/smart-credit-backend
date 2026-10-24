@@ -29,7 +29,7 @@ func NewSubmissionRepository(pool *pgxpool.Pool, timeout time.Duration) *Submiss
 }
 
 func (r *SubmissionRepository) Submit(ctx context.Context, scope application.Scope, id string, expectedVersion int64, verifiedDocumentIDs []string) (pipeline.SubmitResult, error) {
-	if !validApplicationScope(scope) || !validUUID(id) {
+	if r.pool == nil || !validApplicationScope(scope) || !validUUID(id) {
 		return pipeline.SubmitResult{}, application.ErrNotFound
 	}
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
@@ -41,7 +41,7 @@ func (r *SubmissionRepository) Submit(ctx context.Context, scope application.Sco
 	defer tx.Rollback(ctx)
 	app, err := scanApplication(tx.QueryRow(ctx, `SELECT `+applicationColumns+`
 		FROM applications a LEFT JOIN credit_products p ON p.id=a.product_id
-		WHERE a.id=$1 AND a.owner_id=$2 AND a.company_id=$3 FOR UPDATE OF a`, id, scope.UserID, scope.CompanyID))
+		WHERE a.id=$1 AND a.owner_id=$2 AND ($3::uuid IS NULL OR a.company_id=$3) AND lock_company_access($2,a.company_id,true) FOR UPDATE OF a`, id, scope.UserID, nullableCompany(scope.CompanyID)))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return pipeline.SubmitResult{}, application.ErrNotFound
 	}
@@ -54,6 +54,7 @@ func (r *SubmissionRepository) Submit(ctx context.Context, scope application.Sco
 	if app.Version != expectedVersion {
 		return pipeline.SubmitResult{}, application.ErrVersionConflict
 	}
+	scope.CompanyID = app.CompanyID
 	profile, err := submissionCompany(ctx, tx, scope.CompanyID)
 	if err != nil {
 		return pipeline.SubmitResult{}, err
@@ -100,7 +101,7 @@ func (r *SubmissionRepository) Submit(ctx context.Context, scope application.Sco
 	err = tx.QueryRow(ctx, `UPDATE applications SET status='submitted', version=version+1,
 		submitted_at=clock_timestamp(), updated_at=clock_timestamp(), processing_error=NULL,
 		financial_snapshot=$4::jsonb, product_snapshot=$5::jsonb,
-		contact_name=(SELECT full_name FROM users WHERE id=$2 AND company_id=$3 AND role='CLIENT'),
+		contact_name=(SELECT full_name FROM users WHERE id=$2 AND role='CLIENT'),
 		contact_role='Предприниматель'
 		WHERE id=$1 AND owner_id=$2 AND company_id=$3 AND status='draft' AND version=$6
 		RETURNING submitted_at`, id, scope.UserID, scope.CompanyID,
@@ -159,14 +160,18 @@ func submissionCompany(ctx context.Context, tx pgx.Tx, id string) (pipeline.Comp
 		COALESCE(registration_number,''), COALESCE(to_char(registration_date,'YYYY-MM-DD'),''), COALESCE(okved,''),
 		COALESCE(director_name,''), COALESCE(contact_phone,''), COALESCE(contact_email,''), COALESCE(contact_address,''),
 		monthly_revenue, monthly_expenses, existing_debt, monthly_debt_payments, overdue_count,
-		financial_data_source, registration_status FROM companies WHERE id=$1 FOR SHARE`, id).Scan(
+		financial_data_source, registration_status,version,registration_data_source FROM companies WHERE id=$1 FOR SHARE`, id).Scan(
 		&profile.ID, &profile.Name, &profile.OrganizationType, &profile.INN,
 		&profile.RegistrationNumber, &profile.RegistrationDate, &profile.OKVED,
 		&profile.DirectorName, &profile.Contact.Phone, &profile.Contact.Email, &profile.Contact.Address,
 		&profile.Financials.MonthlyRevenueRub, &profile.Financials.MonthlyExpensesRub,
 		&profile.Financials.ExistingDebtRub, &profile.Financials.ExistingMonthlyPaymentsRub,
-		&profile.Financials.OverdueCount, &result.FinancialDataSource, &result.RegistrationStatus,
+		&profile.Financials.OverdueCount, &result.FinancialDataSource, &result.RegistrationStatus, &profile.Version, &profile.RegistrationDataSource,
 	)
+	if err != nil {
+		return pipeline.CompanySnapshot{}, pipeline.ErrStorage
+	}
+	profile.FinancialProvenance, err = companyProvenance(ctx, tx, id)
 	if err != nil {
 		return pipeline.CompanySnapshot{}, pipeline.ErrStorage
 	}

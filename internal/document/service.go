@@ -27,7 +27,7 @@ func validScope(scope Scope, write bool) bool {
 		return false
 	}
 	if scope.Role == auth.RoleClient {
-		return validKey(scope.CompanyID)
+		return scope.CompanyID == "" || validKey(scope.CompanyID)
 	}
 	return !write && scope.Role == auth.RoleBankEmployee
 }

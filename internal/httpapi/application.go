@@ -37,6 +37,7 @@ func applicationScope(r *http.Request) application.Scope {
 	if u.CompanyID != nil {
 		scope.CompanyID = *u.CompanyID
 	}
+
 	return scope
 }
 
@@ -49,7 +50,10 @@ func applicationID(w http.ResponseWriter, r *http.Request) (string, bool) {
 }
 
 func (h *ApplicationHandler) create(w http.ResponseWriter, r *http.Request) {
-	var input *application.Fields
+	var input *struct {
+		application.Fields
+		CompanyID application.Optional[string] `json:"companyId"`
+	}
 	if !readJSON(w, r, &input) {
 		return
 	}
@@ -57,8 +61,25 @@ func (h *ApplicationHandler) create(w http.ResponseWriter, r *http.Request) {
 		writeApplicationError(w, application.ErrInvalidInput)
 		return
 	}
-	result, err := h.service.Create(r.Context(), applicationScope(r), *input)
+	scope := applicationScope(r)
+	if input.CompanyID.Present {
+		if input.CompanyID.Value == nil {
+			writeApplicationError(w, application.ErrInvalidInput)
+			return
+		}
+		id, ok := parseID(*input.CompanyID.Value)
+		if !ok {
+			writeApplicationError(w, application.ErrInvalidInput)
+			return
+		}
+		scope.CompanyID = id
+	}
+	result, err := h.service.Create(r.Context(), scope, input.Fields)
 	if err != nil {
+		if errors.Is(err, application.ErrNotFound) {
+			writeAPIError(w, 404, "company_not_found", "Компания не найдена.")
+			return
+		}
 		writeApplicationError(w, err)
 		return
 	}
@@ -110,10 +131,20 @@ func (h *ApplicationHandler) list(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	filter := application.ListFilter{Limit: 20}
+	scope := applicationScope(r)
 	for key, values := range query {
 		if len(values) != 1 {
 			writeApplicationError(w, application.ErrInvalidInput)
 			return
+		}
+		if key == "companyId" {
+			id, ok := parseID(values[0])
+			if !ok {
+				writeApplicationError(w, application.ErrInvalidInput)
+				return
+			}
+			scope.CompanyID = id
+			continue
 		}
 		if key == "status" {
 			status := application.Status(values[0])
@@ -135,7 +166,7 @@ func (h *ApplicationHandler) list(w http.ResponseWriter, r *http.Request) {
 			filter.Offset = int(n)
 		}
 	}
-	result, err := h.service.List(r.Context(), applicationScope(r), filter)
+	result, err := h.service.List(r.Context(), scope, filter)
 	if err != nil {
 		writeApplicationError(w, err)
 		return
@@ -160,6 +191,8 @@ func (h *ApplicationHandler) timeline(w http.ResponseWriter, r *http.Request) {
 
 func writeApplicationError(w http.ResponseWriter, err error) {
 	switch {
+	case errors.Is(err, application.ErrCompanyRequired):
+		writeAPIError(w, 409, "company_required", "Выберите компанию явно через companyId.")
 	case errors.Is(err, application.ErrInvalidInput):
 		writeAPIError(w, http.StatusBadRequest, "invalid_request", "Проверьте поля черновика, версию и параметры пагинации.")
 	case errors.Is(err, application.ErrNotFound):

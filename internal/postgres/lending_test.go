@@ -45,6 +45,7 @@ func lendingAdditionalApplication(t *testing.T, pool *pgxpool.Pool, scope applic
 	if _, err := pool.Exec(ctx, `UPDATE companies SET financial_data_source='demo_bank_feed' WHERE id=$1`, scope.CompanyID); err != nil {
 		t.Fatal(err)
 	}
+	verifyFixtureFinancials(t, pool, scope.CompanyID, fields)
 	draft := createDraft(t, NewApplicationRepository(pool, 5*time.Second), scope, fields)
 	if _, err := NewSubmissionRepository(pool, 5*time.Second).Submit(ctx, scope, draft.ApplicationID, draft.Version, nil); err != nil {
 		t.Fatal(err)

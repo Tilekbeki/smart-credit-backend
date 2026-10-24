@@ -1,6 +1,8 @@
 package httpapi
 
 import (
+	"bytes"
+	"context"
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
@@ -8,6 +10,7 @@ import (
 	"log/slog"
 	"mime"
 	"net/http"
+	"smart-credit-backend/internal/company"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -120,6 +123,17 @@ func (h *AuthHandler) me(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, http.StatusUnauthorized, "unauthorized", "Требуется авторизация.")
 		return
 	}
+	if reader, ok := h.repo.(interface {
+		Profile(context.Context, string) (company.UserProfile, error)
+	}); ok {
+		profile, err := reader.Profile(r.Context(), user.ID)
+		if err != nil {
+			writeAuthError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, profile)
+		return
+	}
 	writeJSON(w, http.StatusOK, user)
 }
 
@@ -170,7 +184,21 @@ func readJSON(w http.ResponseWriter, r *http.Request, target any) bool {
 		return false
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 65536)
-	decoder := json.NewDecoder(r.Body)
+	raw, err := io.ReadAll(r.Body)
+	if err != nil {
+		var large *http.MaxBytesError
+		if errors.As(err, &large) {
+			writeAPIError(w, 413, "request_too_large", "Размер JSON не должен превышать 65536 байт.")
+		} else {
+			writeAPIError(w, 400, "invalid_request", "Некорректный JSON или недопустимые поля запроса.")
+		}
+		return false
+	}
+	if !utf8.Valid(raw) || !json.Valid(raw) || !uniqueLendingKeys(json.NewDecoder(bytes.NewReader(raw)), 0) {
+		writeAPIError(w, 400, "invalid_request", "Некорректный JSON или недопустимые поля запроса.")
+		return false
+	}
+	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.DisallowUnknownFields()
 	err = decoder.Decode(target)
 	if err == nil {

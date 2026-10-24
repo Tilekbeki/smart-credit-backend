@@ -60,7 +60,7 @@ func ValidateFields(fields *Fields) []FieldProblem {
 	if fields.ProductID != nil && !productCode.MatchString(*fields.ProductID) {
 		add("productId", "invalid_value")
 	}
-	if fields.Purpose != nil && !slices.Contains([]string{"stock", "expenses", "seasonal", "equipment", "upgrade", "other"}, *fields.Purpose) {
+	if fields.Purpose != nil && !slices.Contains([]string{"stock", "expenses", "seasonal", "equipment", "upgrade"}, *fields.Purpose) {
 		add("purpose", "invalid_value")
 	}
 	if fields.PurposeDescription != nil {

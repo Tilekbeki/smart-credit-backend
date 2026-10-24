@@ -126,7 +126,17 @@ func decodeFinancial(raw []byte, snapshot *financialSnapshot) error {
 	default:
 		return ErrInvalidData
 	}
-	profile, err := objectFields(companyObject["profile"], []string{"id", "name", "organizationType", "inn", "registrationNumber", "registrationDate", "okved", "directorName", "contact", "financials", "simulation"})
+	profileKeys := []string{"id", "name", "organizationType", "inn", "registrationNumber", "registrationDate", "okved", "directorName", "contact", "financials", "simulation"}
+	var profileShape map[string]json.RawMessage
+	if json.Unmarshal(companyObject["profile"], &profileShape) != nil {
+		return ErrInvalidData
+	}
+	for _, key := range []string{"version", "financialProvenance", "registrationDataSource"} {
+		if _, ok := profileShape[key]; ok {
+			profileKeys = append(profileKeys, key)
+		}
+	}
+	profile, err := objectFields(companyObject["profile"], profileKeys)
 	if err != nil {
 		return err
 	}

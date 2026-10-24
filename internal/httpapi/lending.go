@@ -53,6 +53,7 @@ func lendingCommand(w http.ResponseWriter, r *http.Request, operation string) (l
 	if u.CompanyID != nil {
 		command.CompanyID = *u.CompanyID
 	}
+
 	return command, true
 }
 
@@ -66,12 +67,31 @@ func (h *LendingHandler) manual(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var input struct {
-		Version  int64                `json:"version"`
-		Decision string               `json:"decision"`
-		Comment  string               `json:"comment"`
-		Offer    *lending.ManualOffer `json:"offer"`
+		Version             int64                `json:"version"`
+		Decision            string               `json:"decision"`
+		Comment             string               `json:"comment"`
+		InternalComment     *string              `json:"internalComment"`
+		CustomerExplanation *string              `json:"customerExplanation"`
+		Offer               *lending.ManualOffer `json:"offer"`
 	}
-	object, ok := strictLendingObject(raw, &input, []string{"version", "decision", "comment", "offer"}, "offer")
+	var shape map[string]json.RawMessage
+	_ = json.Unmarshal(raw, &shape)
+	_, legacy := shape["comment"]
+	_, modern := shape["internalComment"]
+	if legacy == modern {
+		writeLendingError(w, application.ErrInvalidInput)
+		return
+	}
+	required := []string{"version", "decision", "offer"}
+	if legacy {
+		required = append(required, "comment")
+	} else {
+		required = append(required, "internalComment")
+	}
+	if _, exists := shape["customerExplanation"]; exists {
+		required = append(required, "customerExplanation")
+	}
+	object, ok := strictLendingObject(raw, &input, required, "offer")
 	if !ok {
 		writeLendingError(w, application.ErrInvalidInput)
 		return
@@ -81,6 +101,12 @@ func (h *LendingHandler) manual(w http.ResponseWriter, r *http.Request) {
 			writeLendingError(w, application.ErrInvalidInput)
 			return
 		}
+	}
+	if input.InternalComment != nil {
+		input.Comment = *input.InternalComment
+	}
+	if input.CustomerExplanation != nil {
+		command.CustomerExplanation = *input.CustomerExplanation
 	}
 	command.Version, command.Decision, command.Comment, command.Offer = input.Version, input.Decision, input.Comment, input.Offer
 	h.execute(w, r, command)

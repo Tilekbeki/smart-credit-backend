@@ -36,17 +36,18 @@ type ManualOffer struct {
 }
 
 type Command struct {
-	ApplicationID string
-	ActorID       string
-	CompanyID     string
-	Key           string
-	Operation     string
-	RequestHash   string
-	Version       int64
-	Decision      string
-	Comment       string
-	OfferID       string
-	Offer         *ManualOffer
+	ApplicationID       string
+	ActorID             string
+	CompanyID           string
+	Key                 string
+	Operation           string
+	RequestHash         string
+	Version             int64
+	Decision            string
+	CustomerExplanation string
+	Comment             string
+	OfferID             string
+	Offer               *ManualOffer
 }
 
 type Response struct {

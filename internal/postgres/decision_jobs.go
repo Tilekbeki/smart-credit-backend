@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"smart-credit-backend/internal/application"
+	"smart-credit-backend/internal/company"
 	"smart-credit-backend/internal/credit"
 	"smart-credit-backend/internal/decision"
 	"smart-credit-backend/internal/pipeline"
@@ -190,6 +191,9 @@ func (q *PrecheckQueue) CompleteDecision(ctx context.Context, job pipeline.Job, 
 
 func offerMatchesSnapshots(result decision.Result, product credit.Product, snapshot pipeline.FinancialSnapshot) bool {
 	fields, offer := snapshot.Fields, result.Offer
+	if fields.MonthlyRevenueRub == nil || fields.MonthlyExpensesRub == nil || !company.FinancialsVerified(snapshot.Company.Profile, snapshot.Company.FinancialDataSource, *fields.MonthlyRevenueRub, *fields.MonthlyExpensesRub) {
+		return false
+	}
 	if offer == nil || fields.ProductID == nil || *fields.ProductID != product.ID || fields.RequestedAmountRub == nil || fields.TermMonths == nil {
 		return false
 	}

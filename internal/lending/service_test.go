@@ -124,7 +124,7 @@ func TestOfferActionValidationAndCanonicalIdentity(t *testing.T) {
 		if _, err := service.Execute(context.Background(), command); err != nil || repo.command.OfferID != offerID {
 			t.Fatalf("valid %s: %v", operation, err)
 		}
-		for _, change := range []func(*Command){func(c *Command) { c.CompanyID = "" }, func(c *Command) { c.OfferID = "bad" }, func(c *Command) { c.Offer = &ManualOffer{AmountRub: 1, TermMonths: 1} }, func(c *Command) { c.Comment = "injected" }, func(c *Command) { c.Decision = "approved" }} {
+		for _, change := range []func(*Command){func(c *Command) { c.CompanyID = "invalid" }, func(c *Command) { c.OfferID = "bad" }, func(c *Command) { c.Offer = &ManualOffer{AmountRub: 1, TermMonths: 1} }, func(c *Command) { c.Comment = "injected" }, func(c *Command) { c.Decision = "approved" }} {
 			c := command
 			change(&c)
 			before := repo.calls
@@ -132,5 +132,35 @@ func TestOfferActionValidationAndCanonicalIdentity(t *testing.T) {
 				t.Fatal("invalid action reached storage")
 			}
 		}
+	}
+}
+
+func TestCustomerExplanationCanonicalHash(t *testing.T) {
+	repo := new(repositoryStub)
+	service := NewService(repo)
+	c := manualCommand()
+	if _, err := service.Execute(context.Background(), c); err != nil {
+		t.Fatal(err)
+	}
+	legacyHash := repo.command.RequestHash
+	c.CustomerExplanation = "  "
+	if _, err := service.Execute(context.Background(), c); err != nil || repo.command.RequestHash != legacyHash {
+		t.Fatal("empty explanation changed the legacy hash")
+	}
+	c.CustomerExplanation = "  Условия доступны в пределах подтверждённого бюджета.  "
+	if _, err := service.Execute(context.Background(), c); err != nil {
+		t.Fatal(err)
+	}
+	newHash := repo.command.RequestHash
+	if newHash == legacyHash || repo.command.CustomerExplanation != strings.TrimSpace(c.CustomerExplanation) {
+		t.Fatal("explanation missing from normalized identity")
+	}
+	c.CustomerExplanation = strings.TrimSpace(c.CustomerExplanation)
+	if _, err := service.Execute(context.Background(), c); err != nil || repo.command.RequestHash != newHash {
+		t.Fatal("explanation normalization is unstable")
+	}
+	c.CustomerExplanation = strings.Repeat("я", 1001)
+	if _, err := service.Execute(context.Background(), c); !errors.Is(err, ErrValidation) {
+		t.Fatal("unbounded explanation accepted")
 	}
 }

@@ -47,19 +47,19 @@ func validateDocumentScope(scope document.Scope, write bool) error {
 	if scope.Role != auth.RoleClient && scope.Role != auth.RoleBankEmployee || write && scope.Role != auth.RoleClient {
 		return document.ErrForbidden
 	}
-	if !validUUID(scope.UserID) || scope.Role == auth.RoleClient && !validUUID(scope.CompanyID) {
+	if !validUUID(scope.UserID) || scope.Role == auth.RoleClient && scope.CompanyID != "" && !validUUID(scope.CompanyID) {
 		return document.ErrApplicationNotFound
 	}
 	return nil
 }
 
-// Bank visibility begins after submission. Client access always requires both
-// the application owner and the company from authentication, including drafts.
+// Bank visibility begins after submission. Clients need live membership; only
+// the creator can read or upload documents of a private draft.
 func documentScopeValues(scope document.Scope) (bool, any) {
 	if scope.Role == auth.RoleBankEmployee {
 		return true, nil
 	}
-	return false, scope.CompanyID
+	return false, nullableCompany(scope.CompanyID)
 }
 
 func checkedDocumentApplication(ctx context.Context, query interface {
@@ -67,10 +67,13 @@ func checkedDocumentApplication(ctx context.Context, query interface {
 }, scope document.Scope, id string, write, lock bool) (application.Status, error) {
 	bank, companyID := documentScopeValues(scope)
 	statement := `SELECT a.status FROM applications a WHERE a.id=$1
-		AND (($2::boolean AND a.status<>'draft' AND a.submitted_at IS NOT NULL)
-		OR (NOT $2::boolean AND a.owner_id=$3::uuid AND a.company_id=$4::uuid))`
+		AND (($2::boolean AND EXISTS(SELECT 1 FROM users WHERE id=$3 AND role='BANK_EMPLOYEE') AND a.status<>'draft' AND a.submitted_at IS NOT NULL)
+		OR (NOT $2::boolean AND can_read_application($3,a.id) AND ($4::uuid IS NULL OR a.company_id=$4)))`
+	if write && !lock {
+		statement += ` AND a.owner_id=$3 AND has_company_access($3,a.company_id,true)`
+	}
 	if lock {
-		statement += ` FOR UPDATE`
+		statement += ` AND a.owner_id=$3 AND lock_company_access($3,a.company_id,true) FOR UPDATE`
 	}
 	var status application.Status
 	err := query.QueryRow(ctx, statement, id, bank, scope.UserID, companyID).Scan(&status)
@@ -131,8 +134,8 @@ func (r *DocumentRepository) Reserve(ctx context.Context, scope document.Scope, 
 	}
 	result, err := scanDocument(tx.QueryRow(ctx, `INSERT INTO documents AS d
 		(id, application_id, document_type, original_name, content_type, size_bytes,
-		checksum_sha256, storage_key, status, uploaded_by, created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'pending',$9,clock_timestamp(),clock_timestamp())
+		checksum_sha256, storage_key, status, uploaded_by, created_at, updated_at, company_id)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'pending',$9,clock_timestamp(),clock_timestamp(),(SELECT company_id FROM applications WHERE id=$2))
 		RETURNING `+documentColumns, metadata.DocumentID, metadata.ApplicationID, string(metadata.DocumentType),
 		metadata.FileName, metadata.ContentType, metadata.SizeBytes, metadata.Checksum, metadata.StorageKey, scope.UserID))
 	if err != nil {
@@ -212,8 +215,8 @@ func (r *DocumentRepository) List(ctx context.Context, scope document.Scope, app
 	bank, companyID := documentScopeValues(scope)
 	rows, err := tx.Query(ctx, `SELECT `+documentColumns+` FROM documents d
 		JOIN applications a ON a.id=d.application_id WHERE d.application_id=$1 AND d.status='ready'
-		AND (($2::boolean AND a.status<>'draft' AND a.submitted_at IS NOT NULL)
-		OR (NOT $2::boolean AND a.owner_id=$3::uuid AND a.company_id=$4::uuid))
+		AND (($2::boolean AND EXISTS(SELECT 1 FROM users WHERE id=$3 AND role='BANK_EMPLOYEE') AND a.status<>'draft' AND a.submitted_at IS NOT NULL)
+		OR (NOT $2::boolean AND can_read_application($3,a.id) AND ($4::uuid IS NULL OR a.company_id=$4)))
 		ORDER BY d.created_at, d.id`, applicationID, bank, scope.UserID, companyID)
 	if err != nil {
 		return nil, document.ErrStorage
@@ -259,8 +262,8 @@ func (r *DocumentRepository) Get(ctx context.Context, scope document.Scope, appl
 	bank, companyID := documentScopeValues(scope)
 	result, err := scanDocument(tx.QueryRow(ctx, `SELECT `+documentColumns+` FROM documents d
 		JOIN applications a ON a.id=d.application_id WHERE d.id=$1 AND d.application_id=$2 AND d.status='ready'
-		AND (($3::boolean AND a.status<>'draft' AND a.submitted_at IS NOT NULL)
-		OR (NOT $3::boolean AND a.owner_id=$4::uuid AND a.company_id=$5::uuid))`,
+		AND (($3::boolean AND EXISTS(SELECT 1 FROM users WHERE id=$4 AND role='BANK_EMPLOYEE') AND a.status<>'draft' AND a.submitted_at IS NOT NULL)
+		OR (NOT $3::boolean AND can_read_application($4,a.id) AND ($5::uuid IS NULL OR a.company_id=$5)))`,
 		documentID, applicationID, bank, scope.UserID, companyID))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return document.Metadata{}, document.ErrNotFound
