@@ -100,10 +100,10 @@ func TestDecisionOwnDraftNullsOwnershipAndSafeErrors(t *testing.T) {
 	if json.Unmarshal(w.Body.Bytes(), &v) != nil {
 		t.Fatal("invalid decision JSON")
 	}
-	if len(v) != 11 || v["status"] != "draft" {
+	if len(v) != 12 || v["status"] != "draft" {
 		t.Fatal("CreditDecision shape")
 	}
-	for _, key := range []string{"decision", "score", "riskLevel", "assessedAt", "reviewedBy", "offer", "processing"} {
+	for _, key := range []string{"decision", "score", "riskLevel", "assessedAt", "reviewedBy", "offer", "processing", "customerExplanation"} {
 		value, exists := v[key]
 		if !exists || value != nil {
 			t.Fatalf("%s must explicitly be null", key)

@@ -16,6 +16,7 @@ import (
 	"smart-credit-backend/internal/auth"
 	"smart-credit-backend/internal/company"
 	"smart-credit-backend/internal/config"
+	"smart-credit-backend/internal/contact"
 	"smart-credit-backend/internal/credit"
 	"smart-credit-backend/internal/decision"
 	"smart-credit-backend/internal/document"
@@ -58,7 +59,8 @@ func run() error {
 	authHandler := httpapi.NewAuthHandler(authRepo, tokens, cfg.DemoOTPCode, cfg.AuthDBTimeout, logger)
 	catalogRepo := postgres.NewCompanyCreditRepository(pool, cfg.AuthDBTimeout)
 	creditHandler := httpapi.NewCreditHandler(company.NewService(catalogRepo), credit.NewService(catalogRepo, catalogRepo), auth.NewMiddleware(tokens, authRepo, cfg.AuthDBTimeout))
-	applicationHandler := httpapi.NewApplicationHandler(application.NewService(postgres.NewApplicationRepository(pool, cfg.AuthDBTimeout), catalogRepo, catalogRepo), auth.NewMiddleware(tokens, authRepo, cfg.AuthDBTimeout))
+	applicationHandler := httpapi.NewApplicationHandler(application.NewService(postgres.NewApplicationRepository(pool, cfg.AuthDBTimeout, cfg.MaxActiveDraftsPerClient), catalogRepo, catalogRepo), auth.NewMiddleware(tokens, authRepo, cfg.AuthDBTimeout))
+	contactHandler := httpapi.NewContactHandler(contact.NewService(postgres.NewContactRepository(pool, cfg.AuthDBTimeout)), auth.NewMiddleware(tokens, authRepo, cfg.AuthDBTimeout))
 	storage, err := document.NewLocalStorage(cfg.DocumentStoragePath)
 	if err != nil {
 		return errors.New("document storage initialization failed")
@@ -87,7 +89,7 @@ func run() error {
 	if err != nil {
 		return errors.New("background worker configuration is invalid")
 	}
-	server := httpapi.NewServer(cfg.HTTP, httpapi.NewHandler(pool, logger, cfg.Database.PingTimeout, authHandler, creditHandler.Register, applicationHandler.Register, documentHandler.Register, submissionHandler.Register, reviewHandler.Register, lendingHandler.Register), logger)
+	server := httpapi.NewServer(cfg.HTTP, httpapi.NewHandler(pool, logger, cfg.Database.PingTimeout, authHandler, creditHandler.Register, applicationHandler.Register, documentHandler.Register, submissionHandler.Register, reviewHandler.Register, lendingHandler.Register, contactHandler.Register), logger)
 	listener, err := net.Listen("tcp", server.Addr)
 	if err != nil {
 		return fmt.Errorf("listen HTTP: %w", err)

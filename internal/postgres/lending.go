@@ -113,7 +113,7 @@ func (r *LendingRepository) Execute(ctx context.Context, c lending.Command) (len
 func lockLendingApplication(ctx context.Context, tx pgx.Tx, c lending.Command) (lockedLendingApplication, error) {
 	var a lockedLendingApplication
 	err := tx.QueryRow(ctx, `SELECT a.owner_id::text,a.company_id::text,a.status,a.version,a.submitted_at,a.product_id::text,a.financial_snapshot,a.product_snapshot
-	 FROM applications a WHERE a.id=$1 AND (
+	 FROM applications a WHERE a.id=$1 AND a.deleted_at IS NULL AND (
 	 ($2='manual' AND a.status<>'draft' AND a.submitted_at IS NOT NULL
 	  AND EXISTS(SELECT 1 FROM users WHERE id=$3 AND role='BANK_EMPLOYEE')) OR
 	 ($2 IN ('accept','decline') AND a.owner_id=$3 AND a.company_id=$4::uuid
@@ -218,12 +218,16 @@ func manualLendingDecision(ctx context.Context, tx pgx.Tx, c lending.Command, a 
 	if tx.QueryRow(ctx, `SELECT clock_timestamp()`).Scan(&decidedAt) != nil {
 		return application.ErrStorage
 	}
-	reasons, _ := json.Marshal(manualPublicReasons(c.Decision))
+	explanation := c.CustomerExplanation
+	if explanation == "" {
+		explanation = manualPublicReasons(c.Decision)[0]
+	}
+	reasons, _ := json.Marshal([]string{explanation})
 	var decisionID string
 	err = tx.QueryRow(ctx, `INSERT INTO credit_decisions(application_id,version,source,outcome,risk_category,approved_amount,
-	 reasons,policy_version,scoring_job_id,decided_by,internal_comment,created_at)
-	 SELECT $1,COALESCE(max(version),0)+1,'MANUAL',$2,$3,$4,$5,$6,$7,$8,$9,$10 FROM credit_decisions WHERE application_id=$1 RETURNING id::text`,
-		c.ApplicationID, c.Decision, assessment.Result.RiskLevel, amount, reasons, decision.PolicyVersion, jobID, c.ActorID, c.Comment, decidedAt).Scan(&decisionID)
+ reasons,policy_version,scoring_job_id,decided_by,internal_comment,created_at,customer_explanation)
+ SELECT $1,COALESCE(max(version),0)+1,'MANUAL',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11 FROM credit_decisions WHERE application_id=$1 RETURNING id::text`,
+		c.ApplicationID, c.Decision, assessment.Result.RiskLevel, amount, reasons, decision.PolicyVersion, jobID, c.ActorID, c.Comment, decidedAt, explanation).Scan(&decisionID)
 	if err != nil {
 		return application.ErrStorage
 	}

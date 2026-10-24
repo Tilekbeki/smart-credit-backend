@@ -27,6 +27,7 @@ func (h *ApplicationHandler) Register(r chi.Router) {
 		r.Get("/api/v1/applications", h.list)
 		r.Get("/api/v1/applications/{applicationId}", h.get)
 		r.Patch("/api/v1/applications/{applicationId}", h.patch)
+		r.Delete("/api/v1/applications/{applicationId}", h.delete)
 		r.Get("/api/v1/applications/{applicationId}/timeline", h.timeline)
 	})
 }
@@ -160,6 +161,8 @@ func (h *ApplicationHandler) timeline(w http.ResponseWriter, r *http.Request) {
 
 func writeApplicationError(w http.ResponseWriter, err error) {
 	switch {
+	case errors.Is(err, application.ErrDraftLimit):
+		writeAPIError(w, http.StatusConflict, "draft_limit_reached", "Достигнут лимит активных черновиков. Удалите ненужный черновик или отправьте заполненную заявку.")
 	case errors.Is(err, application.ErrInvalidInput):
 		writeAPIError(w, http.StatusBadRequest, "invalid_request", "Проверьте поля черновика, версию и параметры пагинации.")
 	case errors.Is(err, application.ErrNotFound):
@@ -173,4 +176,28 @@ func writeApplicationError(w http.ResponseWriter, err error) {
 	default:
 		writeAPIError(w, http.StatusServiceUnavailable, "service_unavailable", "Сервис заявок временно недоступен.")
 	}
+}
+
+func (h *ApplicationHandler) delete(w http.ResponseWriter, r *http.Request) {
+	id, ok := applicationID(w, r)
+	if !ok {
+		return
+	}
+	query, err := url.ParseQuery(r.URL.RawQuery)
+	values := query["version"]
+	if err != nil || len(query) != 1 || len(values) != 1 {
+		writeApplicationError(w, application.ErrInvalidInput)
+		return
+	}
+	version, err := strconv.ParseInt(values[0], 10, 64)
+	if err != nil || version < 1 {
+		writeApplicationError(w, application.ErrInvalidInput)
+		return
+	}
+	if err := h.service.Delete(r.Context(), applicationScope(r), id, version); err != nil {
+		writeApplicationError(w, err)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(http.StatusNoContent)
 }

@@ -34,17 +34,18 @@ type Offer struct {
 }
 
 type CreditDecision struct {
-	ApplicationID string             `json:"applicationId"`
-	Status        application.Status `json:"status"`
-	Version       int64              `json:"version"`
-	Decision      *string            `json:"decision"`
-	Score         *int               `json:"score"`
-	RiskLevel     *string            `json:"riskLevel"`
-	Reasons       []string           `json:"reasons"`
-	AssessedAt    *time.Time         `json:"assessedAt"`
-	ReviewedBy    *string            `json:"reviewedBy"`
-	Offer         *Offer             `json:"offer"`
-	Processing    *Processing        `json:"processing"`
+	ApplicationID       string             `json:"applicationId"`
+	Status              application.Status `json:"status"`
+	Version             int64              `json:"version"`
+	Decision            *string            `json:"decision"`
+	Score               *int               `json:"score"`
+	RiskLevel           *string            `json:"riskLevel"`
+	Reasons             []string           `json:"reasons"`
+	AssessedAt          *time.Time         `json:"assessedAt"`
+	ReviewedBy          *string            `json:"reviewedBy"`
+	Offer               *Offer             `json:"offer"`
+	Processing          *Processing        `json:"processing"`
+	CustomerExplanation *string            `json:"customerExplanation"`
 }
 
 type CompanySummary struct {
@@ -80,8 +81,20 @@ type BankDetail struct {
 	ManualReviewRequired bool                       `json:"manualReviewRequired"`
 }
 type ScoringAssessment struct {
-	Score      int       `json:"score"`
-	AssessedAt time.Time `json:"assessedAt"`
+	Score             int              `json:"score"`
+	AssessedAt        time.Time        `json:"assessedAt"`
+	Decision          string           `json:"decision"`
+	ApprovedAmountRub int64            `json:"approvedAmountRub"`
+	Reasons           []string         `json:"reasons"`
+	Factors           *scoring.Factors `json:"factors"`
+}
+
+type GoDecision struct {
+	Decision   application.Status `json:"decision"`
+	Score      int                `json:"score"`
+	RiskLevel  string             `json:"riskLevel"`
+	Reasons    []string           `json:"reasons"`
+	AssessedAt time.Time          `json:"assessedAt"`
 }
 type RecommendedOffer struct {
 	AmountRub  int64 `json:"amountRub"`
@@ -93,10 +106,12 @@ type Recommendation struct {
 	Offer    *RecommendedOffer `json:"offer"`
 }
 type ManualDecision struct {
-	Decision   string    `json:"decision"`
-	Comment    string    `json:"comment"`
-	ReviewedBy string    `json:"reviewedBy"`
-	ReviewedAt time.Time `json:"reviewedAt"`
+	Decision            string    `json:"decision"`
+	Comment             string    `json:"comment"`
+	InternalComment     string    `json:"internalComment"`
+	CustomerExplanation string    `json:"customerExplanation"`
+	ReviewedBy          string    `json:"reviewedBy"`
+	ReviewedAt          time.Time `json:"reviewedAt"`
 }
 type BankAssessment struct {
 	ApplicationID       string                  `json:"applicationId"`
@@ -110,6 +125,7 @@ type BankAssessment struct {
 	Recommendations     []Recommendation        `json:"recommendations"`
 	ManualDecision      *ManualDecision         `json:"manualDecision"`
 	Processing          *Processing             `json:"processing"`
+	GoDecision          *GoDecision             `json:"goDecision"`
 }
 
 type Filter struct {
@@ -146,13 +162,14 @@ type Assessment struct {
 	AssessedAt    time.Time       `json:"assessedAt"`
 }
 type Final struct {
-	Outcome        string          `json:"outcome"`
-	Reasons        []string        `json:"reasons"`
-	RiskLevel      *string         `json:"riskLevel"`
-	AssessedAt     time.Time       `json:"assessedAt"`
-	ReviewedBy     *string         `json:"reviewedBy"`
-	Offer          *Offer          `json:"offer"`
-	ManualDecision *ManualDecision `json:"manualDecision"`
+	Outcome             string          `json:"outcome"`
+	Reasons             []string        `json:"reasons"`
+	RiskLevel           *string         `json:"riskLevel"`
+	AssessedAt          time.Time       `json:"assessedAt"`
+	ReviewedBy          *string         `json:"reviewedBy"`
+	Offer               *Offer          `json:"offer"`
+	ManualDecision      *ManualDecision `json:"manualDecision"`
+	CustomerExplanation *string         `json:"customerExplanation"`
 }
 type Repository interface {
 	Read(context.Context, *application.Scope, string) (Record, error)

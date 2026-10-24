@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 
@@ -87,6 +88,16 @@ func TestRealScoringPipeline(t *testing.T) {
 				t.Fatalf("backend offer differs: %+v", view.Offer)
 			}
 			before := readFingerprint(t, pool)
+			var assessment review.BankAssessment
+			readGET(t, h, "/api/v1/bank/applications/"+app.ApplicationID+"/assessment", tokens[demoEmployeeID], 200, &assessment)
+			if assessment.Scoring == nil || assessment.Scoring.Decision != result.Decision || assessment.Scoring.Score != result.Score ||
+				assessment.Scoring.ApprovedAmountRub != result.ApprovedAmount || !reflect.DeepEqual(assessment.Scoring.Reasons, result.Reasons) ||
+				!reflect.DeepEqual(assessment.Scoring.Factors, &result.Factors) || assessment.GoDecision == nil || assessment.GoDecision.Decision != tc.want {
+				t.Fatalf("bank assessment differs from persisted real Python/Go results: %+v", assessment)
+			}
+			if readFingerprint(t, pool) != before {
+				t.Fatal("assessment GET mutated persisted scoring or decisions")
+			}
 			if job, err := NewPrecheckQueue(pool, time.Second).ClaimScoring(context.Background(), time.Minute); err != nil || job != nil {
 				t.Fatal("saved scoring scheduled again after repository recreation")
 			}

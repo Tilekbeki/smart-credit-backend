@@ -28,6 +28,13 @@ func NewReviewRepository(pool *pgxpool.Pool, timeout time.Duration) *ReviewRepos
 const reviewColumns = `a.id::text,a.owner_id::text,a.company_id::text,a.status,a.version,
  a.created_at,a.updated_at,a.submitted_at,a.financial_snapshot,a.product_snapshot`
 
+// Older manual decisions have no separate explanation. Their public reason is
+// safe to reuse; an empty legacy reason still receives a nonempty public text.
+const manualExplanationSQL = `COALESCE(NULLIF(btrim(d.customer_explanation),''),NULLIF(btrim(d.reasons->>0),''),
+ CASE d.outcome WHEN 'approved' THEN 'Исходные условия кредита одобрены сотрудником банка.'
+ WHEN 'counter_offer' THEN 'Сотрудник банка предложил альтернативные условия кредита.'
+ ELSE 'По результатам рассмотрения сотрудником банка принято решение об отказе.' END)`
+
 // Correlated reads use the same statement snapshot as the application. Only the
 // latest real decision and its primary offer are selected, including closed or
 // accepted offers. Infrastructure diagnostics and lease tokens are not selected.
@@ -38,8 +45,10 @@ const reviewArtifacts = `,
   FROM jobs j WHERE j.application_id=a.id AND j.type=$4),
  (SELECT jsonb_build_object('outcome',d.outcome,'reasons',d.reasons,'riskLevel',d.risk_category,
   'assessedAt',d.created_at,'reviewedBy',d.decided_by,
+  'customerExplanation',CASE WHEN d.source='MANUAL' THEN ` + manualExplanationSQL + ` END,
   'manualDecision',CASE WHEN d.source='MANUAL' AND d.internal_comment IS NOT NULL THEN
-   jsonb_build_object('decision',d.outcome,'comment',d.internal_comment,'reviewedBy',d.decided_by,'reviewedAt',d.created_at) END,
+   jsonb_build_object('decision',d.outcome,'comment',d.internal_comment,'internalComment',d.internal_comment,
+    'customerExplanation',` + manualExplanationSQL + `,'reviewedBy',d.decided_by,'reviewedAt',d.created_at) END,
   'offer',(SELECT jsonb_build_object('offerId',o.id,'applicationId',o.application_id,
    'productId',a.product_snapshot->>'id','amountRub',o.amount,'termMonths',o.term_months,
    'annualRatePercent',o.annual_rate_percent,'monthlyPaymentRub',o.monthly_payment,'expiresAt',NULL,'status',o.status)
@@ -118,7 +127,7 @@ func readReview(ctx context.Context, query interface {
 		companyID = &scope.CompanyID
 	}
 	result, err := scanReview(query.QueryRow(ctx, `SELECT `+reviewColumns+reviewArtifacts+` FROM applications a
- WHERE a.id=$1 AND (($2::uuid IS NOT NULL AND a.owner_id=$2 AND a.company_id=$3) OR
+ WHERE a.id=$1 AND a.deleted_at IS NULL AND (($2::uuid IS NOT NULL AND a.owner_id=$2 AND a.company_id=$3) OR
  ($2::uuid IS NULL AND a.status<>'draft' AND a.submitted_at IS NOT NULL))`, id, owner, companyID, pipeline.JobType), true)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return review.Record{}, application.ErrNotFound
@@ -142,7 +151,7 @@ func (r *ReviewRepository) List(ctx context.Context, f review.Filter) ([]review.
 		return nil, 0, application.ErrStorage
 	}
 	defer tx.Rollback(ctx)
-	const where = ` FROM applications a WHERE a.status<>'draft' AND a.submitted_at IS NOT NULL
+	const where = ` FROM applications a WHERE a.deleted_at IS NULL AND a.status<>'draft' AND a.submitted_at IS NOT NULL
  AND ($1::text IS NULL OR a.status=$1) AND ($2::uuid IS NULL OR a.company_id=$2)`
 	var total int64
 	if err := tx.QueryRow(ctx, `SELECT count(*)`+where, f.Status, f.CompanyID).Scan(&total); err != nil {

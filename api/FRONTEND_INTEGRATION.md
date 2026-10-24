@@ -1,6 +1,6 @@
 # Подключение frontend к Smart Credit
 
-Все 26 операций реализованы. Источник точных DTO, nullable-полей, enum и HTTP-кодов —
+Реализованы 27 операций API v1 и проверки /health и /ready. Источник точных DTO, nullable-полей, enum и HTTP-кодов —
 [OpenAPI v1](openapi.yaml). Префикс `/api/v1`, локальный backend — `http://localhost:8080`.
 Python-прототип в backend/ имеет другой API и не используется React-приложением.
 
@@ -30,7 +30,9 @@ processing, не рисуйте кредитный отказ. Полный пе
 | POST | `/api/v1/auth/otp/request` | Публичный | IMPLEMENTED |
 | POST | `/api/v1/auth/otp/verify` | Публичный | IMPLEMENTED |
 | GET | `/api/v1/me` | CLIENT, BANK_EMPLOYEE | IMPLEMENTED |
+| PATCH | `/api/v1/me` | CLIENT, только дополнительный email | IMPLEMENTED |
 | GET | `/api/v1/companies/{companyId}` | CLIENT, своя компания | IMPLEMENTED |
+| PATCH | `/api/v1/companies/{companyId}` | CLIENT, контакты своей компании | IMPLEMENTED |
 | GET | `/api/v1/credit-products` | CLIENT, BANK_EMPLOYEE | IMPLEMENTED |
 | GET | `/api/v1/credit-products/{productId}` | CLIENT, BANK_EMPLOYEE | IMPLEMENTED |
 | POST | `/api/v1/recommendations` | CLIENT | IMPLEMENTED |
@@ -38,6 +40,7 @@ processing, не рисуйте кредитный отказ. Полный пе
 | GET | `/api/v1/applications` | CLIENT, свои заявки | IMPLEMENTED |
 | GET | `/api/v1/applications/{applicationId}` | CLIENT, своя заявка | IMPLEMENTED |
 | PATCH | `/api/v1/applications/{applicationId}` | CLIENT, свой draft | IMPLEMENTED |
+| DELETE | `/api/v1/applications/{applicationId}?version=N` | CLIENT, свой draft | IMPLEMENTED |
 | GET | `/api/v1/applications/{applicationId}/timeline` | CLIENT, своя заявка | IMPLEMENTED |
 | POST | `/api/v1/applications/{applicationId}/documents` | CLIENT, свой draft | IMPLEMENTED |
 | GET | `/api/v1/applications/{applicationId}/documents` | CLIENT — свои; BANK_EMPLOYEE — только отправленные | IMPLEMENTED |
@@ -68,6 +71,50 @@ BANK_EMPLOYEE не видит draft ни в списке, ни по UUID, ни �
 status=draft в банковском фильтре даёт 400. Другая роль получает 403, отсутствие
 или некорректный JWT — 401. Банк не редактирует и не отправляет клиентскую анкету.
 
+## Редактирование контактов
+
+У CLIENT ровно одна компания: используйте companyId из `/me`. Выбор компании и
+дополнительные роли не предусмотрены. `/me` теперь также возвращает
+`additionalEmail: string|null` и `version`. Юридическое имя `name`, номер OTP-входа
+`phone`, ID, роль и companyId остаются неизменяемыми.
+
+```http
+PATCH /api/v1/me
+Content-Type: application/json
+Authorization: Bearer <accessToken>
+
+{"version":1,"additionalEmail":"owner@example.test"}
+```
+
+Для удаления дополнительного email передайте null; пустая строка не допускается.
+Email указывается без отображаемого имени. После успешного ответа сохраните новую
+пользовательскую version. Версия компании и версия заявки считаются отдельно.
+
+GET `/companies/{companyId}` возвращает актуальную `version` компании. PATCH
+принимает только вложенные поля существующего объекта contact:
+
+```http
+PATCH /api/v1/companies/{companyId}
+Content-Type: application/json
+Authorization: Bearer <accessToken>
+
+{"version":1,"contact":{"phone":"+79990000099","email":"office@example.test","address":"Адрес для связи"}}
+```
+
+Достаточно одного из phone/email/address; отсутствующие поля сохраняются. Null,
+пустые значения и управляющие символы запрещены. Телефон — международный формат
+`+` и 8–15 цифр, адрес — до 300 символов, email — до 254 байт. Внешние пробелы
+удаляются. Изменения имени, ИНН, ОГРН, ОКВЭД, регистрации, руководителя,
+финансовых показателей или кредитной истории отклоняются с 400. Чужая компания и
+редактирование сотрудником банка дают 403. PATCH с устаревшей version даёт
+409 version_conflict: перечитайте сущность и покажите конфликт пользователю.
+Неизвестные, повторяющиеся и иначе написанные JSON-ключи запрещены.
+
+Каждое успешное контактное изменение увеличивает version и сохраняет отдельный
+аудит в одной транзакции. Аудит не включается в клиентскую историю кредитной
+заявки. Исторические компании в банковских снимках могут иметь version=0;
+эту версию нельзя отправлять в PATCH текущей компании.
+
 ## Продукт, рекомендация и черновик
 
 GET `/credit-products` возвращает turnover/investment. Ориентируйтесь на реальные
@@ -77,6 +124,11 @@ requestedAmountRub, termMonths, monthlyRevenueRub, monthlyExpensesRub. Он не
 
 POST `/applications` создаёт новый независимый draft. Разрешены несколько
 черновиков одного продукта; выбранный applicationId определяет дальнейшее действие.
+По умолчанию у CLIENT может быть максимум 20 неудалённых draft. Предел задаётся
+`MAX_ACTIVE_DRAFTS_PER_CLIENT`; отправленные и рассмотренные заявки не учитываются.
+При достижении лимита сервер возвращает 409 draft_limit_reached. Покажите сообщение
+и предложите удалить ненужный черновик или отправить заполненную заявку; повтор
+создания без освобождения места не поможет.
 
 ```json
 {
@@ -103,6 +155,21 @@ PATCH `/applications/{id}` требует version и хотя бы одно из
 сохраняйте возвращённую version. При version_conflict перечитайте заявку;
 не перезаписывайте чужое изменение автоматически.
 
+## Удаление черновика
+
+`DELETE /applications/{applicationId}?version=N` удаляет только собственный draft.
+Передавайте текущую версию заявки из GET/PATCH, без тела запроса и без
+Idempotency-Key. Успех — **204 без JSON-тела**. Уберите заявку из локального списка;
+следующие GET, PATCH, submit, timeline, decision и запросы её документов дадут 404.
+Удалённая заявка освобождает место в лимите. Статус `deleted` в API не добавляется.
+
+Повтор удаления того же собственного черновика с исходной version также даёт 204,
+без нового события. Чужой или неизвестный UUID — 404; устаревшая версия draft —
+409 version_conflict; отправленная заявка — 409 invalid_status. Сервер блокирует
+одну строку для delete и submit: обе операции одновременно завершиться не могут.
+Удаление мягкое, аудит и приватные файлы сохраняются без доступа через API;
+физическая очистка файлов этой операцией не выполняется.
+
 ## Документы и отправка
 
 POST `/applications/{id}/documents` использует multipart/form-data: поле
@@ -128,7 +195,12 @@ nextStage=awaiting_scoring — укрупнённый индикатор око�
 
 GET `/applications/{id}/decision` возвращает 200 во всех состояниях собственной
 заявки. CreditDecision содержит applicationId, status, version, decision, score,
-riskLevel, reasons, assessedAt, reviewedBy, offer, processing.
+riskLevel, reasons, assessedAt, reviewedBy, offer, processing, customerExplanation.
+Последнее поле nullable: для ручного финального решения содержит публичное
+объяснение, для автоматического решения и до ручного результата — null. Новые
+GET и результаты действий содержат поле; сохранённый до доработки идемпотентный
+ответ может его не иметь, поскольку replay возвращается без изменения тела.
+Для такого ответа можно прочитать актуальный GET decision.
 
 | Состояние | Что показывать |
 | --- | --- |
@@ -164,11 +236,27 @@ product/productTerms, status/version/даты, manualReviewRequired/availableAct
 Последующие изменения компании или каталога не меняют исторические сведения.
 
 GET assessment возвращает companyCheck, creditHistory, scoring, riskLevel,
-manualReviewReasons, recommendations, manualDecision, processing и идентификатор/
-статус/версию заявки. Неполученные результаты — null, списки без значений — [].
-Scoring содержит только сохранённые score/assessedAt. Recommendations — советы
-Go policy без offerId, а не действующие предложения. ManualDecision содержит
-внутренний comment, reviewedBy, reviewedAt и decision после решения сотрудника.
+manualReviewReasons, recommendations, manualDecision, goDecision, processing и
+идентификатор/статус/версию заявки. Неполученные результаты — null, списки без
+значений — []. Чтение использует сохранённые результаты и не вызывает Python.
+
+| Поле | Источник и назначение |
+| --- | --- |
+| scoring.score, scoring.assessedAt | Сохранённый балл Python и дата получения оценки |
+| scoring.decision, scoring.approvedAmountRub, scoring.reasons | Рекомендация Python, рекомендованная сумма в рублях и причины |
+| scoring.factors | Исходные operating_cash_flow, operating_margin, estimated_new_monthly_payment, debt_service_share, existing_debt_to_annual_revenue, overdue_count |
+| companyCheck, creditHistory | Сохранённые предварительные проверки |
+| goDecision | Сохранённый автоматический итог Go: decision, score, riskLevel, reasons, assessedAt |
+| manualDecision | Ручной итог сотрудника: decision, comment, internalComment, customerExplanation, reviewedBy, reviewedAt |
+
+У факторов сохранены названия Python; debt_service_share и
+existing_debt_to_annual_revenue могут быть null. Не заменяйте null нулём и не
+считайте предложение из factors. Python decision/approvedAmountRub — рекомендация,
+не окончательное решение и не действующий оффер. Recommendations остаются советами
+Go policy без offerId. После ручного решения goDecision сохраняет исторический
+автоматический исход (например manual_review); окончательный ручной исход виден в
+manualDecision и статусе заявки. Эти банковские поля не возвращаются клиентскому
+кабинету через decision или timeline.
 
 POST `/bank/applications/{id}/decisions` доступен только в manual_review:
 
@@ -176,16 +264,29 @@ POST `/bank/applications/{id}/decisions` доступен только в manual
 {
   "version": 4,
   "decision": "counter_offer",
-  "comment": "Проверены подтверждающие сведения; предлагаю меньшую сумму.",
+  "internalComment": "Проверены подтверждающие сведения; предлагаю меньшую сумму.",
+  "customerExplanation": "Предлагаем меньшую сумму с доступным ежемесячным платежом.",
   "offer": {"amountRub": 800000, "termMonths": 12}
 }
 ```
 
-Все четыре поля обязательны. Для rejected offer=null. Approved сохраняет исходную
-сумму/срок; counter_offer не превышает запрошенную сумму и меняет хотя бы одно
-условие в пределах продукта. Comment после trim — 1..1000 символов. Дополнительные
-вычисляемые поля запрещены. Успех — 201 CreditDecision; комментарий не копируется
-в клиентские reasons. Обязательные финансовые ограничения действуют и вручную.
+Обязательны version, decision, offer и хотя бы одно поле internalComment либо
+legacy comment. Comment сохраняет прежнюю внутреннюю семантику и является
+совместимым псевдонимом internalComment. Хотя бы один комментарий после trim должен
+содержать 1..1000 символов. Разные непустые значения двух псевдонимов дают 400.
+InternalComment и comment видит только банк; они никогда не копируются в клиентские
+API, историю или reasons.
+
+CustomerExplanation необязателен, до 1000 символов после trim. Если поле отсутствует
+или пустое, backend сохранит безопасную непустую стандартную формулировку по исходу,
+включая отказ. Null не принимается. Публичное объяснение возвращается в
+CreditDecision.customerExplanation и reasons. Оно входит в идентичность запроса:
+при повторе Idempotency-Key сохраняйте исходный текст и тело.
+
+Для rejected offer=null. Approved сохраняет исходную сумму/срок; counter_offer не
+превышает запрошенную сумму и меняет хотя бы одно условие в пределах продукта.
+Дополнительные вычисляемые поля запрещены. Успех — 201 CreditDecision. Обязательные
+финансовые ограничения действуют и вручную.
 
 ## Принятие, отказ и идемпотентность
 
@@ -207,7 +308,7 @@ decision остаётся approved/counter_offer. Signed — только дем
 
 | Роль и состояние | availableActions |
 | --- | --- |
-| CLIENT, draft | edit, submit |
+| CLIENT, draft | edit, submit, delete |
 | CLIENT, approved/counter_offer с active offer | accept, decline |
 | CLIENT, остальные состояния | [] |
 | BANK_EMPLOYEE, manual_review | decide |
@@ -224,7 +325,7 @@ createdAt DESC, applicationId DESC. За концом страницы items=[],
 Ошибки имеют error/message; 422 дополнительно содержит details с field/code/message.
 Основные коды: 400 invalid_request; 401 unauthorized; 403 forbidden;
 404 application_not_found/product_not_found; 409 version_conflict/invalid_status/
-offer_not_active/idempotency_conflict; 422 validation_failed; 503 service_unavailable.
+offer_not_active/idempotency_conflict/draft_limit_reached; 422 validation_failed; 503 service_unavailable.
 Загрузка также проверяет формат, размер и MIME; точные коды — в OpenAPI.
 Все ответы используют Cache-Control:no-store; даты — RFC 3339 UTC.
 
@@ -232,3 +333,17 @@ offer_not_active/idempotency_conflict; 422 validation_failed; 503 service_unavai
 вниз, Working directory=api/postman. JWT/UUID/version/ключи передаются автоматически.
 Для настоящего scoring используйте scoringMode=logreg_v1 и все четыре expect-флага;
 [команды](../docs/development.md#postman-и-newman), [реальные сценарии](../docs/scoring-integration.md).
+
+## Изменения для frontend
+
+- Добавьте формы дополнительного email и company.contact с отдельными версиями сущностей.
+- Сохраняйте companyId из текущего пользователя; выбор компании и новые роли не нужны.
+- Обрабатывайте 409 draft_limit_reached и действие delete у draft; 204 не разбирайте как JSON.
+- В банковском assessment показывайте отдельно рекомендации Python и результат Go, сохраняя null.
+- В ручном решении разделите internalComment и customerExplanation. Старый comment остаётся внутренним.
+- Клиенту показывайте только публичное customerExplanation/reasons; банковскую диагностику не копируйте.
+
+Существующие маршруты и поля сохранены. Новые поля ответов и действие delete
+добавлены к контракту; обновите DTO и строгие схемы frontend, если они запрещают
+неизвестные свойства. Новое ограничение создания draft — согласованное изменение
+поведения POST applications.

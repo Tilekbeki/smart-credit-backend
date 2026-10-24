@@ -24,7 +24,7 @@ type applicationRepoStub struct {
 
 func (s *applicationRepoStub) Create(_ context.Context, scope application.Scope, f application.Fields) (application.Application, error) {
 	s.writes++
-	s.record = application.Application{ApplicationID: testApplicationID, UserID: scope.UserID, CompanyID: scope.CompanyID, Fields: f, Status: application.Draft, Version: 1, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC(), AvailableActions: []string{"edit", "submit"}}
+	s.record = application.Application{ApplicationID: testApplicationID, UserID: scope.UserID, CompanyID: scope.CompanyID, Fields: f, Status: application.Draft, Version: 1, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC(), AvailableActions: []string{"edit", "submit", "delete"}}
 	return s.record, s.err
 }
 func (s *applicationRepoStub) Get(_ context.Context, scope application.Scope, id string) (application.Application, error) {
@@ -74,7 +74,7 @@ func applicationTestHandler(t *testing.T, repo *applicationRepoStub, role auth.R
 }
 
 func draftHTTPFixture() *applicationRepoStub {
-	return &applicationRepoStub{record: application.Application{ApplicationID: testApplicationID, UserID: testUserID, CompanyID: ownCompanyID, Status: application.Draft, Version: 1, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC(), AvailableActions: []string{"edit", "submit"}}}
+	return &applicationRepoStub{record: application.Application{ApplicationID: testApplicationID, UserID: testUserID, CompanyID: ownCompanyID, Status: application.Draft, Version: 1, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC(), AvailableActions: []string{"edit", "submit", "delete"}}}
 }
 
 func TestApplicationHTTPDraftFlow(t *testing.T) {
@@ -90,7 +90,7 @@ func TestApplicationHTTPDraftFlow(t *testing.T) {
 	}
 	w = authRequest(h, "GET", "/api/v1/applications/"+testApplicationID, "", token)
 	var detail application.Detail
-	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &detail) != nil || detail.Company.ID != ownCompanyID || detail.Product != nil || len(detail.AvailableActions) != 2 || detail.AvailableActions[0] != "edit" {
+	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &detail) != nil || detail.Company.ID != ownCompanyID || detail.Product != nil || len(detail.AvailableActions) != 3 || detail.AvailableActions[0] != "edit" {
 		t.Fatal("get own draft details")
 	}
 	w = authRequest(h, "PATCH", "/api/v1/applications/"+testApplicationID, `{"version":1,"productId":"turnover","purpose":"stock","requestedAmountRub":150000,"monthlyRevenueRub":0}`, token)
@@ -217,5 +217,56 @@ func TestApplicationHTTPInvalidFiltersAndErrors(t *testing.T) {
 		if w.Code != tc.status || responseJSON(t, w)["error"] != tc.code || strings.Contains(w.Body.String(), "password") {
 			t.Fatal("error mapping/leak")
 		}
+	}
+}
+
+func (r *applicationRepoStub) DeleteDraft(_ context.Context, _ application.Scope, _ string, _ int64) error {
+	return r.err
+}
+
+func TestApplicationDeleteTransportAndRoles(t *testing.T) {
+	for _, tc := range []struct {
+		query string
+		want  int
+	}{
+		{"?version=1", 204}, {"", 400}, {"?version=0", 400}, {"?version=-1", 400}, {"?version=x", 400},
+		{"?version=1&version=2", 400}, {"?version=1&unknown=1", 400}, {"?version=9223372036854775808", 400},
+	} {
+		h, token := applicationTestHandler(t, draftHTTPFixture(), auth.RoleClient)
+		w := authRequest(h, "DELETE", "/api/v1/applications/"+testApplicationID+tc.query, "", token)
+		if w.Code != tc.want {
+			t.Fatalf("%s: %d %s", tc.query, w.Code, w.Body)
+		}
+		if tc.want == 204 && (w.Body.Len() != 0 || w.Header().Get("Cache-Control") != "no-store") {
+			t.Fatal("DELETE response must be empty and uncached")
+		}
+	}
+	h, token := applicationTestHandler(t, draftHTTPFixture(), auth.RoleBankEmployee)
+	path := "/api/v1/applications/" + testApplicationID + "?version=1"
+	if w := authRequest(h, "DELETE", path, "", token); w.Code != 403 {
+		t.Fatal("bank deleted a draft")
+	}
+	if w := authRequest(h, "DELETE", path, "", ""); w.Code != 401 {
+		t.Fatal("anonymous delete")
+	}
+	for _, err := range []error{application.ErrNotFound, application.ErrInvalidStatus, application.ErrVersionConflict} {
+		r := draftHTTPFixture()
+		r.err = err
+		h, token := applicationTestHandler(t, r, auth.RoleClient)
+		w := authRequest(h, "DELETE", path, "", token)
+		want := 409
+		if errors.Is(err, application.ErrNotFound) {
+			want = 404
+		}
+		if w.Code != want {
+			t.Fatalf("DELETE error %v: %d", err, w.Code)
+		}
+	}
+	r := draftHTTPFixture()
+	r.err = application.ErrDraftLimit
+	h, token = applicationTestHandler(t, r, auth.RoleClient)
+	w := authRequest(h, "POST", "/api/v1/applications", `{}`, token)
+	if w.Code != 409 || responseJSON(t, w)["error"] != "draft_limit_reached" {
+		t.Fatal("draft limit response", w.Code, w.Body)
 	}
 }

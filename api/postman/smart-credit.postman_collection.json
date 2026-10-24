@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Smart Credit — API v1",
-    "description": "Единая коллекция 26 API Smart Credit. Запускайте сверху вниз в Collection Runner: профили, JWT, UUID, версии и Idempotency-Key передаются автоматически. Working directory: api/postman. По умолчанию проверяются сценарии без обязательного scoring. Для настоящего logreg_v1 задайте scoringMode=logreg_v1 и expectScoringResult/expectDecisionResult/expectReadOutcomes/expectActionResults=true. В этом режиме меняются только синтетические финансовые данные дополнительных сценариев; ответы scoring не подменяются. scoringMode=fixture сохраняет прежние детерминированные проверки для отдельного тестового HTTP-сервиса. Контракты ответов сверяются с OpenAPI. Код OTP по умолчанию 1234. Не экспортируйте JWT; используйте только синтетические данные. Подробности запуска: docs/development.md и docs/scoring-integration.md.",
+    "description": "Единая коллекция 27 API Smart Credit. Запускайте сверху вниз в Collection Runner: профили, JWT, UUID, версии и Idempotency-Key передаются автоматически. Working directory: api/postman. По умолчанию проверяются сценарии без обязательного scoring. Для настоящего logreg_v1 задайте scoringMode=logreg_v1 и expectScoringResult/expectDecisionResult/expectReadOutcomes/expectActionResults=true. В этом режиме меняются только синтетические финансовые данные дополнительных сценариев; ответы scoring не подменяются. scoringMode=fixture сохраняет прежние детерминированные проверки для отдельного тестового HTTP-сервиса. Контракты ответов сверяются с OpenAPI. Код OTP по умолчанию 1234. Не экспортируйте JWT; используйте только синтетические данные. Подробности запуска: docs/development.md и docs/scoring-integration.md. Контакты: PATCH /me и своей компании с version, исходные значения восстанавливаются. Добавлены безопасное удаление черновика, лимит MAX_ACTIVE_DRAFTS_PER_CLIENT (collection variable maxActiveDraftsPerClient=20), подробный банковский assessment и разделение комментариев. Лимитные тесты и финальная очистка удаляют только созданные текущей итерацией черновики; существующие заявки не очищаются. Working directory должен указывать на полный локальный путь к api/postman: JSON не содержит файлов fixtures.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -604,6 +604,61 @@
       "key": "scoringMode",
       "value": "fixture",
       "type": "string"
+    },
+    {
+      "key": "contactOriginalUserJSON",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "contactUserVersion",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "contactOriginalCompanyJSON",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "contactCompanyVersion",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "deleteDraftVersion",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "deleteDraftStaleVersion",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "draftLimitRemaining",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "draftLimitCreatedJSON",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "draftLimitDeleteId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "runDraftsJSON",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "maxActiveDraftsPerClient",
+      "value": "20",
+      "type": "string"
     }
   ],
   "item": [
@@ -635,7 +690,7 @@
             "type": "text/javascript",
             "exec": [
               "// Run on every Collection Runner iteration, preserving baseUrl and demoOtpCode.",
-              "const resetKeys = [\"clientProfileId\", \"bankProfileId\", \"otpRequestId\", \"accessToken\", \"clientOtpRequestId\", \"bankOtpRequestId\", \"clientAccessToken\", \"bankAccessToken\", \"clientCompanyId\", \"clientName\", \"clientPhone\", \"bankName\", \"bankPhone\", \"previousClientOtpRequestId\", \"otherClientProfileId\", \"otherClientOtpRequestId\", \"otherClientAccessToken\", \"otherCompanyId\", \"ownCompanyJSON\", \"creditProductsJSON\", \"applicationId\", \"applicationVersion\", \"previousApplicationVersion\", \"secondApplicationId\", \"applicationCreatedAt\", \"applicationUpdatedAt\", \"applicationListTotal\", \"documentApplicationId\", \"pdfDocumentId\", \"pdfMetadataJSON\", \"pngDocumentId\", \"pngMetadataJSON\", \"jpegDocumentId\", \"jpegMetadataJSON\", \"repeatedDocumentId\", \"repeatedMetadataJSON\", \"submitApplicationId\", \"submitVersion\", \"submitSubmittedAt\", \"submitPollAttempts\", \"submitTimelineJSON\", \"investmentApplicationId\", \"investmentVersion\", \"investmentSubmittedAt\", \"investmentPollAttempts\", \"thirdClientProfileId\", \"thirdClientOtpRequestId\", \"thirdClientAccessToken\", \"thirdCompanyId\", \"untrustedApplicationId\", \"untrustedVersion\", \"untrustedSubmittedAt\", \"untrustedPollAttempts\", \"incompleteApplicationId\", \"incompleteVersion\", \"investmentDocumentId\", \"investmentDocumentMetadataJSON\", \"submittedApplicationJSON\", \"investmentTimelineJSON\", \"untrustedTimelineJSON\", \"bankReadPageJSON\", \"readApprovedId\", \"readApprovedVersion\", \"readApprovedPoll\", \"readRejectedId\", \"readRejectedVersion\", \"readRejectedPoll\", \"readCounterId\", \"readCounterVersion\", \"readCounterPoll\", \"readManualId\", \"readManualVersion\", \"readManualPoll\", \"actionValidationKey\", \"actionApproveId\", \"actionApproveVersion\", \"actionApproveBaseVersion\", \"actionApprovePoll\", \"actionApproveManualKey\", \"actionApproveManualBodyJSON\", \"actionApproveManualResponseJSON\", \"actionApproveAssessmentJSON\", \"actionApproveOfferId\", \"actionApproveFinalVersion\", \"actionApproveActionKey\", \"actionApproveActionBodyJSON\", \"actionApproveActionResponseJSON\", \"actionRejectId\", \"actionRejectVersion\", \"actionRejectBaseVersion\", \"actionRejectPoll\", \"actionRejectManualKey\", \"actionRejectManualBodyJSON\", \"actionRejectManualResponseJSON\", \"actionRejectAssessmentJSON\", \"actionRejectOfferId\", \"actionRejectFinalVersion\", \"actionRejectActionKey\", \"actionRejectActionBodyJSON\", \"actionRejectActionResponseJSON\", \"actionCounterId\", \"actionCounterVersion\", \"actionCounterBaseVersion\", \"actionCounterPoll\", \"actionCounterManualKey\", \"actionCounterManualBodyJSON\", \"actionCounterManualResponseJSON\", \"actionCounterAssessmentJSON\", \"actionCounterOfferId\", \"actionCounterFinalVersion\", \"actionCounterActionKey\", \"actionCounterActionBodyJSON\", \"actionCounterActionResponseJSON\"];",
+              "const resetKeys = [\"clientProfileId\", \"bankProfileId\", \"otpRequestId\", \"accessToken\", \"clientOtpRequestId\", \"bankOtpRequestId\", \"clientAccessToken\", \"bankAccessToken\", \"clientCompanyId\", \"clientName\", \"clientPhone\", \"bankName\", \"bankPhone\", \"previousClientOtpRequestId\", \"otherClientProfileId\", \"otherClientOtpRequestId\", \"otherClientAccessToken\", \"otherCompanyId\", \"ownCompanyJSON\", \"creditProductsJSON\", \"applicationId\", \"applicationVersion\", \"previousApplicationVersion\", \"secondApplicationId\", \"applicationCreatedAt\", \"applicationUpdatedAt\", \"applicationListTotal\", \"documentApplicationId\", \"pdfDocumentId\", \"pdfMetadataJSON\", \"pngDocumentId\", \"pngMetadataJSON\", \"jpegDocumentId\", \"jpegMetadataJSON\", \"repeatedDocumentId\", \"repeatedMetadataJSON\", \"submitApplicationId\", \"submitVersion\", \"submitSubmittedAt\", \"submitPollAttempts\", \"submitTimelineJSON\", \"investmentApplicationId\", \"investmentVersion\", \"investmentSubmittedAt\", \"investmentPollAttempts\", \"thirdClientProfileId\", \"thirdClientOtpRequestId\", \"thirdClientAccessToken\", \"thirdCompanyId\", \"untrustedApplicationId\", \"untrustedVersion\", \"untrustedSubmittedAt\", \"untrustedPollAttempts\", \"incompleteApplicationId\", \"incompleteVersion\", \"investmentDocumentId\", \"investmentDocumentMetadataJSON\", \"submittedApplicationJSON\", \"investmentTimelineJSON\", \"untrustedTimelineJSON\", \"bankReadPageJSON\", \"readApprovedId\", \"readApprovedVersion\", \"readApprovedPoll\", \"readRejectedId\", \"readRejectedVersion\", \"readRejectedPoll\", \"readCounterId\", \"readCounterVersion\", \"readCounterPoll\", \"readManualId\", \"readManualVersion\", \"readManualPoll\", \"actionValidationKey\", \"actionApproveId\", \"actionApproveVersion\", \"actionApproveBaseVersion\", \"actionApprovePoll\", \"actionApproveManualKey\", \"actionApproveManualBodyJSON\", \"actionApproveManualResponseJSON\", \"actionApproveAssessmentJSON\", \"actionApproveOfferId\", \"actionApproveFinalVersion\", \"actionApproveActionKey\", \"actionApproveActionBodyJSON\", \"actionApproveActionResponseJSON\", \"actionRejectId\", \"actionRejectVersion\", \"actionRejectBaseVersion\", \"actionRejectPoll\", \"actionRejectManualKey\", \"actionRejectManualBodyJSON\", \"actionRejectManualResponseJSON\", \"actionRejectAssessmentJSON\", \"actionRejectOfferId\", \"actionRejectFinalVersion\", \"actionRejectActionKey\", \"actionRejectActionBodyJSON\", \"actionRejectActionResponseJSON\", \"actionCounterId\", \"actionCounterVersion\", \"actionCounterBaseVersion\", \"actionCounterPoll\", \"actionCounterManualKey\", \"actionCounterManualBodyJSON\", \"actionCounterManualResponseJSON\", \"actionCounterAssessmentJSON\", \"actionCounterOfferId\", \"actionCounterFinalVersion\", \"actionCounterActionKey\", \"actionCounterActionBodyJSON\", \"actionCounterActionResponseJSON\", \"contactOriginalUserJSON\", \"contactUserVersion\", \"contactOriginalCompanyJSON\", \"contactCompanyVersion\", \"deleteDraftVersion\", \"deleteDraftStaleVersion\", \"draftLimitRemaining\", \"draftLimitCreatedJSON\", \"draftLimitDeleteId\", \"runDraftsJSON\"];",
               "resetKeys.forEach(key => { pm.collectionVariables.set(key, \"\"); pm.variables.set(key, \"\"); });"
             ]
           }
@@ -1032,7 +1087,7 @@
               "const r = pm.response.json();",
               "const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;",
               "pm.test(\"Current user DTO matches selected database profile\", () => {",
-              "  pm.expect(r).to.have.all.keys(\"id\", \"name\", \"phone\", \"role\", \"companyId\");",
+              "  pm.expect(r).to.have.all.keys(\"id\", \"name\", \"phone\", \"role\", \"companyId\", \"additionalEmail\", \"version\");",
               "  pm.expect(r.id).to.match(uuid);",
               "  pm.expect(r.id).to.eql(pm.collectionVariables.get(\"clientProfileId\"));",
               "  pm.expect(r.name).to.eql(pm.collectionVariables.get(\"clientName\"));",
@@ -1326,7 +1381,7 @@
               "const r = pm.response.json();",
               "const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;",
               "pm.test(\"Current user DTO matches selected database profile\", () => {",
-              "  pm.expect(r).to.have.all.keys(\"id\", \"name\", \"phone\", \"role\", \"companyId\");",
+              "  pm.expect(r).to.have.all.keys(\"id\", \"name\", \"phone\", \"role\", \"companyId\", \"additionalEmail\", \"version\");",
               "  pm.expect(r.id).to.match(uuid);",
               "  pm.expect(r.id).to.eql(pm.collectionVariables.get(\"bankProfileId\"));",
               "  pm.expect(r.name).to.eql(pm.collectionVariables.get(\"bankName\"));",
@@ -1809,7 +1864,7 @@
               "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
               "const r = pm.response.json();",
               "pm.test(\"Company DTO, ownership and synthetic fields\", () => {",
-              "  pm.expect(r).to.have.all.keys(\"id\", \"name\", \"organizationType\", \"inn\", \"registrationNumber\", \"registrationDate\", \"okved\", \"directorName\", \"contact\", \"financials\", \"simulation\");",
+              "  pm.expect(r).to.have.all.keys(\"id\", \"name\", \"organizationType\", \"inn\", \"registrationNumber\", \"registrationDate\", \"okved\", \"directorName\", \"contact\", \"financials\", \"simulation\", \"version\");",
               "  pm.expect(r.id).to.eql(pm.collectionVariables.get(\"clientCompanyId\")); pm.expect(r.organizationType).to.be.oneOf([\"ИП\", \"ООО\"]);",
               "  [r.name, r.inn, r.registrationNumber, r.okved, r.directorName].forEach(value => pm.expect(value).to.be.a(\"string\").and.not.empty);",
               "  pm.expect(r.registrationDate).to.match(/^\\d{4}-\\d{2}-\\d{2}$/); pm.expect(Number.isFinite(Date.parse(r.registrationDate))).to.eql(true);",
@@ -3400,7 +3455,7 @@
               "  pm.expect(r).to.have.all.keys(\"applicationId\", \"userId\", \"companyId\", \"productId\", \"productName\", \"purpose\", \"purposeDescription\", \"requestedAmountRub\", \"termMonths\", \"monthlyRevenueRub\", \"monthlyExpensesRub\", \"status\", \"version\", \"createdAt\", \"updatedAt\", \"submittedAt\", \"availableActions\");",
               "  pm.expect(r.applicationId).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
               "  pm.expect(r.userId).to.eql(pm.collectionVariables.get(\"clientProfileId\")); pm.expect(r.companyId).to.eql(pm.collectionVariables.get(\"clientCompanyId\"));",
-              "  pm.expect(r.status).to.eql(\"draft\"); pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\"]); pm.expect(r.submittedAt).to.eql(null);",
+              "  pm.expect(r.status).to.eql(\"draft\"); pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\", \"delete\"]); pm.expect(r.submittedAt).to.eql(null);",
               "  pm.expect(Number.isSafeInteger(r.version)).to.eql(true); pm.expect(r.version).to.be.at.least(1);",
               "  pm.expect(Number.isFinite(Date.parse(r.createdAt))).to.eql(true); pm.expect(Number.isFinite(Date.parse(r.updatedAt))).to.eql(true);",
               "});",
@@ -3454,7 +3509,7 @@
               "pm.test(\"Own saved draft includes permitted company and public product summary\", () => {",
               " pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"applicationId\")); pm.expect(r.version).to.eql(Number(pm.collectionVariables.get(\"applicationVersion\")));",
               " pm.expect(r.userId).to.eql(pm.collectionVariables.get(\"clientProfileId\")); pm.expect(r.companyId).to.eql(pm.collectionVariables.get(\"clientCompanyId\"));",
-              " pm.expect(r.company).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"ownCompanyJSON\"))); pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\"]);",
+              " pm.expect(r.company).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"ownCompanyJSON\"))); pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\", \"delete\"]);",
               " pm.expect(r.createdAt).to.eql(pm.collectionVariables.get(\"applicationCreatedAt\")); pm.expect(r.updatedAt).to.eql(pm.collectionVariables.get(\"applicationUpdatedAt\"));",
               " if (r.productId === null) pm.expect(r.product).to.eql(null);",
               " else { pm.expect(r.product).to.have.all.keys(\"id\", \"name\"); pm.expect(r.product.id).to.eql(r.productId); pm.expect(r.product.name).to.eql(r.productName); }",
@@ -3515,7 +3570,7 @@
               "  pm.expect(r).to.have.all.keys(\"applicationId\", \"userId\", \"companyId\", \"productId\", \"productName\", \"purpose\", \"purposeDescription\", \"requestedAmountRub\", \"termMonths\", \"monthlyRevenueRub\", \"monthlyExpensesRub\", \"status\", \"version\", \"createdAt\", \"updatedAt\", \"submittedAt\", \"availableActions\");",
               "  pm.expect(r.applicationId).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
               "  pm.expect(r.userId).to.eql(pm.collectionVariables.get(\"clientProfileId\")); pm.expect(r.companyId).to.eql(pm.collectionVariables.get(\"clientCompanyId\"));",
-              "  pm.expect(r.status).to.eql(\"draft\"); pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\"]); pm.expect(r.submittedAt).to.eql(null);",
+              "  pm.expect(r.status).to.eql(\"draft\"); pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\", \"delete\"]); pm.expect(r.submittedAt).to.eql(null);",
               "  pm.expect(Number.isSafeInteger(r.version)).to.eql(true); pm.expect(r.version).to.be.at.least(1);",
               "  pm.expect(Number.isFinite(Date.parse(r.createdAt))).to.eql(true); pm.expect(Number.isFinite(Date.parse(r.updatedAt))).to.eql(true);",
               "});",
@@ -3572,7 +3627,7 @@
               "pm.test(\"Own saved draft includes permitted company and public product summary\", () => {",
               " pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"applicationId\")); pm.expect(r.version).to.eql(Number(pm.collectionVariables.get(\"applicationVersion\")));",
               " pm.expect(r.userId).to.eql(pm.collectionVariables.get(\"clientProfileId\")); pm.expect(r.companyId).to.eql(pm.collectionVariables.get(\"clientCompanyId\"));",
-              " pm.expect(r.company).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"ownCompanyJSON\"))); pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\"]);",
+              " pm.expect(r.company).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"ownCompanyJSON\"))); pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\", \"delete\"]);",
               " pm.expect(r.createdAt).to.eql(pm.collectionVariables.get(\"applicationCreatedAt\")); pm.expect(r.updatedAt).to.eql(pm.collectionVariables.get(\"applicationUpdatedAt\"));",
               " if (r.productId === null) pm.expect(r.product).to.eql(null);",
               " else { pm.expect(r.product).to.have.all.keys(\"id\", \"name\"); pm.expect(r.product.id).to.eql(r.productId); pm.expect(r.product.name).to.eql(r.productName); }",
@@ -3634,7 +3689,7 @@
               "  pm.expect(r).to.have.all.keys(\"applicationId\", \"userId\", \"companyId\", \"productId\", \"productName\", \"purpose\", \"purposeDescription\", \"requestedAmountRub\", \"termMonths\", \"monthlyRevenueRub\", \"monthlyExpensesRub\", \"status\", \"version\", \"createdAt\", \"updatedAt\", \"submittedAt\", \"availableActions\");",
               "  pm.expect(r.applicationId).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
               "  pm.expect(r.userId).to.eql(pm.collectionVariables.get(\"clientProfileId\")); pm.expect(r.companyId).to.eql(pm.collectionVariables.get(\"clientCompanyId\"));",
-              "  pm.expect(r.status).to.eql(\"draft\"); pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\"]); pm.expect(r.submittedAt).to.eql(null);",
+              "  pm.expect(r.status).to.eql(\"draft\"); pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\", \"delete\"]); pm.expect(r.submittedAt).to.eql(null);",
               "  pm.expect(Number.isSafeInteger(r.version)).to.eql(true); pm.expect(r.version).to.be.at.least(1);",
               "  pm.expect(Number.isFinite(Date.parse(r.createdAt))).to.eql(true); pm.expect(Number.isFinite(Date.parse(r.updatedAt))).to.eql(true);",
               "});",
@@ -3807,7 +3862,7 @@
               "  pm.expect(r).to.have.all.keys(\"applicationId\", \"userId\", \"companyId\", \"productId\", \"productName\", \"purpose\", \"purposeDescription\", \"requestedAmountRub\", \"termMonths\", \"monthlyRevenueRub\", \"monthlyExpensesRub\", \"status\", \"version\", \"createdAt\", \"updatedAt\", \"submittedAt\", \"availableActions\");",
               "  pm.expect(r.applicationId).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
               "  pm.expect(r.userId).to.eql(pm.collectionVariables.get(\"clientProfileId\")); pm.expect(r.companyId).to.eql(pm.collectionVariables.get(\"clientCompanyId\"));",
-              "  pm.expect(r.status).to.eql(\"draft\"); pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\"]); pm.expect(r.submittedAt).to.eql(null);",
+              "  pm.expect(r.status).to.eql(\"draft\"); pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\", \"delete\"]); pm.expect(r.submittedAt).to.eql(null);",
               "  pm.expect(Number.isSafeInteger(r.version)).to.eql(true); pm.expect(r.version).to.be.at.least(1);",
               "  pm.expect(Number.isFinite(Date.parse(r.createdAt))).to.eql(true); pm.expect(Number.isFinite(Date.parse(r.updatedAt))).to.eql(true);",
               "});",
@@ -6709,7 +6764,7 @@
               "pm.test(\"Own saved draft includes permitted company and public product summary\", () => {",
               " pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"applicationId\")); pm.expect(r.version).to.eql(Number(pm.collectionVariables.get(\"applicationVersion\")));",
               " pm.expect(r.userId).to.eql(pm.collectionVariables.get(\"clientProfileId\")); pm.expect(r.companyId).to.eql(pm.collectionVariables.get(\"clientCompanyId\"));",
-              " pm.expect(r.company).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"ownCompanyJSON\"))); pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\"]);",
+              " pm.expect(r.company).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"ownCompanyJSON\"))); pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\", \"delete\"]);",
               " pm.expect(r.createdAt).to.eql(pm.collectionVariables.get(\"applicationCreatedAt\")); pm.expect(r.updatedAt).to.eql(pm.collectionVariables.get(\"applicationUpdatedAt\"));",
               " if (r.productId === null) pm.expect(r.product).to.eql(null);",
               " else { pm.expect(r.product).to.have.all.keys(\"id\", \"name\"); pm.expect(r.product.id).to.eql(r.productId); pm.expect(r.product.name).to.eql(r.productName); }",
@@ -9125,7 +9180,7 @@
             "exec": [
               "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
               "const r=pm.response.json();",
-              "pm.test(\"Only attachments changed\", () => { pm.expect(r.status).to.eql(\"draft\"); pm.expect(r.version).to.eql(1); pm.expect(r.submittedAt).to.eql(null); pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\"]); });"
+              "pm.test(\"Only attachments changed\", () => { pm.expect(r.status).to.eql(\"draft\"); pm.expect(r.version).to.eql(1); pm.expect(r.submittedAt).to.eql(null); pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\", \"delete\"]); });"
             ]
           }
         }
@@ -9260,7 +9315,7 @@
             "exec": [
               "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
               "const r=pm.response.json();",
-              "pm.test(\"No status, version or submission timestamp changed\",()=>{pm.expect(r.status).to.eql(\"draft\");pm.expect(r.submittedAt).to.eql(null);pm.expect(r.version).to.eql(Number(pm.collectionVariables.get(\"incompleteVersion\")));pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\"]);});"
+              "pm.test(\"No status, version or submission timestamp changed\",()=>{pm.expect(r.status).to.eql(\"draft\");pm.expect(r.submittedAt).to.eql(null);pm.expect(r.version).to.eql(Number(pm.collectionVariables.get(\"incompleteVersion\")));pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\", \"delete\"]);});"
             ]
           }
         }
@@ -10033,8 +10088,8 @@
             "type": "text/javascript",
             "exec": [
               "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
-              "const current=pm.response.json();const previous=JSON.parse(pm.collectionVariables.get(\"submitTimelineJSON\"));",
-              "pm.test(\"Repeated submit preserves existing events while asynchronous policy may append\",()=>{pm.expect(current.items.slice(0,previous.items.length)).to.deep.eql(previous.items);if(String(pm.variables.get(\"expectDecisionResult\")).toLowerCase()===\"true\")pm.expect(current.items).to.deep.eql(previous.items);});"
+              "const current=pm.response.json();",
+              "pm.test(\"Repeated submit preserves existing events while asynchronous policy may append\",()=>{const snapshot=pm.collectionVariables.get(\"submitTimelineJSON\");pm.expect(snapshot,\"Prerequisite: a preceding successful request must save submitTimelineJSON\").to.be.a(\"string\").and.not.empty;const previous=JSON.parse(snapshot);pm.expect(current.items.slice(0,previous.items.length)).to.deep.eql(previous.items);if(String(pm.variables.get(\"expectDecisionResult\")).toLowerCase()===\"true\")pm.expect(current.items).to.deep.eql(previous.items);});"
             ]
           }
         }
@@ -10334,7 +10389,7 @@
             "exec": [
               "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
               "const r=pm.response.json();",
-              "pm.test(\"No status, version or submission timestamp changed\",()=>{pm.expect(r.status).to.eql(\"draft\");pm.expect(r.submittedAt).to.eql(null);pm.expect(r.version).to.eql(Number(pm.collectionVariables.get(\"investmentVersion\")));pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\"]);});"
+              "pm.test(\"No status, version or submission timestamp changed\",()=>{pm.expect(r.status).to.eql(\"draft\");pm.expect(r.submittedAt).to.eql(null);pm.expect(r.version).to.eql(Number(pm.collectionVariables.get(\"investmentVersion\")));pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\", \"delete\"]);});"
             ]
           }
         }
@@ -10817,7 +10872,7 @@
             "exec": [
               "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
               "const r=pm.response.json();",
-              "pm.test(\"No status, version or submission timestamp changed\",()=>{pm.expect(r.status).to.eql(\"draft\");pm.expect(r.submittedAt).to.eql(null);pm.expect(r.version).to.eql(Number(pm.collectionVariables.get(\"untrustedVersion\")));pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\"]);});"
+              "pm.test(\"No status, version or submission timestamp changed\",()=>{pm.expect(r.status).to.eql(\"draft\");pm.expect(r.submittedAt).to.eql(null);pm.expect(r.version).to.eql(Number(pm.collectionVariables.get(\"untrustedVersion\")));pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\", \"delete\"]);});"
             ]
           }
         }
@@ -11359,7 +11414,7 @@
               "pm.test(\"Own saved draft includes permitted company and public product summary\", () => {",
               " pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"applicationId\")); pm.expect(r.version).to.eql(Number(pm.collectionVariables.get(\"applicationVersion\")));",
               " pm.expect(r.userId).to.eql(pm.collectionVariables.get(\"clientProfileId\")); pm.expect(r.companyId).to.eql(pm.collectionVariables.get(\"clientCompanyId\"));",
-              " pm.expect(r.company).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"ownCompanyJSON\"))); pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\"]);",
+              " pm.expect(r.company).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"ownCompanyJSON\"))); pm.expect(r.availableActions).to.deep.eql([\"edit\", \"submit\", \"delete\"]);",
               " pm.expect(r.createdAt).to.eql(pm.collectionVariables.get(\"applicationCreatedAt\")); pm.expect(r.updatedAt).to.eql(pm.collectionVariables.get(\"applicationUpdatedAt\"));",
               " if (r.productId === null) pm.expect(r.product).to.eql(null);",
               " else { pm.expect(r.product).to.have.all.keys(\"id\", \"name\"); pm.expect(r.product.id).to.eql(r.productId); pm.expect(r.product.name).to.eql(r.productName); }",
@@ -11472,8 +11527,8 @@
             "type": "text/javascript",
             "exec": [
               "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
-              "const r=pm.response.json();const previous=JSON.parse(pm.collectionVariables.get(\"submittedApplicationJSON\"));",
-              "pm.test(\"Independent draft edit preserves submitted inputs and identity\",()=>{",
+              "const r=pm.response.json();",
+              "pm.test(\"Independent draft edit preserves submitted inputs and identity\",()=>{const snapshot=pm.collectionVariables.get(\"submittedApplicationJSON\");pm.expect(snapshot,\"Prerequisite: a preceding successful request must save submittedApplicationJSON\").to.be.a(\"string\").and.not.empty;const previous=JSON.parse(snapshot);",
               " const stable=value=>{const copy=JSON.parse(JSON.stringify(value));[\"status\",\"version\",\"updatedAt\"].forEach(k=>delete copy[k]);return copy;};",
               " pm.expect(stable(r)).to.deep.eql(stable(previous));pm.expect(r.version).to.be.at.least(previous.version);",
               " pm.expect(r.status).to.be.oneOf([\"processing\",\"approved\",\"rejected\",\"counter_offer\",\"manual_review\"]);",
@@ -11579,8 +11634,8 @@
               "const r=pm.response.json();",
               "const expectScoring=String(pm.variables.get(\"expectScoringResult\")).toLowerCase()===\"true\";",
               "const expectDecision=String(pm.variables.get(\"expectDecisionResult\")).toLowerCase()===\"true\";",
-              "const previous=JSON.parse(pm.collectionVariables.get(\"submitTimelineJSON\"));",
-              "pm.test(\"Repeat submission preserves durable events and IDs during asynchronous progress\",()=>{pm.expect(r.items.slice(0,previous.items.length)).to.deep.eql(previous.items);if(expectDecision)pm.expect(r.items).to.deep.eql(previous.items);});",
+              "",
+              "pm.test(\"Repeat submission preserves durable events and IDs during asynchronous progress\",()=>{const snapshot=pm.collectionVariables.get(\"submitTimelineJSON\");pm.expect(snapshot,\"Prerequisite: a preceding successful request must save submitTimelineJSON\").to.be.a(\"string\").and.not.empty;const previous=JSON.parse(snapshot);pm.expect(r.items.slice(0,previous.items.length)).to.deep.eql(previous.items);if(expectDecision)pm.expect(r.items).to.deep.eql(previous.items);});",
               "pm.test(\"Scoring and Go policy create no duplicate transitions\",()=>{[\"SCORING_STARTED\",\"SCORING_COMPLETED\",\"DECISION_PROCESSING_STARTED\",\"APPLICATION_APPROVED\",\"APPLICATION_REJECTED\",\"COUNTER_OFFER_CREATED\",\"MANUAL_REVIEW_REQUIRED\"].forEach(type=>{const events=r.items.filter(e=>e.eventType===type);pm.expect(events.length,type).to.be.at.most(1);if(expectScoring&&[\"SCORING_STARTED\",\"SCORING_COMPLETED\"].includes(type))pm.expect(events,type).to.have.length(1);});if(expectDecision)pm.expect(r.items.filter(e=>[\"APPLICATION_APPROVED\",\"APPLICATION_REJECTED\",\"COUNTER_OFFER_CREATED\",\"MANUAL_REVIEW_REQUIRED\"].includes(e.eventType))).to.have.length(1);});",
               "if(!expectScoring)pm.test.skip(\"Scoring completion is not required without a configured compatible service\",()=>{});"
             ]
@@ -11625,8 +11680,8 @@
               "const r=pm.response.json();",
               "const expectScoring=String(pm.variables.get(\"expectScoringResult\")).toLowerCase()===\"true\";",
               "const expectDecision=String(pm.variables.get(\"expectDecisionResult\")).toLowerCase()===\"true\";",
-              "const previous=JSON.parse(pm.collectionVariables.get(\"investmentTimelineJSON\"));",
-              "pm.test(\"Repeat submission preserves durable events and IDs during asynchronous progress\",()=>{pm.expect(r.items.slice(0,previous.items.length)).to.deep.eql(previous.items);if(expectDecision)pm.expect(r.items).to.deep.eql(previous.items);});",
+              "",
+              "pm.test(\"Repeat submission preserves durable events and IDs during asynchronous progress\",()=>{const snapshot=pm.collectionVariables.get(\"investmentTimelineJSON\");pm.expect(snapshot,\"Prerequisite: a preceding successful request must save investmentTimelineJSON\").to.be.a(\"string\").and.not.empty;const previous=JSON.parse(snapshot);pm.expect(r.items.slice(0,previous.items.length)).to.deep.eql(previous.items);if(expectDecision)pm.expect(r.items).to.deep.eql(previous.items);});",
               "pm.test(\"Scoring and Go policy create no duplicate transitions\",()=>{[\"SCORING_STARTED\",\"SCORING_COMPLETED\",\"DECISION_PROCESSING_STARTED\",\"APPLICATION_APPROVED\",\"APPLICATION_REJECTED\",\"COUNTER_OFFER_CREATED\",\"MANUAL_REVIEW_REQUIRED\"].forEach(type=>{const events=r.items.filter(e=>e.eventType===type);pm.expect(events.length,type).to.be.at.most(1);if(expectScoring&&[\"SCORING_STARTED\",\"SCORING_COMPLETED\"].includes(type))pm.expect(events,type).to.have.length(1);});if(expectDecision)pm.expect(r.items.filter(e=>[\"APPLICATION_APPROVED\",\"APPLICATION_REJECTED\",\"COUNTER_OFFER_CREATED\",\"MANUAL_REVIEW_REQUIRED\"].includes(e.eventType))).to.have.length(1);});",
               "if(!expectScoring)pm.test.skip(\"Scoring completion is not required without a configured compatible service\",()=>{});"
             ]
@@ -11671,8 +11726,8 @@
               "const r=pm.response.json();",
               "const expectScoring=String(pm.variables.get(\"expectScoringResult\")).toLowerCase()===\"true\";",
               "const expectDecision=String(pm.variables.get(\"expectDecisionResult\")).toLowerCase()===\"true\";",
-              "const previous=JSON.parse(pm.collectionVariables.get(\"untrustedTimelineJSON\"));",
-              "pm.test(\"Repeat submission preserves durable events and IDs during asynchronous progress\",()=>{pm.expect(r.items.slice(0,previous.items.length)).to.deep.eql(previous.items);if(expectDecision)pm.expect(r.items).to.deep.eql(previous.items);});",
+              "",
+              "pm.test(\"Repeat submission preserves durable events and IDs during asynchronous progress\",()=>{const snapshot=pm.collectionVariables.get(\"untrustedTimelineJSON\");pm.expect(snapshot,\"Prerequisite: a preceding successful request must save untrustedTimelineJSON\").to.be.a(\"string\").and.not.empty;const previous=JSON.parse(snapshot);pm.expect(r.items.slice(0,previous.items.length)).to.deep.eql(previous.items);if(expectDecision)pm.expect(r.items).to.deep.eql(previous.items);});",
               "pm.test(\"Scoring and Go policy create no duplicate transitions\",()=>{[\"SCORING_STARTED\",\"SCORING_COMPLETED\",\"DECISION_PROCESSING_STARTED\",\"APPLICATION_APPROVED\",\"APPLICATION_REJECTED\",\"COUNTER_OFFER_CREATED\",\"MANUAL_REVIEW_REQUIRED\"].forEach(type=>{const events=r.items.filter(e=>e.eventType===type);pm.expect(events.length,type).to.be.at.most(1);if(expectScoring&&[\"SCORING_STARTED\",\"SCORING_COMPLETED\"].includes(type))pm.expect(events,type).to.have.length(1);});if(expectDecision)pm.expect(r.items.filter(e=>[\"APPLICATION_APPROVED\",\"APPLICATION_REJECTED\",\"COUNTER_OFFER_CREATED\",\"MANUAL_REVIEW_REQUIRED\"].includes(e.eventType))).to.have.length(1);});",
               "if(!expectScoring)pm.test.skip(\"Scoring completion is not required without a configured compatible service\",()=>{});"
             ]
@@ -13669,7 +13724,7 @@
             "exec": [
               "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
               "const r=pm.response.json();",
-              "pm.test(\"Fresh private draft\",()=>{pm.expect(r.status).to.eql(\"draft\");pm.expect(r.availableActions).to.deep.eql([\"edit\",\"submit\"]);});if(pm.response.code===201){pm.collectionVariables.set(\"readApprovedId\",r.applicationId);pm.collectionVariables.set(\"readApprovedVersion\",r.version);pm.collectionVariables.set(\"readApprovedPoll\",0);}"
+              "pm.test(\"Fresh private draft\",()=>{pm.expect(r.status).to.eql(\"draft\");pm.expect(r.availableActions).to.deep.eql([\"edit\",\"submit\",\"delete\"]);});if(pm.response.code===201){pm.collectionVariables.set(\"readApprovedId\",r.applicationId);pm.collectionVariables.set(\"readApprovedVersion\",r.version);pm.collectionVariables.set(\"readApprovedPoll\",0);}"
             ]
           }
         }
@@ -13915,7 +13970,7 @@
             "exec": [
               "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
               "const r=pm.response.json();",
-              "pm.test(\"Fresh private draft\",()=>{pm.expect(r.status).to.eql(\"draft\");pm.expect(r.availableActions).to.deep.eql([\"edit\",\"submit\"]);});if(pm.response.code===201){pm.collectionVariables.set(\"readRejectedId\",r.applicationId);pm.collectionVariables.set(\"readRejectedVersion\",r.version);pm.collectionVariables.set(\"readRejectedPoll\",0);}"
+              "pm.test(\"Fresh private draft\",()=>{pm.expect(r.status).to.eql(\"draft\");pm.expect(r.availableActions).to.deep.eql([\"edit\",\"submit\",\"delete\"]);});if(pm.response.code===201){pm.collectionVariables.set(\"readRejectedId\",r.applicationId);pm.collectionVariables.set(\"readRejectedVersion\",r.version);pm.collectionVariables.set(\"readRejectedPoll\",0);}"
             ]
           }
         }
@@ -14161,7 +14216,7 @@
             "exec": [
               "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
               "const r=pm.response.json();",
-              "pm.test(\"Fresh private draft\",()=>{pm.expect(r.status).to.eql(\"draft\");pm.expect(r.availableActions).to.deep.eql([\"edit\",\"submit\"]);});if(pm.response.code===201){pm.collectionVariables.set(\"readCounterId\",r.applicationId);pm.collectionVariables.set(\"readCounterVersion\",r.version);pm.collectionVariables.set(\"readCounterPoll\",0);}"
+              "pm.test(\"Fresh private draft\",()=>{pm.expect(r.status).to.eql(\"draft\");pm.expect(r.availableActions).to.deep.eql([\"edit\",\"submit\",\"delete\"]);});if(pm.response.code===201){pm.collectionVariables.set(\"readCounterId\",r.applicationId);pm.collectionVariables.set(\"readCounterVersion\",r.version);pm.collectionVariables.set(\"readCounterPoll\",0);}"
             ]
           }
         }
@@ -14407,7 +14462,7 @@
             "exec": [
               "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
               "const r=pm.response.json();",
-              "pm.test(\"Fresh private draft\",()=>{pm.expect(r.status).to.eql(\"draft\");pm.expect(r.availableActions).to.deep.eql([\"edit\",\"submit\"]);});if(pm.response.code===201){pm.collectionVariables.set(\"readManualId\",r.applicationId);pm.collectionVariables.set(\"readManualVersion\",r.version);pm.collectionVariables.set(\"readManualPoll\",0);}"
+              "pm.test(\"Fresh private draft\",()=>{pm.expect(r.status).to.eql(\"draft\");pm.expect(r.availableActions).to.deep.eql([\"edit\",\"submit\",\"delete\"]);});if(pm.response.code===201){pm.collectionVariables.set(\"readManualId\",r.applicationId);pm.collectionVariables.set(\"readManualVersion\",r.version);pm.collectionVariables.set(\"readManualPoll\",0);}"
             ]
           }
         }
@@ -16563,7 +16618,7 @@
             "type": "text/javascript",
             "exec": [
               "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
-              "const r=pm.response.json(); pm.test(\"Independent private draft\",()=>{pm.expect(r.status).to.eql(\"draft\");pm.expect(r.availableActions).to.deep.eql([\"edit\",\"submit\"]);});",
+              "const r=pm.response.json(); pm.test(\"Independent private draft\",()=>{pm.expect(r.status).to.eql(\"draft\");pm.expect(r.availableActions).to.deep.eql([\"edit\",\"submit\",\"delete\"]);});",
               "if(pm.response.code===201){pm.collectionVariables.set(\"actionApproveId\",r.applicationId);pm.collectionVariables.set(\"actionApproveVersion\",r.version);pm.collectionVariables.set(\"actionApprovePoll\",0);}"
             ]
           }
@@ -16853,7 +16908,7 @@
             "type": "text/javascript",
             "exec": [
               "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
-              "const r=pm.response.json(); pm.test(\"Independent private draft\",()=>{pm.expect(r.status).to.eql(\"draft\");pm.expect(r.availableActions).to.deep.eql([\"edit\",\"submit\"]);});",
+              "const r=pm.response.json(); pm.test(\"Independent private draft\",()=>{pm.expect(r.status).to.eql(\"draft\");pm.expect(r.availableActions).to.deep.eql([\"edit\",\"submit\",\"delete\"]);});",
               "if(pm.response.code===201){pm.collectionVariables.set(\"actionRejectId\",r.applicationId);pm.collectionVariables.set(\"actionRejectVersion\",r.version);pm.collectionVariables.set(\"actionRejectPoll\",0);}"
             ]
           }
@@ -17143,7 +17198,7 @@
             "type": "text/javascript",
             "exec": [
               "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
-              "const r=pm.response.json(); pm.test(\"Independent private draft\",()=>{pm.expect(r.status).to.eql(\"draft\");pm.expect(r.availableActions).to.deep.eql([\"edit\",\"submit\"]);});",
+              "const r=pm.response.json(); pm.test(\"Independent private draft\",()=>{pm.expect(r.status).to.eql(\"draft\");pm.expect(r.availableActions).to.deep.eql([\"edit\",\"submit\",\"delete\"]);});",
               "if(pm.response.code===201){pm.collectionVariables.set(\"actionCounterId\",r.applicationId);pm.collectionVariables.set(\"actionCounterVersion\",r.version);pm.collectionVariables.set(\"actionCounterPoll\",0);}"
             ]
           }
@@ -18495,7 +18550,8 @@
               " pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"actionApproveId\"));pm.expect(r.status).to.eql(\"approved\");pm.expect(r.decision).to.eql(\"approved\");pm.expect(r.version).to.eql(input.version+1);pm.expect(r.reviewedBy).to.eql(pm.collectionVariables.get(\"bankProfileId\"));pm.expect(r.score).to.eql(String(pm.variables.get(\"scoringMode\"))===\"logreg_v1\" ? 78 : 65);pm.expect(r.riskLevel).to.eql(\"MEDIUM\");pm.expect(r.processing).to.eql(null);pm.expect(Number.isFinite(Date.parse(r.assessedAt))).to.eql(true);pm.expect(r.reasons.length).to.be.above(0);pm.expect(JSON.stringify(r)).not.to.include(\"Внутренний аудит\");",
               "});",
               "if(pm.response.code===201){pm.collectionVariables.set(\"actionApproveVersion\",r.version);pm.collectionVariables.set(\"actionApproveManualResponseJSON\",JSON.stringify(r));if(r.offer)pm.collectionVariables.set(\"actionApproveOfferId\",r.offer.offerId);}",
-              "pm.test(\"Frozen product, rate and server-computed payment\",()=>{pm.expect(r.offer.status).to.eql(\"active\");pm.expect(r.offer.productId).to.eql(\"turnover\");pm.expect(r.offer.amountRub).to.eql(1400000);pm.expect(r.offer.termMonths).to.eql(12);const product=JSON.parse(pm.collectionVariables.get(\"creditProductsJSON\")).find(p=>p.id===\"turnover\");pm.expect(r.offer.annualRatePercent).to.eql(product.annualRatePercent);const rate=product.annualRatePercent/1200;const factor=rate===0?1/12:rate/(1-Math.pow(1+rate,-12));pm.expect(r.offer.monthlyPaymentRub).to.eql(Math.ceil(1400000*factor));});"
+              "pm.test(\"Frozen product, rate and server-computed payment\",()=>{pm.expect(r.offer.status).to.eql(\"active\");pm.expect(r.offer.productId).to.eql(\"turnover\");pm.expect(r.offer.amountRub).to.eql(1400000);pm.expect(r.offer.termMonths).to.eql(12);const product=JSON.parse(pm.collectionVariables.get(\"creditProductsJSON\")).find(p=>p.id===\"turnover\");pm.expect(r.offer.annualRatePercent).to.eql(product.annualRatePercent);const rate=product.annualRatePercent/1200;const factor=rate===0?1/12:rate/(1-Math.pow(1+rate,-12));pm.expect(r.offer.monthlyPaymentRub).to.eql(Math.ceil(1400000*factor));});",
+              "pm.test(\"Public explanation is safe and non-empty\",()=>{pm.expect(r.customerExplanation).to.be.a(\"string\").and.not.empty;pm.expect(r.reasons).to.include(r.customerExplanation);if(input.customerExplanation && input.customerExplanation.trim())pm.expect(r.customerExplanation).to.eql(input.customerExplanation.trim());pm.expect(JSON.stringify(r)).not.to.include((input.internalComment||input.comment).trim());});"
             ]
           }
         }
@@ -18829,7 +18885,7 @@
             "type": "text/javascript",
             "exec": [
               "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));const r=pm.response.json(),before=JSON.parse(pm.collectionVariables.get(\"actionApproveAssessmentJSON\")),input=JSON.parse(pm.collectionVariables.get(\"actionApproveManualBodyJSON\")),saved=JSON.parse(pm.collectionVariables.get(\"actionApproveManualResponseJSON\"));",
-              "pm.test(\"Private audit contains employee, original comment and decision timestamp\",()=>{pm.expect(r.manualDecision).to.deep.eql({decision:\"approved\",comment:input.comment.trim(),reviewedBy:pm.collectionVariables.get(\"bankProfileId\"),reviewedAt:saved.assessedAt});pm.expect(r.version).to.eql(saved.version);[\"companyCheck\",\"creditHistory\",\"scoring\",\"riskLevel\",\"recommendations\"].forEach(field=>pm.expect(r[field],field).to.deep.eql(before[field]));});"
+              "pm.test(\"Private audit contains employee, original comment and decision timestamp\",()=>{pm.expect(r.manualDecision).to.deep.eql({decision:\"approved\",comment:(input.internalComment||input.comment).trim(),internalComment:(input.internalComment||input.comment).trim(),customerExplanation:saved.customerExplanation,reviewedBy:pm.collectionVariables.get(\"bankProfileId\"),reviewedAt:saved.assessedAt});pm.expect(r.version).to.eql(saved.version);[\"companyCheck\",\"creditHistory\",\"scoring\",\"riskLevel\",\"recommendations\"].forEach(field=>pm.expect(r[field],field).to.deep.eql(before[field]));});"
             ]
           }
         }
@@ -19033,7 +19089,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"version\": {{actionRejectVersion}},\n  \"decision\": \"rejected\",\n  \"comment\": \"  Внутренний аудит: rejected — только сотруднику.  \",\n  \"offer\": null\n}",
+          "raw": "{\n  \"version\": {{actionRejectVersion}},\n  \"decision\": \"rejected\",\n  \"internalComment\": \"  Внутренний аудит: rejected — только сотруднику.  \",\n  \"customerExplanation\": \"После рассмотрения заявки банк пока не может предложить кредит на выбранных условиях.\",\n  \"offer\": null\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -19070,7 +19126,8 @@
               " pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"actionRejectId\"));pm.expect(r.status).to.eql(\"rejected\");pm.expect(r.decision).to.eql(\"rejected\");pm.expect(r.version).to.eql(input.version+1);pm.expect(r.reviewedBy).to.eql(pm.collectionVariables.get(\"bankProfileId\"));pm.expect(r.score).to.eql(String(pm.variables.get(\"scoringMode\"))===\"logreg_v1\" ? 78 : 65);pm.expect(r.riskLevel).to.eql(\"MEDIUM\");pm.expect(r.processing).to.eql(null);pm.expect(Number.isFinite(Date.parse(r.assessedAt))).to.eql(true);pm.expect(r.reasons.length).to.be.above(0);pm.expect(JSON.stringify(r)).not.to.include(\"Внутренний аудит\");",
               "});",
               "if(pm.response.code===201){pm.collectionVariables.set(\"actionRejectVersion\",r.version);pm.collectionVariables.set(\"actionRejectManualResponseJSON\",JSON.stringify(r));if(r.offer)pm.collectionVariables.set(\"actionRejectOfferId\",r.offer.offerId);}",
-              "pm.test(\"Rejected has no offer\",()=>pm.expect(r.offer).to.eql(null));"
+              "pm.test(\"Rejected has no offer\",()=>pm.expect(r.offer).to.eql(null));",
+              "pm.test(\"Public explanation is safe and non-empty\",()=>{pm.expect(r.customerExplanation).to.be.a(\"string\").and.not.empty;pm.expect(r.reasons).to.include(r.customerExplanation);if(input.customerExplanation && input.customerExplanation.trim())pm.expect(r.customerExplanation).to.eql(input.customerExplanation.trim());pm.expect(JSON.stringify(r)).not.to.include((input.internalComment||input.comment).trim());});"
             ]
           }
         }
@@ -19207,7 +19264,7 @@
               "  pm.test(\"Action fixtures require scoring, policy and four read outcomes\", () => required.forEach(key => pm.expect(String(pm.variables.get(key)), key).to.eql(\"true\")));",
               "  if (required.some(key => String(pm.variables.get(key)) !== \"true\")) pm.execution.skipRequest();",
               "}",
-              "pm.request.body.update(pm.collectionVariables.get(\"actionRejectManualBodyJSON\")); const changed=JSON.parse(pm.request.body.raw);changed.comment+=\" Изменение\";pm.request.body.update(JSON.stringify(changed));"
+              "pm.request.body.update(pm.collectionVariables.get(\"actionRejectManualBodyJSON\")); const changed=JSON.parse(pm.request.body.raw);changed.customerExplanation=(changed.customerExplanation||\"\")+\" Изменение\";pm.request.body.update(JSON.stringify(changed));"
             ]
           }
         },
@@ -19404,7 +19461,7 @@
             "type": "text/javascript",
             "exec": [
               "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));const r=pm.response.json(),before=JSON.parse(pm.collectionVariables.get(\"actionRejectAssessmentJSON\")),input=JSON.parse(pm.collectionVariables.get(\"actionRejectManualBodyJSON\")),saved=JSON.parse(pm.collectionVariables.get(\"actionRejectManualResponseJSON\"));",
-              "pm.test(\"Private audit contains employee, original comment and decision timestamp\",()=>{pm.expect(r.manualDecision).to.deep.eql({decision:\"rejected\",comment:input.comment.trim(),reviewedBy:pm.collectionVariables.get(\"bankProfileId\"),reviewedAt:saved.assessedAt});pm.expect(r.version).to.eql(saved.version);[\"companyCheck\",\"creditHistory\",\"scoring\",\"riskLevel\",\"recommendations\"].forEach(field=>pm.expect(r[field],field).to.deep.eql(before[field]));});"
+              "pm.test(\"Private audit contains employee, original comment and decision timestamp\",()=>{pm.expect(r.manualDecision).to.deep.eql({decision:\"rejected\",comment:(input.internalComment||input.comment).trim(),internalComment:(input.internalComment||input.comment).trim(),customerExplanation:saved.customerExplanation,reviewedBy:pm.collectionVariables.get(\"bankProfileId\"),reviewedAt:saved.assessedAt});pm.expect(r.version).to.eql(saved.version);[\"companyCheck\",\"creditHistory\",\"scoring\",\"riskLevel\",\"recommendations\"].forEach(field=>pm.expect(r[field],field).to.deep.eql(before[field]));});"
             ]
           }
         }
@@ -19608,7 +19665,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"version\": {{actionCounterVersion}},\n  \"decision\": \"counter_offer\",\n  \"comment\": \"  Внутренний аудит: counter_offer — только сотруднику.  \",\n  \"offer\": {\n    \"amountRub\": 800000,\n    \"termMonths\": 12\n  }\n}",
+          "raw": "{\n  \"version\": {{actionCounterVersion}},\n  \"decision\": \"counter_offer\",\n  \"internalComment\": \"  Внутренний аудит: counter_offer — только сотруднику.  \",\n  \"customerExplanation\": \"   \",\n  \"offer\": {\n    \"amountRub\": 800000,\n    \"termMonths\": 12\n  }\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -19645,7 +19702,8 @@
               " pm.expect(r.applicationId).to.eql(pm.collectionVariables.get(\"actionCounterId\"));pm.expect(r.status).to.eql(\"counter_offer\");pm.expect(r.decision).to.eql(\"counter_offer\");pm.expect(r.version).to.eql(input.version+1);pm.expect(r.reviewedBy).to.eql(pm.collectionVariables.get(\"bankProfileId\"));pm.expect(r.score).to.eql(String(pm.variables.get(\"scoringMode\"))===\"logreg_v1\" ? 78 : 65);pm.expect(r.riskLevel).to.eql(\"MEDIUM\");pm.expect(r.processing).to.eql(null);pm.expect(Number.isFinite(Date.parse(r.assessedAt))).to.eql(true);pm.expect(r.reasons.length).to.be.above(0);pm.expect(JSON.stringify(r)).not.to.include(\"Внутренний аудит\");",
               "});",
               "if(pm.response.code===201){pm.collectionVariables.set(\"actionCounterVersion\",r.version);pm.collectionVariables.set(\"actionCounterManualResponseJSON\",JSON.stringify(r));if(r.offer)pm.collectionVariables.set(\"actionCounterOfferId\",r.offer.offerId);}",
-              "pm.test(\"Frozen product, rate and server-computed payment\",()=>{pm.expect(r.offer.status).to.eql(\"active\");pm.expect(r.offer.productId).to.eql(\"turnover\");pm.expect(r.offer.amountRub).to.eql(800000);pm.expect(r.offer.termMonths).to.eql(12);const product=JSON.parse(pm.collectionVariables.get(\"creditProductsJSON\")).find(p=>p.id===\"turnover\");pm.expect(r.offer.annualRatePercent).to.eql(product.annualRatePercent);const rate=product.annualRatePercent/1200;const factor=rate===0?1/12:rate/(1-Math.pow(1+rate,-12));pm.expect(r.offer.monthlyPaymentRub).to.eql(Math.ceil(800000*factor));});"
+              "pm.test(\"Frozen product, rate and server-computed payment\",()=>{pm.expect(r.offer.status).to.eql(\"active\");pm.expect(r.offer.productId).to.eql(\"turnover\");pm.expect(r.offer.amountRub).to.eql(800000);pm.expect(r.offer.termMonths).to.eql(12);const product=JSON.parse(pm.collectionVariables.get(\"creditProductsJSON\")).find(p=>p.id===\"turnover\");pm.expect(r.offer.annualRatePercent).to.eql(product.annualRatePercent);const rate=product.annualRatePercent/1200;const factor=rate===0?1/12:rate/(1-Math.pow(1+rate,-12));pm.expect(r.offer.monthlyPaymentRub).to.eql(Math.ceil(800000*factor));});",
+              "pm.test(\"Public explanation is safe and non-empty\",()=>{pm.expect(r.customerExplanation).to.be.a(\"string\").and.not.empty;pm.expect(r.reasons).to.include(r.customerExplanation);if(input.customerExplanation && input.customerExplanation.trim())pm.expect(r.customerExplanation).to.eql(input.customerExplanation.trim());pm.expect(JSON.stringify(r)).not.to.include((input.internalComment||input.comment).trim());});"
             ]
           }
         }
@@ -19782,7 +19840,7 @@
               "  pm.test(\"Action fixtures require scoring, policy and four read outcomes\", () => required.forEach(key => pm.expect(String(pm.variables.get(key)), key).to.eql(\"true\")));",
               "  if (required.some(key => String(pm.variables.get(key)) !== \"true\")) pm.execution.skipRequest();",
               "}",
-              "pm.request.body.update(pm.collectionVariables.get(\"actionCounterManualBodyJSON\")); const changed=JSON.parse(pm.request.body.raw);changed.comment+=\" Изменение\";pm.request.body.update(JSON.stringify(changed));"
+              "pm.request.body.update(pm.collectionVariables.get(\"actionCounterManualBodyJSON\")); const changed=JSON.parse(pm.request.body.raw);changed.customerExplanation=(changed.customerExplanation||\"\")+\" Изменение\";pm.request.body.update(JSON.stringify(changed));"
             ]
           }
         },
@@ -19979,7 +20037,7 @@
             "type": "text/javascript",
             "exec": [
               "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));const r=pm.response.json(),before=JSON.parse(pm.collectionVariables.get(\"actionCounterAssessmentJSON\")),input=JSON.parse(pm.collectionVariables.get(\"actionCounterManualBodyJSON\")),saved=JSON.parse(pm.collectionVariables.get(\"actionCounterManualResponseJSON\"));",
-              "pm.test(\"Private audit contains employee, original comment and decision timestamp\",()=>{pm.expect(r.manualDecision).to.deep.eql({decision:\"counter_offer\",comment:input.comment.trim(),reviewedBy:pm.collectionVariables.get(\"bankProfileId\"),reviewedAt:saved.assessedAt});pm.expect(r.version).to.eql(saved.version);[\"companyCheck\",\"creditHistory\",\"scoring\",\"riskLevel\",\"recommendations\"].forEach(field=>pm.expect(r[field],field).to.deep.eql(before[field]));});"
+              "pm.test(\"Private audit contains employee, original comment and decision timestamp\",()=>{pm.expect(r.manualDecision).to.deep.eql({decision:\"counter_offer\",comment:(input.internalComment||input.comment).trim(),internalComment:(input.internalComment||input.comment).trim(),customerExplanation:saved.customerExplanation,reviewedBy:pm.collectionVariables.get(\"bankProfileId\"),reviewedAt:saved.assessedAt});pm.expect(r.version).to.eql(saved.version);[\"companyCheck\",\"creditHistory\",\"scoring\",\"riskLevel\",\"recommendations\"].forEach(field=>pm.expect(r[field],field).to.deep.eql(before[field]));});"
             ]
           }
         }
@@ -22045,6 +22103,2879 @@
           }
         }
       ]
+    },
+    {
+      "name": "398 · Contacts — read current personal email and version",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "me"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json();if(pm.response.code===200){pm.collectionVariables.set(\"contactOriginalUserJSON\",JSON.stringify(r));pm.collectionVariables.set(\"contactUserVersion\",r.version);}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "399 · Contacts — client updates additional email only",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "me"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"version\":{{contactUserVersion}},\"additionalEmail\":\"  contact-test@example.test  \"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json(),before=JSON.parse(pm.collectionVariables.get(\"contactOriginalUserJSON\"));pm.test(\"Email normalized, identity immutable and version advanced\",()=>{pm.expect(r.additionalEmail).to.eql(\"contact-test@example.test\");pm.expect(r.version).to.eql(before.version+1);[\"id\",\"name\",\"phone\",\"role\",\"companyId\"].forEach(k=>pm.expect(r[k]).to.deep.eql(before[k]));});if(pm.response.code===200)pm.collectionVariables.set(\"contactUserVersion\",r.version);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "400 · Contacts — stale personal version rejected",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "me"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const before=JSON.parse(pm.collectionVariables.get(\"contactOriginalUserJSON\"));pm.request.body.update(JSON.stringify({version:before.version,additionalEmail:\"stale@example.test\"}));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\",()=>pm.response.to.have.status(409));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"version_conflict\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "401 · Contacts — personal id is immutable",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "me"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body={version:Number(pm.collectionVariables.get(\"contactUserVersion\")),additionalEmail:null};body[\"id\"]=\"20000000-0000-4000-8000-000000000099\";pm.request.body.update(JSON.stringify(body));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\",()=>pm.response.to.have.status(400));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_request\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "402 · Contacts — personal name is immutable",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "me"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body={version:Number(pm.collectionVariables.get(\"contactUserVersion\")),additionalEmail:null};body[\"name\"]=\"Other legal name\";pm.request.body.update(JSON.stringify(body));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\",()=>pm.response.to.have.status(400));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_request\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "403 · Contacts — personal phone is immutable",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "me"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body={version:Number(pm.collectionVariables.get(\"contactUserVersion\")),additionalEmail:null};body[\"phone\"]=\"+79990000099\";pm.request.body.update(JSON.stringify(body));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\",()=>pm.response.to.have.status(400));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_request\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "404 · Contacts — personal role is immutable",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "me"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body={version:Number(pm.collectionVariables.get(\"contactUserVersion\")),additionalEmail:null};body[\"role\"]=\"BANK_EMPLOYEE\";pm.request.body.update(JSON.stringify(body));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\",()=>pm.response.to.have.status(400));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_request\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "405 · Contacts — personal companyId is immutable",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "me"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body={version:Number(pm.collectionVariables.get(\"contactUserVersion\")),additionalEmail:null};body[\"companyId\"]=\"10000000-0000-4000-8000-000000000099\";pm.request.body.update(JSON.stringify(body));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\",()=>pm.response.to.have.status(400));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_request\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "406 · Contacts — malformed additional email rejected",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "me"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"version\":{{contactUserVersion}},\"additionalEmail\":\"not-an-email\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\",()=>pm.response.to.have.status(400));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_request\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "407 · Contacts — bank cannot edit personal contacts",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "me"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"version\":1,\"additionalEmail\":\"bank@example.test\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\",()=>pm.response.to.have.status(403));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"forbidden\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "408 · Contacts — personal edit requires authentication",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "me"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"version\":1,\"additionalEmail\":null}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\",()=>pm.response.to.have.status(401));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"unauthorized\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "409 · Contacts — restore personal email with current version",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "me"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const before=JSON.parse(pm.collectionVariables.get(\"contactOriginalUserJSON\"));pm.request.body.update(JSON.stringify({version:Number(pm.collectionVariables.get(\"contactUserVersion\")),additionalEmail:before.additionalEmail}));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json(),original=JSON.parse(pm.collectionVariables.get(\"contactOriginalUserJSON\"));pm.test(\"Original personal email restored; login identity unchanged\",()=>{pm.expect(r.additionalEmail).to.eql(original.additionalEmail);[\"id\",\"name\",\"phone\",\"role\",\"companyId\"].forEach(k=>pm.expect(r[k]).to.eql(original[k]));});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "410 · Contacts — read company contacts and version",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/companies/{{clientCompanyId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "companies",
+            "{{clientCompanyId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json();if(pm.response.code===200){pm.collectionVariables.set(\"contactOriginalCompanyJSON\",JSON.stringify(r));pm.collectionVariables.set(\"contactCompanyVersion\",r.version);}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "411 · Contacts — client updates company phone email address",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/companies/{{clientCompanyId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "companies",
+            "{{clientCompanyId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"version\":{{contactCompanyVersion}},\"contact\":{\"phone\":\"+79990000099\",\"email\":\"company-test@example.test\",\"address\":\"Демонстрационный контактный адрес\"}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json(),before=JSON.parse(pm.collectionVariables.get(\"contactOriginalCompanyJSON\"));pm.test(\"Only contacts and version changed\",()=>{pm.expect(r.version).to.eql(before.version+1);pm.expect(r.contact).to.deep.eql({phone:\"+79990000099\",email:\"company-test@example.test\",address:\"Демонстрационный контактный адрес\"});Object.keys(before).filter(k=>![\"version\",\"contact\"].includes(k)).forEach(k=>pm.expect(r[k],k).to.deep.eql(before[k]));});if(pm.response.code===200)pm.collectionVariables.set(\"contactCompanyVersion\",r.version);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "412 · Contacts — stale company version rejected",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/companies/{{clientCompanyId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "companies",
+            "{{clientCompanyId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const original=JSON.parse(pm.collectionVariables.get(\"contactOriginalCompanyJSON\"));pm.request.body.update(JSON.stringify({version:original.version,contact:{email:\"stale@example.test\"}}));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\",()=>pm.response.to.have.status(409));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"version_conflict\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "413 · Contacts — company name is immutable",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/companies/{{clientCompanyId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "companies",
+            "{{clientCompanyId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body={version:Number(pm.collectionVariables.get(\"contactCompanyVersion\")),contact:{email:\"unchanged@example.test\"}};body[\"name\"]=\"Other legal company\";pm.request.body.update(JSON.stringify(body));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\",()=>pm.response.to.have.status(400));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_request\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "414 · Contacts — company inn is immutable",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/companies/{{clientCompanyId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "companies",
+            "{{clientCompanyId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body={version:Number(pm.collectionVariables.get(\"contactCompanyVersion\")),contact:{email:\"unchanged@example.test\"}};body[\"inn\"]=\"0000000002\";pm.request.body.update(JSON.stringify(body));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\",()=>pm.response.to.have.status(400));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_request\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "415 · Contacts — company registrationNumber is immutable",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/companies/{{clientCompanyId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "companies",
+            "{{clientCompanyId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body={version:Number(pm.collectionVariables.get(\"contactCompanyVersion\")),contact:{email:\"unchanged@example.test\"}};body[\"registrationNumber\"]=\"0000000000002\";pm.request.body.update(JSON.stringify(body));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\",()=>pm.response.to.have.status(400));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_request\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "416 · Contacts — company registrationDate is immutable",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/companies/{{clientCompanyId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "companies",
+            "{{clientCompanyId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body={version:Number(pm.collectionVariables.get(\"contactCompanyVersion\")),contact:{email:\"unchanged@example.test\"}};body[\"registrationDate\"]=\"2020-01-01\";pm.request.body.update(JSON.stringify(body));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\",()=>pm.response.to.have.status(400));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_request\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "417 · Contacts — company okved is immutable",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/companies/{{clientCompanyId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "companies",
+            "{{clientCompanyId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body={version:Number(pm.collectionVariables.get(\"contactCompanyVersion\")),contact:{email:\"unchanged@example.test\"}};body[\"okved\"]=\"47.11\";pm.request.body.update(JSON.stringify(body));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\",()=>pm.response.to.have.status(400));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_request\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "418 · Contacts — company directorName is immutable",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/companies/{{clientCompanyId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "companies",
+            "{{clientCompanyId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body={version:Number(pm.collectionVariables.get(\"contactCompanyVersion\")),contact:{email:\"unchanged@example.test\"}};body[\"directorName\"]=\"Other director\";pm.request.body.update(JSON.stringify(body));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\",()=>pm.response.to.have.status(400));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_request\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "419 · Contacts — company financials is immutable",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/companies/{{clientCompanyId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "companies",
+            "{{clientCompanyId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body={version:Number(pm.collectionVariables.get(\"contactCompanyVersion\")),contact:{email:\"unchanged@example.test\"}};body[\"financials\"]={\"monthlyRevenueRub\": 999};pm.request.body.update(JSON.stringify(body));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\",()=>pm.response.to.have.status(400));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_request\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "420 · Contacts — company creditHistory is immutable",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/companies/{{clientCompanyId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "companies",
+            "{{clientCompanyId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body={version:Number(pm.collectionVariables.get(\"contactCompanyVersion\")),contact:{email:\"unchanged@example.test\"}};body[\"creditHistory\"]={\"overdueCount\": 0};pm.request.body.update(JSON.stringify(body));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\",()=>pm.response.to.have.status(400));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_request\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "421 · Contacts — reject empty contact",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/companies/{{clientCompanyId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "companies",
+            "{{clientCompanyId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"version\":{{contactCompanyVersion}},\"contact\":{}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\",()=>pm.response.to.have.status(400));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_request\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "422 · Contacts — reject invalid phone",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/companies/{{clientCompanyId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "companies",
+            "{{clientCompanyId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"version\":{{contactCompanyVersion}},\"contact\":{\"phone\":\"8 (999)\"}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\",()=>pm.response.to.have.status(400));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_request\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "423 · Contacts — reject nested unknown field",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/companies/{{clientCompanyId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "companies",
+            "{{clientCompanyId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"version\":{{contactCompanyVersion}},\"contact\":{\"inn\":\"0000000002\"}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\",()=>pm.response.to.have.status(400));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_request\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "424 · Contacts — reject null address",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/companies/{{clientCompanyId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "companies",
+            "{{clientCompanyId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"version\":{{contactCompanyVersion}},\"contact\":{\"address\":null}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\",()=>pm.response.to.have.status(400));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_request\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "425 · Contacts — foreign client cannot edit company",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{otherClientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/companies/{{clientCompanyId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "companies",
+            "{{clientCompanyId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"version\":{{contactCompanyVersion}},\"contact\":{\"email\":\"foreign@example.test\"}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\",()=>pm.response.to.have.status(403));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"forbidden\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "426 · Contacts — bank cannot edit company",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/companies/{{clientCompanyId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "companies",
+            "{{clientCompanyId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"version\":{{contactCompanyVersion}},\"contact\":{\"email\":\"bank@example.test\"}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\",()=>pm.response.to.have.status(403));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"forbidden\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "427 · Contacts — restore company contacts with current version",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/companies/{{clientCompanyId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "companies",
+            "{{clientCompanyId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const before=JSON.parse(pm.collectionVariables.get(\"contactOriginalCompanyJSON\"));pm.request.body.update(JSON.stringify({version:Number(pm.collectionVariables.get(\"contactCompanyVersion\")),contact:before.contact}).split(\"{{\").join(String.fromCharCode(92)+\"u007b\"+String.fromCharCode(92)+\"u007b\"));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json(),before=JSON.parse(pm.collectionVariables.get(\"contactOriginalCompanyJSON\"));pm.test(\"Original company contacts restored\",()=>pm.expect(r.contact).to.deep.eql(before.contact));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "428 · Draft deletion — read version of own draft with documents",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json();pm.test(\"Fixture remains an owned draft with delete action\",()=>{pm.expect(r.status).to.eql(\"draft\");pm.expect(r.availableActions).to.include(\"delete\");});if(pm.response.code===200){pm.collectionVariables.set(\"deleteDraftVersion\",r.version);pm.collectionVariables.set(\"deleteDraftStaleVersion\",r.version+1);}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "429 · Draft deletion — version is required",
+      "request": {
+        "method": "DELETE",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\",()=>pm.response.to.have.status(400));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_request\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "430 · Draft deletion — foreign client denied",
+      "request": {
+        "method": "DELETE",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{otherClientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}?version={{deleteDraftVersion}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}"
+          ],
+          "query": [
+            {
+              "key": "version",
+              "value": "{{deleteDraftVersion}}"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\",()=>pm.response.to.have.status(404));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"application_not_found\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "431 · Draft deletion — bank denied",
+      "request": {
+        "method": "DELETE",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bankAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}?version={{deleteDraftVersion}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}"
+          ],
+          "query": [
+            {
+              "key": "version",
+              "value": "{{deleteDraftVersion}}"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\",()=>pm.response.to.have.status(403));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"forbidden\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "432 · Draft deletion — token required",
+      "request": {
+        "method": "DELETE",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}?version={{deleteDraftVersion}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}"
+          ],
+          "query": [
+            {
+              "key": "version",
+              "value": "{{deleteDraftVersion}}"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\",()=>pm.response.to.have.status(401));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"unauthorized\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "433 · Draft deletion — stale version denied",
+      "request": {
+        "method": "DELETE",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}?version={{deleteDraftStaleVersion}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}"
+          ],
+          "query": [
+            {
+              "key": "version",
+              "value": "{{deleteDraftStaleVersion}}"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\",()=>pm.response.to.have.status(409));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"version_conflict\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "434 · Draft deletion — own draft and documents become private",
+      "request": {
+        "method": "DELETE",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}?version={{deleteDraftVersion}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}"
+          ],
+          "query": [
+            {
+              "key": "version",
+              "value": "{{deleteDraftVersion}}"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\",()=>pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "435 · Draft deletion — repeat returns no content without duplicate audit",
+      "request": {
+        "method": "DELETE",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}?version={{deleteDraftVersion}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}"
+          ],
+          "query": [
+            {
+              "key": "version",
+              "value": "{{deleteDraftVersion}}"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\",()=>pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "436 · Draft deletion — deleted detail hidden",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\",()=>pm.response.to.have.status(404));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"application_not_found\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "437 · Draft deletion — deleted timeline hidden",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/timeline",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "timeline"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\",()=>pm.response.to.have.status(404));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"application_not_found\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "438 · Draft deletion — deleted decision hidden",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/decision",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "decision"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\",()=>pm.response.to.have.status(404));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"application_not_found\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "439 · Draft deletion — deleted document list hidden",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\",()=>pm.response.to.have.status(404));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"application_not_found\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "440 · Draft deletion — deleted file download hidden",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents/{{pdfDocumentId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents",
+            "{{pdfDocumentId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\",()=>pm.response.to.have.status(404));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"application_not_found\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "441 · Draft deletion — deleted draft cannot be edited",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"version\":2,\"purpose\":\"stock\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\",()=>pm.response.to.have.status(404));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"application_not_found\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "442 · Draft deletion — deleted draft cannot be submitted",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/submit",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "submit"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"version\":2}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\",()=>pm.response.to.have.status(404));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"application_not_found\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "443 · Draft deletion — deleted draft cannot receive uploads",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{documentApplicationId}}/documents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{documentApplicationId}}",
+            "documents"
+          ]
+        },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "fixtures/sample.pdf"
+            },
+            {
+              "key": "documentType",
+              "value": "BANK_STATEMENT",
+              "type": "text"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\",()=>pm.response.to.have.status(404));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"application_not_found\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "444 · Draft deletion — submitted application cannot be deleted",
+      "request": {
+        "method": "DELETE",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{submitApplicationId}}?version=1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{submitApplicationId}}"
+          ],
+          "query": [
+            {
+              "key": "version",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\",()=>pm.response.to.have.status(409));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"invalid_status\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "445 · Draft deletion — deleted draft absent from active list",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications?status=draft&limit=100",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ],
+          "query": [
+            {
+              "key": "status",
+              "value": "draft"
+            },
+            {
+              "key": "limit",
+              "value": "100"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "pm.test(\"Deleted draft absent from client list\",()=>pm.expect(pm.response.json().items.map(v=>v.applicationId)).not.to.include(pm.collectionVariables.get(\"documentApplicationId\")));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "446 · Draft limit — discover remaining slots",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications?status=draft&limit=100",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ],
+          "query": [
+            {
+              "key": "status",
+              "value": "draft"
+            },
+            {
+              "key": "limit",
+              "value": "100"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json(),limit=Number(pm.variables.get(\"maxActiveDraftsPerClient\")||20);pm.test(\"Draft limit fixture has free slots\",()=>{pm.expect(Number.isSafeInteger(limit)).to.eql(true);pm.expect(limit).to.be.within(1,10000);pm.expect(r.total).to.be.below(limit);});pm.collectionVariables.set(\"draftLimitRemaining\",Math.max(0,limit-r.total));pm.collectionVariables.set(\"draftLimitCreatedJSON\",\"[]\");"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "447 · Draft limit — create only enough drafts to reach configured cap",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if(Number(pm.collectionVariables.get(\"draftLimitRemaining\"))<1)pm.execution.skipRequest();"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
+              "const r=pm.response.json();pm.test(\"One slot consumed by own new draft\",()=>{pm.expect(r.status).to.eql(\"draft\");pm.expect(r.version).to.eql(1);});if(pm.response.code===201){const created=JSON.parse(pm.collectionVariables.get(\"draftLimitCreatedJSON\")||\"[]\");created.push(r.applicationId);pm.collectionVariables.set(\"draftLimitCreatedJSON\",JSON.stringify(created));const remaining=Number(pm.collectionVariables.get(\"draftLimitRemaining\"))-1;pm.collectionVariables.set(\"draftLimitRemaining\",remaining);if(remaining>0)pm.execution.setNextRequest(pm.info.requestId);}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "448 · Draft limit — next draft returns precise conflict",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\",()=>pm.response.to.have.status(409));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"draft_limit_reached\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "449 · Draft limit — verify exactly configured active draft count",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications?status=draft&limit=100",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ],
+          "query": [
+            {
+              "key": "status",
+              "value": "draft"
+            },
+            {
+              "key": "limit",
+              "value": "100"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "pm.test(\"No draft beyond configured cap exists\",()=>pm.expect(pm.response.json().total).to.eql(Number(pm.variables.get(\"maxActiveDraftsPerClient\")||20)));const created=JSON.parse(pm.collectionVariables.get(\"draftLimitCreatedJSON\")||\"[]\");pm.test(\"A test-created draft is available for safe deletion\",()=>pm.expect(created).to.be.an(\"array\").and.not.empty);if(created.length)pm.collectionVariables.set(\"draftLimitDeleteId\",created[0]);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "450 · Draft limit — remove one test-created draft",
+      "request": {
+        "method": "DELETE",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications/{{draftLimitDeleteId}}?version=1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications",
+            "{{draftLimitDeleteId}}"
+          ],
+          "query": [
+            {
+              "key": "version",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\",()=>pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "451 · Draft limit — freed slot permits exactly one replacement",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
+              "pm.test(\"Replacement owns the freed slot\",()=>{const r=pm.response.json();pm.expect(r.status).to.eql(\"draft\");pm.expect(r.userId).to.eql(pm.collectionVariables.get(\"clientProfileId\"));});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "452 · Draft limit — replacement fills the cap again",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "applications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\",()=>pm.response.to.have.status(409));",
+              "const r=pm.response.json();pm.test(\"Expected safe error\",()=>{pm.expect(r).to.have.all.keys(\"error\",\"message\");pm.expect(r.error).to.eql(\"draft_limit_reached\");pm.expect(r.message).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "453 · Draft cleanup — preserve all pre-existing and submitted applications",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{clientAccessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "me"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const drafts=JSON.parse(pm.collectionVariables.get(\"runDraftsJSON\")||\"[]\");",
+              "const base=pm.variables.get(\"baseUrl\");",
+              "const tokens={};[\"client\",\"otherClient\",\"thirdClient\"].forEach(scope=>{const id=pm.collectionVariables.get(scope+\"ProfileId\");if(id)tokens[id]=pm.collectionVariables.get(scope+\"AccessToken\");});",
+              "function next(index){",
+              " if(index>=drafts.length){pm.test(\"Only this iteration's unsubmitted test drafts were cleaned up\",()=>pm.expect(index).to.eql(drafts.length));return;}",
+              " const draft=drafts[index],token=tokens[draft.userId];",
+              " if(!token){pm.test(\"Cleanup has an issued token for the draft owner\",()=>pm.expect(token).to.be.a(\"string\").and.not.empty);return next(index+1);}",
+              " const headers={Authorization:\"Bearer \"+token};",
+              " pm.sendRequest({url:base+\"/api/v1/applications/\"+draft.id,method:\"GET\",header:headers},(err,res)=>{",
+              "  pm.test(\"Cleanup reads only a test-created draft\",()=>{pm.expect(err).to.eql(null);pm.expect(res.code).to.be.oneOf([200,404]);});",
+              "  if(err||!res||res.code!==200)return next(index+1);",
+              "  const value=res.json();if(value.status!==\"draft\")return next(index+1);",
+              "  pm.sendRequest({url:base+\"/api/v1/applications/\"+draft.id+\"?version=\"+value.version,method:\"DELETE\",header:headers},(removeError,removed)=>{",
+              "   pm.test(\"Cleanup soft-deletes own unsubmitted fixture\",()=>{pm.expect(removeError).to.eql(null);pm.expect(removed.code).to.eql(204);});next(index+1);",
+              "  });",
+              " });",
+              "}",
+              "next(0);"
+            ]
+          }
+        }
+      ]
     }
   ],
   "event": [
@@ -22054,7 +24985,7 @@
         "type": "text/javascript",
         "exec": [
           "// Local values prevent stale environment/global variables from shadowing run results.",
-          "const transientKeys = [\"clientProfileId\", \"bankProfileId\", \"otpRequestId\", \"accessToken\", \"clientOtpRequestId\", \"bankOtpRequestId\", \"clientAccessToken\", \"bankAccessToken\", \"clientCompanyId\", \"clientName\", \"clientPhone\", \"bankName\", \"bankPhone\", \"previousClientOtpRequestId\", \"otherClientProfileId\", \"otherClientOtpRequestId\", \"otherClientAccessToken\", \"otherCompanyId\", \"ownCompanyJSON\", \"creditProductsJSON\", \"applicationId\", \"applicationVersion\", \"previousApplicationVersion\", \"secondApplicationId\", \"applicationCreatedAt\", \"applicationUpdatedAt\", \"applicationListTotal\", \"documentApplicationId\", \"pdfDocumentId\", \"pdfMetadataJSON\", \"pngDocumentId\", \"pngMetadataJSON\", \"jpegDocumentId\", \"jpegMetadataJSON\", \"repeatedDocumentId\", \"repeatedMetadataJSON\", \"submitApplicationId\", \"submitVersion\", \"submitSubmittedAt\", \"submitPollAttempts\", \"submitTimelineJSON\", \"investmentApplicationId\", \"investmentVersion\", \"investmentSubmittedAt\", \"investmentPollAttempts\", \"thirdClientProfileId\", \"thirdClientOtpRequestId\", \"thirdClientAccessToken\", \"thirdCompanyId\", \"untrustedApplicationId\", \"untrustedVersion\", \"untrustedSubmittedAt\", \"untrustedPollAttempts\", \"incompleteApplicationId\", \"incompleteVersion\", \"investmentDocumentId\", \"investmentDocumentMetadataJSON\", \"submittedApplicationJSON\", \"investmentTimelineJSON\", \"untrustedTimelineJSON\", \"bankReadPageJSON\", \"readApprovedId\", \"readApprovedVersion\", \"readApprovedPoll\", \"readRejectedId\", \"readRejectedVersion\", \"readRejectedPoll\", \"readCounterId\", \"readCounterVersion\", \"readCounterPoll\", \"readManualId\", \"readManualVersion\", \"readManualPoll\", \"actionValidationKey\", \"actionApproveId\", \"actionApproveVersion\", \"actionApproveBaseVersion\", \"actionApprovePoll\", \"actionApproveManualKey\", \"actionApproveManualBodyJSON\", \"actionApproveManualResponseJSON\", \"actionApproveAssessmentJSON\", \"actionApproveOfferId\", \"actionApproveFinalVersion\", \"actionApproveActionKey\", \"actionApproveActionBodyJSON\", \"actionApproveActionResponseJSON\", \"actionRejectId\", \"actionRejectVersion\", \"actionRejectBaseVersion\", \"actionRejectPoll\", \"actionRejectManualKey\", \"actionRejectManualBodyJSON\", \"actionRejectManualResponseJSON\", \"actionRejectAssessmentJSON\", \"actionRejectOfferId\", \"actionRejectFinalVersion\", \"actionRejectActionKey\", \"actionRejectActionBodyJSON\", \"actionRejectActionResponseJSON\", \"actionCounterId\", \"actionCounterVersion\", \"actionCounterBaseVersion\", \"actionCounterPoll\", \"actionCounterManualKey\", \"actionCounterManualBodyJSON\", \"actionCounterManualResponseJSON\", \"actionCounterAssessmentJSON\", \"actionCounterOfferId\", \"actionCounterFinalVersion\", \"actionCounterActionKey\", \"actionCounterActionBodyJSON\", \"actionCounterActionResponseJSON\"];",
+          "const transientKeys = [\"clientProfileId\", \"bankProfileId\", \"otpRequestId\", \"accessToken\", \"clientOtpRequestId\", \"bankOtpRequestId\", \"clientAccessToken\", \"bankAccessToken\", \"clientCompanyId\", \"clientName\", \"clientPhone\", \"bankName\", \"bankPhone\", \"previousClientOtpRequestId\", \"otherClientProfileId\", \"otherClientOtpRequestId\", \"otherClientAccessToken\", \"otherCompanyId\", \"ownCompanyJSON\", \"creditProductsJSON\", \"applicationId\", \"applicationVersion\", \"previousApplicationVersion\", \"secondApplicationId\", \"applicationCreatedAt\", \"applicationUpdatedAt\", \"applicationListTotal\", \"documentApplicationId\", \"pdfDocumentId\", \"pdfMetadataJSON\", \"pngDocumentId\", \"pngMetadataJSON\", \"jpegDocumentId\", \"jpegMetadataJSON\", \"repeatedDocumentId\", \"repeatedMetadataJSON\", \"submitApplicationId\", \"submitVersion\", \"submitSubmittedAt\", \"submitPollAttempts\", \"submitTimelineJSON\", \"investmentApplicationId\", \"investmentVersion\", \"investmentSubmittedAt\", \"investmentPollAttempts\", \"thirdClientProfileId\", \"thirdClientOtpRequestId\", \"thirdClientAccessToken\", \"thirdCompanyId\", \"untrustedApplicationId\", \"untrustedVersion\", \"untrustedSubmittedAt\", \"untrustedPollAttempts\", \"incompleteApplicationId\", \"incompleteVersion\", \"investmentDocumentId\", \"investmentDocumentMetadataJSON\", \"submittedApplicationJSON\", \"investmentTimelineJSON\", \"untrustedTimelineJSON\", \"bankReadPageJSON\", \"readApprovedId\", \"readApprovedVersion\", \"readApprovedPoll\", \"readRejectedId\", \"readRejectedVersion\", \"readRejectedPoll\", \"readCounterId\", \"readCounterVersion\", \"readCounterPoll\", \"readManualId\", \"readManualVersion\", \"readManualPoll\", \"actionValidationKey\", \"actionApproveId\", \"actionApproveVersion\", \"actionApproveBaseVersion\", \"actionApprovePoll\", \"actionApproveManualKey\", \"actionApproveManualBodyJSON\", \"actionApproveManualResponseJSON\", \"actionApproveAssessmentJSON\", \"actionApproveOfferId\", \"actionApproveFinalVersion\", \"actionApproveActionKey\", \"actionApproveActionBodyJSON\", \"actionApproveActionResponseJSON\", \"actionRejectId\", \"actionRejectVersion\", \"actionRejectBaseVersion\", \"actionRejectPoll\", \"actionRejectManualKey\", \"actionRejectManualBodyJSON\", \"actionRejectManualResponseJSON\", \"actionRejectAssessmentJSON\", \"actionRejectOfferId\", \"actionRejectFinalVersion\", \"actionRejectActionKey\", \"actionRejectActionBodyJSON\", \"actionRejectActionResponseJSON\", \"actionCounterId\", \"actionCounterVersion\", \"actionCounterBaseVersion\", \"actionCounterPoll\", \"actionCounterManualKey\", \"actionCounterManualBodyJSON\", \"actionCounterManualResponseJSON\", \"actionCounterAssessmentJSON\", \"actionCounterOfferId\", \"actionCounterFinalVersion\", \"actionCounterActionKey\", \"actionCounterActionBodyJSON\", \"actionCounterActionResponseJSON\", \"contactOriginalUserJSON\", \"contactUserVersion\", \"contactOriginalCompanyJSON\", \"contactCompanyVersion\", \"deleteDraftVersion\", \"deleteDraftStaleVersion\", \"draftLimitRemaining\", \"draftLimitCreatedJSON\", \"draftLimitDeleteId\", \"runDraftsJSON\"];",
           "transientKeys.forEach(key => pm.variables.set(key, pm.collectionVariables.get(key) || \"\"));",
           "const configuredCode = String(pm.variables.get(\"demoOtpCode\") || \"1234\");",
           "pm.variables.set(\"demoOtpCode\", configuredCode);",
@@ -22071,7 +25002,7 @@
         "exec": [
           "const binaryDownload = pm.request.method === \"GET\" && /\\/documents\\/[^/?]+(?:\\?|$)/.test(pm.request.url.toString()) && pm.response.code === 200;",
           "if (binaryDownload) pm.test(\"Supported binary response\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.be.oneOf([\"application/pdf\", \"image/png\", \"image/jpeg\"]));",
-          "else pm.test(\"JSON response\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\"));",
+          "else if (pm.response.code === 204) pm.test(\"Successful deletion has an empty body\", () => pm.expect(pm.response.text()).to.eql(\"\"));\nelse pm.test(\"JSON response\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\"));",
           "pm.test(\"Responses are not cached\", () => pm.expect(pm.response.headers.get(\"Cache-Control\")).to.eql(\"no-store\"));",
           "// Independently check whole-ruble results for every successful recommendation request.",
           "if (pm.request.url.toString().includes(\"/api/v1/recommendations\") && pm.response.code === 200) {",
@@ -22151,7 +25082,11 @@
           "  if(started){const scoring=timeline.find(e=>e.eventType===\"SCORING_COMPLETED\");pm.expect(scoring).to.be.an(\"object\");pm.expect(started.sequence).to.be.above(scoring.sequence);pm.expect(started.actorId).to.eql(null);pm.expect(started.status).to.eql(\"processing\");}",
           "  outcomes.forEach(e=>{pm.expect(started).to.be.an(\"object\");pm.expect(e.sequence).to.be.above(started.sequence);pm.expect(e.actorId).to.eql(null);pm.expect(e.status).to.eql(finalStatus[e.eventType]);pm.expect(e).to.have.all.keys(\"eventId\",\"eventType\",\"sequence\",\"status\",\"createdAt\",\"actorId\",\"title\");pm.expect(e).not.to.have.any.keys(\"score\",\"riskLevel\",\"factors\",\"offer\",\"scoringUrl\",\"error\");});",
           " });",
-          "}"
+          "}",
+          "// Track only drafts created by this collection iteration; pre-existing data is never purged.",
+          "if(pm.request.method===\"POST\" && /\\/api\\/v1\\/applications$/.test(pm.request.url.toString()) && pm.response.code===201){const value=pm.response.json();const drafts=JSON.parse(pm.collectionVariables.get(\"runDraftsJSON\")||\"[]\");if(!drafts.some(d=>d.id===value.applicationId))drafts.push({id:value.applicationId,userId:value.userId});pm.collectionVariables.set(\"runDraftsJSON\",JSON.stringify(drafts));}",
+          "if(pm.request.method===\"GET\" && /\\/api\\/v1\\/bank\\/applications\\/[^/?]+\\/assessment(?:\\?|$)/.test(pm.request.url.toString()) && pm.response.code===200){const value=pm.response.json();pm.test(\"Python recommendation is distinct from persisted Go policy\",()=>{if(value.scoring!==null){const s=value.scoring;pm.expect(s).to.have.all.keys(\"score\",\"assessedAt\",\"decision\",\"approvedAmountRub\",\"reasons\",\"factors\");pm.expect(s.decision).to.be.oneOf([\"approved\",\"counter_offer\",\"rejected\"]);pm.expect(s.approvedAmountRub).to.be.a(\"number\").and.at.least(0);pm.expect(s.reasons).to.be.an(\"array\").and.not.empty;if(s.factors!==null){pm.expect(s.factors).to.have.all.keys(\"operating_cash_flow\",\"operating_margin\",\"estimated_new_monthly_payment\",\"debt_service_share\",\"existing_debt_to_annual_revenue\",\"overdue_count\");Object.values(s.factors).forEach(n=>{if(n!==null)pm.expect(Number.isFinite(n)).to.eql(true);});}}if(value.goDecision!==null){pm.expect(value.goDecision).to.have.all.keys(\"decision\",\"score\",\"riskLevel\",\"reasons\",\"assessedAt\");pm.expect(value.goDecision.decision).to.be.oneOf([\"approved\",\"counter_offer\",\"rejected\",\"manual_review\"]);pm.expect(value.goDecision.reasons).to.be.an(\"array\").and.not.empty;}});}",
+          "if(/\\/api\\/v1\\/applications\\/[^/?]+(?:\\/(?:decision|timeline))?(?:\\?|$)/.test(pm.request.url.toString()) && pm.response.code===200){pm.test(\"Client view never exposes bank diagnostics or internal comments\",()=>{const text=pm.response.text();[\"internalComment\",\"internal_comment\",\"Внутренний аудит\",\"operating_cash_flow\",\"debt_service_share\"].forEach(secret=>pm.expect(text).not.to.include(secret));});}"
         ]
       }
     },
@@ -22161,13 +25096,15 @@
         "type": "text/javascript",
         "exec": [
           "// Frozen DTOs derived from OpenAPI: nullable converted; numeric format annotations omitted for Ajv.",
-          "const readContracts={\"CreditDecision\":{\"$schema\":\"http://json-schema.org/draft-07/schema#\",\"$ref\":\"#/definitions/CreditDecision\",\"definitions\":{\"CreditDecision\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"applicationId\",\"status\",\"version\",\"decision\",\"score\",\"riskLevel\",\"reasons\",\"assessedAt\",\"reviewedBy\",\"offer\",\"processing\"],\"properties\":{\"applicationId\":{\"type\":\"string\",\"format\":\"uuid\"},\"status\":{\"$ref\":\"#/definitions/ApplicationStatus\"},\"version\":{\"type\":\"integer\",\"minimum\":1},\"decision\":{\"$ref\":\"#/definitions/CreditOutcome\"},\"score\":{\"type\":[\"integer\",\"null\"],\"minimum\":0,\"maximum\":100},\"riskLevel\":{\"$ref\":\"#/definitions/RiskLevel\"},\"reasons\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"assessedAt\":{\"type\":[\"string\",\"null\"],\"format\":\"date-time\"},\"reviewedBy\":{\"type\":[\"string\",\"null\"],\"format\":\"uuid\"},\"offer\":{\"$ref\":\"#/definitions/CreditOffer\"},\"processing\":{\"$ref\":\"#/definitions/Processing\"}}},\"Processing\":{\"type\":[\"object\",\"null\"],\"additionalProperties\":false,\"required\":[\"stage\",\"state\",\"retryAt\",\"message\"],\"properties\":{\"stage\":{\"type\":\"string\",\"enum\":[\"prechecks\",\"scoring\",\"decision\"]},\"state\":{\"type\":\"string\",\"enum\":[\"waiting\",\"running\",\"retrying\",\"failed\"]},\"retryAt\":{\"type\":[\"string\",\"null\"],\"format\":\"date-time\"},\"message\":{\"type\":[\"string\",\"null\"]}}},\"CreditOffer\":{\"type\":[\"object\",\"null\"],\"additionalProperties\":false,\"required\":[\"offerId\",\"applicationId\",\"productId\",\"amountRub\",\"termMonths\",\"annualRatePercent\",\"monthlyPaymentRub\",\"expiresAt\",\"status\"],\"properties\":{\"offerId\":{\"type\":\"string\",\"format\":\"uuid\"},\"applicationId\":{\"type\":\"string\",\"format\":\"uuid\"},\"productId\":{\"type\":\"string\",\"enum\":[\"turnover\",\"investment\"]},\"amountRub\":{\"type\":\"integer\",\"minimum\":1},\"termMonths\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":120},\"annualRatePercent\":{\"type\":\"number\",\"minimum\":0},\"monthlyPaymentRub\":{\"type\":\"integer\",\"minimum\":1},\"expiresAt\":{\"type\":[\"string\",\"null\"],\"format\":\"date-time\"},\"status\":{\"type\":\"string\",\"enum\":[\"active\",\"accepted\",\"withdrawn\"]}}},\"RiskLevel\":{\"type\":[\"string\",\"null\"],\"enum\":[\"LOW\",\"MEDIUM\",\"HIGH\",null]},\"CreditOutcome\":{\"type\":[\"string\",\"null\"],\"enum\":[\"approved\",\"counter_offer\",\"rejected\",null]},\"ApplicationStatus\":{\"type\":\"string\",\"enum\":[\"draft\",\"submitted\",\"processing\",\"manual_review\",\"approved\",\"rejected\",\"counter_offer\",\"signed\",\"closed\"]}}},\"BankApplicationPage\":{\"$schema\":\"http://json-schema.org/draft-07/schema#\",\"$ref\":\"#/definitions/BankApplicationPage\",\"definitions\":{\"BankApplicationPage\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"items\",\"total\",\"limit\",\"offset\"],\"properties\":{\"items\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/BankApplication\"}},\"total\":{\"type\":\"integer\",\"minimum\":0},\"limit\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":100},\"offset\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":2147483647}}},\"BankApplication\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"applicationId\",\"company\",\"product\",\"requestedAmountRub\",\"termMonths\",\"status\",\"version\",\"createdAt\",\"updatedAt\",\"submittedAt\",\"manualReviewRequired\",\"availableActions\"],\"properties\":{\"applicationId\":{\"type\":\"string\",\"format\":\"uuid\"},\"company\":{\"$ref\":\"#/definitions/BankCompanySummary\"},\"product\":{\"$ref\":\"#/definitions/BankProductSummary\"},\"requestedAmountRub\":{\"type\":\"integer\",\"minimum\":1},\"termMonths\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":120},\"status\":{\"$ref\":\"#/definitions/BankApplicationStatus\"},\"version\":{\"type\":\"integer\",\"minimum\":1},\"createdAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"updatedAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"submittedAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"manualReviewRequired\":{\"type\":\"boolean\"},\"availableActions\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"enum\":[\"decide\"]}}}},\"BankApplicationStatus\":{\"type\":\"string\",\"enum\":[\"submitted\",\"processing\",\"manual_review\",\"approved\",\"counter_offer\",\"rejected\",\"signed\",\"closed\"]},\"BankProductSummary\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"id\",\"name\"],\"properties\":{\"id\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"}}},\"BankCompanySummary\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"id\",\"name\",\"inn\"],\"properties\":{\"id\":{\"type\":\"string\",\"format\":\"uuid\"},\"name\":{\"type\":\"string\"},\"inn\":{\"type\":\"string\"}}}}},\"BankApplicationDetail\":{\"$schema\":\"http://json-schema.org/draft-07/schema#\",\"$ref\":\"#/definitions/BankApplicationDetail\",\"definitions\":{\"BankApplicationDetail\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"applicationId\",\"userId\",\"companyId\",\"productId\",\"purpose\",\"purposeDescription\",\"requestedAmountRub\",\"termMonths\",\"monthlyRevenueRub\",\"monthlyExpensesRub\",\"productName\",\"status\",\"version\",\"createdAt\",\"updatedAt\",\"submittedAt\",\"availableActions\",\"company\",\"product\",\"productTerms\",\"manualReviewRequired\"],\"properties\":{\"applicationId\":{\"type\":\"string\",\"format\":\"uuid\"},\"userId\":{\"type\":\"string\",\"format\":\"uuid\"},\"companyId\":{\"type\":\"string\",\"format\":\"uuid\"},\"productId\":{\"type\":\"string\",\"pattern\":\"^[a-z][a-z0-9_-]{0,31}$\"},\"purpose\":{\"type\":\"string\",\"enum\":[\"stock\",\"expenses\",\"seasonal\",\"equipment\",\"upgrade\",\"other\"]},\"purposeDescription\":{\"type\":[\"string\",\"null\"],\"maxLength\":300},\"requestedAmountRub\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":1000000000000},\"termMonths\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":120},\"monthlyRevenueRub\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":1000000000000},\"monthlyExpensesRub\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":1000000000000},\"productName\":{\"type\":\"string\"},\"status\":{\"$ref\":\"#/definitions/BankApplicationStatus\"},\"version\":{\"type\":\"integer\",\"minimum\":1},\"createdAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"updatedAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"submittedAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"availableActions\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"enum\":[\"decide\"]}},\"company\":{\"$ref\":\"#/definitions/Company\"},\"product\":{\"$ref\":\"#/definitions/BankProductSummary\"},\"productTerms\":{\"$ref\":\"#/definitions/CreditProduct\"},\"manualReviewRequired\":{\"type\":\"boolean\"}}},\"CreditProduct\":{\"type\":\"object\",\"required\":[\"id\",\"name\",\"purposes\",\"minAmountRub\",\"maxAmountRub\",\"minTermMonths\",\"maxTermMonths\",\"annualRatePercent\",\"minBusinessAgeMonths\",\"version\",\"illustrative\"],\"properties\":{\"id\":{\"type\":\"string\",\"enum\":[\"turnover\",\"investment\"]},\"name\":{\"type\":\"string\"},\"purposes\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"enum\":[\"stock\",\"expenses\",\"seasonal\",\"equipment\",\"upgrade\"]}},\"minAmountRub\":{\"type\":\"integer\",\"minimum\":1},\"maxAmountRub\":{\"type\":\"integer\",\"minimum\":1},\"minTermMonths\":{\"type\":\"integer\",\"minimum\":1},\"maxTermMonths\":{\"type\":\"integer\",\"minimum\":1},\"annualRatePercent\":{\"type\":\"number\",\"minimum\":0},\"minBusinessAgeMonths\":{\"type\":\"integer\",\"minimum\":0},\"version\":{\"type\":\"integer\",\"minimum\":1},\"illustrative\":{\"type\":\"boolean\",\"enum\":[true]}}},\"BankProductSummary\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"id\",\"name\"],\"properties\":{\"id\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"}}},\"Company\":{\"type\":\"object\",\"required\":[\"id\",\"name\",\"organizationType\",\"inn\",\"registrationNumber\",\"registrationDate\",\"okved\",\"directorName\",\"contact\",\"financials\",\"simulation\"],\"properties\":{\"id\":{\"type\":\"string\",\"format\":\"uuid\"},\"name\":{\"type\":\"string\"},\"organizationType\":{\"type\":\"string\",\"enum\":[\"ИП\",\"ООО\"]},\"inn\":{\"type\":\"string\"},\"registrationNumber\":{\"type\":\"string\"},\"registrationDate\":{\"type\":\"string\",\"format\":\"date\"},\"okved\":{\"type\":\"string\"},\"directorName\":{\"type\":\"string\"},\"contact\":{\"$ref\":\"#/definitions/CompanyContact\"},\"financials\":{\"$ref\":\"#/definitions/CompanyFinancials\"},\"simulation\":{\"type\":\"boolean\",\"enum\":[true]}}},\"CompanyFinancials\":{\"type\":\"object\",\"required\":[\"monthlyRevenueRub\",\"monthlyExpensesRub\",\"existingDebtRub\",\"existingMonthlyPaymentsRub\",\"overdueCount\"],\"properties\":{\"monthlyRevenueRub\":{\"type\":\"integer\",\"minimum\":0},\"monthlyExpensesRub\":{\"type\":\"integer\",\"minimum\":0},\"existingDebtRub\":{\"type\":\"integer\",\"minimum\":0},\"existingMonthlyPaymentsRub\":{\"type\":\"integer\",\"minimum\":0},\"overdueCount\":{\"type\":\"integer\",\"minimum\":0}}},\"CompanyContact\":{\"type\":\"object\",\"required\":[\"phone\",\"email\",\"address\"],\"properties\":{\"phone\":{\"type\":\"string\"},\"email\":{\"type\":\"string\",\"format\":\"email\"},\"address\":{\"type\":\"string\"}}},\"BankApplicationStatus\":{\"type\":\"string\",\"enum\":[\"submitted\",\"processing\",\"manual_review\",\"approved\",\"counter_offer\",\"rejected\",\"signed\",\"closed\"]}}},\"BankAssessment\":{\"$schema\":\"http://json-schema.org/draft-07/schema#\",\"$ref\":\"#/definitions/BankAssessment\",\"definitions\":{\"BankAssessment\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"applicationId\",\"status\",\"version\",\"companyCheck\",\"creditHistory\",\"scoring\",\"riskLevel\",\"manualReviewReasons\",\"recommendations\",\"manualDecision\",\"processing\"],\"properties\":{\"applicationId\":{\"type\":\"string\",\"format\":\"uuid\"},\"status\":{\"$ref\":\"#/definitions/BankApplicationStatus\"},\"version\":{\"type\":\"integer\",\"minimum\":1},\"companyCheck\":{\"$ref\":\"#/definitions/CompanyCheck\"},\"creditHistory\":{\"$ref\":\"#/definitions/CreditHistory\"},\"scoring\":{\"$ref\":\"#/definitions/ScoringAssessment\"},\"riskLevel\":{\"$ref\":\"#/definitions/RiskLevel\"},\"manualReviewReasons\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/AssessmentProblem\"}},\"recommendations\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/AssessmentRecommendation\"}},\"manualDecision\":{\"$ref\":\"#/definitions/ManualDecisionAudit\"},\"processing\":{\"$ref\":\"#/definitions/Processing\"}}},\"Processing\":{\"type\":[\"object\",\"null\"],\"additionalProperties\":false,\"required\":[\"stage\",\"state\",\"retryAt\",\"message\"],\"properties\":{\"stage\":{\"type\":\"string\",\"enum\":[\"prechecks\",\"scoring\",\"decision\"]},\"state\":{\"type\":\"string\",\"enum\":[\"waiting\",\"running\",\"retrying\",\"failed\"]},\"retryAt\":{\"type\":[\"string\",\"null\"],\"format\":\"date-time\"},\"message\":{\"type\":[\"string\",\"null\"]}}},\"ManualDecisionAudit\":{\"type\":[\"object\",\"null\"],\"additionalProperties\":false,\"required\":[\"decision\",\"comment\",\"reviewedBy\",\"reviewedAt\"],\"properties\":{\"decision\":{\"type\":\"string\",\"enum\":[\"approved\",\"counter_offer\",\"rejected\"]},\"comment\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":1000},\"reviewedBy\":{\"type\":\"string\",\"format\":\"uuid\"},\"reviewedAt\":{\"type\":\"string\",\"format\":\"date-time\"}}},\"AssessmentRecommendation\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"decision\",\"reasons\",\"offer\"],\"properties\":{\"decision\":{\"type\":\"string\",\"enum\":[\"approved\",\"counter_offer\",\"rejected\"]},\"reasons\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"offer\":{\"type\":[\"object\",\"null\"],\"additionalProperties\":false,\"required\":[\"amountRub\",\"termMonths\"],\"properties\":{\"amountRub\":{\"type\":\"integer\",\"minimum\":1},\"termMonths\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":120}}}}},\"AssessmentProblem\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"code\",\"message\"],\"properties\":{\"code\":{\"type\":\"string\"},\"message\":{\"type\":\"string\"}}},\"RiskLevel\":{\"type\":[\"string\",\"null\"],\"enum\":[\"LOW\",\"MEDIUM\",\"HIGH\",null]},\"ScoringAssessment\":{\"type\":[\"object\",\"null\"],\"additionalProperties\":false,\"required\":[\"score\",\"assessedAt\"],\"properties\":{\"score\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":100},\"assessedAt\":{\"type\":\"string\",\"format\":\"date-time\"}}},\"CreditHistory\":{\"type\":[\"object\",\"null\"],\"additionalProperties\":false,\"required\":[\"existingDebtRub\",\"existingMonthlyPaymentsRub\",\"overdueCount\",\"checkedAt\",\"simulation\"],\"properties\":{\"existingDebtRub\":{\"type\":\"integer\",\"minimum\":0},\"existingMonthlyPaymentsRub\":{\"type\":\"integer\",\"minimum\":0},\"overdueCount\":{\"type\":\"integer\",\"minimum\":0},\"checkedAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"simulation\":{\"type\":\"boolean\",\"enum\":[true]}}},\"CompanyCheck\":{\"type\":[\"object\",\"null\"],\"additionalProperties\":false,\"required\":[\"status\",\"checks\",\"problems\",\"checkedAt\",\"durationMs\",\"simulation\"],\"properties\":{\"status\":{\"type\":\"string\",\"enum\":[\"passed\",\"failed\"]},\"checks\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"code\",\"passed\"],\"properties\":{\"code\":{\"type\":\"string\"},\"passed\":{\"type\":\"boolean\"}}}},\"problems\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/AssessmentProblem\"}},\"checkedAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"durationMs\":{\"type\":\"integer\",\"minimum\":0},\"simulation\":{\"type\":\"boolean\",\"enum\":[true]}}},\"BankApplicationStatus\":{\"type\":\"string\",\"enum\":[\"submitted\",\"processing\",\"manual_review\",\"approved\",\"counter_offer\",\"rejected\",\"signed\",\"closed\"]}}}};",
-          "if((pm.request.method===\"GET\" && pm.response.code===200)||(pm.request.method===\"POST\" && [200,201].includes(pm.response.code))){",
+          "const readContracts={\"CreditDecision\":{\"$schema\":\"http://json-schema.org/draft-07/schema#\",\"$ref\":\"#/definitions/CreditDecision\",\"definitions\":{\"CreditDecision\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"applicationId\",\"status\",\"version\",\"decision\",\"score\",\"riskLevel\",\"reasons\",\"assessedAt\",\"reviewedBy\",\"offer\",\"processing\",\"customerExplanation\"],\"properties\":{\"applicationId\":{\"type\":\"string\",\"format\":\"uuid\"},\"status\":{\"$ref\":\"#/definitions/ApplicationStatus\"},\"version\":{\"type\":\"integer\",\"minimum\":1},\"decision\":{\"$ref\":\"#/definitions/CreditOutcome\"},\"score\":{\"type\":[\"integer\",\"null\"],\"minimum\":0,\"maximum\":100},\"riskLevel\":{\"$ref\":\"#/definitions/RiskLevel\"},\"reasons\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"assessedAt\":{\"type\":[\"string\",\"null\"],\"format\":\"date-time\"},\"reviewedBy\":{\"type\":[\"string\",\"null\"],\"format\":\"uuid\"},\"offer\":{\"$ref\":\"#/definitions/CreditOffer\"},\"processing\":{\"$ref\":\"#/definitions/Processing\"},\"customerExplanation\":{\"type\":[\"string\",\"null\"],\"maxLength\":1000}}},\"CreditOffer\":{\"type\":[\"object\",\"null\"],\"additionalProperties\":false,\"required\":[\"offerId\",\"applicationId\",\"productId\",\"amountRub\",\"termMonths\",\"annualRatePercent\",\"monthlyPaymentRub\",\"expiresAt\",\"status\"],\"properties\":{\"offerId\":{\"type\":\"string\",\"format\":\"uuid\"},\"applicationId\":{\"type\":\"string\",\"format\":\"uuid\"},\"productId\":{\"type\":\"string\",\"enum\":[\"turnover\",\"investment\"]},\"amountRub\":{\"type\":\"integer\",\"minimum\":1},\"termMonths\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":120},\"annualRatePercent\":{\"type\":\"number\",\"minimum\":0},\"monthlyPaymentRub\":{\"type\":\"integer\",\"minimum\":1},\"expiresAt\":{\"type\":[\"string\",\"null\"],\"format\":\"date-time\"},\"status\":{\"type\":\"string\",\"enum\":[\"active\",\"accepted\",\"withdrawn\"]}}},\"ApplicationStatus\":{\"type\":\"string\",\"enum\":[\"draft\",\"submitted\",\"processing\",\"manual_review\",\"approved\",\"rejected\",\"counter_offer\",\"signed\",\"closed\"]},\"Processing\":{\"type\":[\"object\",\"null\"],\"additionalProperties\":false,\"required\":[\"stage\",\"state\",\"retryAt\",\"message\"],\"properties\":{\"stage\":{\"type\":\"string\",\"enum\":[\"prechecks\",\"scoring\",\"decision\"]},\"state\":{\"type\":\"string\",\"enum\":[\"waiting\",\"running\",\"retrying\",\"failed\"]},\"retryAt\":{\"type\":[\"string\",\"null\"],\"format\":\"date-time\"},\"message\":{\"type\":[\"string\",\"null\"]}}},\"RiskLevel\":{\"type\":[\"string\",\"null\"],\"enum\":[\"LOW\",\"MEDIUM\",\"HIGH\",null]},\"CreditOutcome\":{\"type\":[\"string\",\"null\"],\"enum\":[\"approved\",\"counter_offer\",\"rejected\",null]}}},\"BankApplicationPage\":{\"$schema\":\"http://json-schema.org/draft-07/schema#\",\"$ref\":\"#/definitions/BankApplicationPage\",\"definitions\":{\"BankApplicationPage\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"items\",\"total\",\"limit\",\"offset\"],\"properties\":{\"items\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/BankApplication\"}},\"total\":{\"type\":\"integer\",\"minimum\":0},\"limit\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":100},\"offset\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":2147483647}}},\"BankApplication\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"applicationId\",\"company\",\"product\",\"requestedAmountRub\",\"termMonths\",\"status\",\"version\",\"createdAt\",\"updatedAt\",\"submittedAt\",\"manualReviewRequired\",\"availableActions\"],\"properties\":{\"applicationId\":{\"type\":\"string\",\"format\":\"uuid\"},\"company\":{\"$ref\":\"#/definitions/BankCompanySummary\"},\"product\":{\"$ref\":\"#/definitions/BankProductSummary\"},\"requestedAmountRub\":{\"type\":\"integer\",\"minimum\":1},\"termMonths\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":120},\"status\":{\"$ref\":\"#/definitions/BankApplicationStatus\"},\"version\":{\"type\":\"integer\",\"minimum\":1},\"createdAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"updatedAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"submittedAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"manualReviewRequired\":{\"type\":\"boolean\"},\"availableActions\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"enum\":[\"decide\"]}}}},\"BankCompanySummary\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"id\",\"name\",\"inn\"],\"properties\":{\"id\":{\"type\":\"string\",\"format\":\"uuid\"},\"name\":{\"type\":\"string\"},\"inn\":{\"type\":\"string\"}}},\"BankProductSummary\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"id\",\"name\"],\"properties\":{\"id\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"}}},\"BankApplicationStatus\":{\"type\":\"string\",\"enum\":[\"submitted\",\"processing\",\"manual_review\",\"approved\",\"counter_offer\",\"rejected\",\"signed\",\"closed\"]}}},\"BankApplicationDetail\":{\"$schema\":\"http://json-schema.org/draft-07/schema#\",\"$ref\":\"#/definitions/BankApplicationDetail\",\"definitions\":{\"BankApplicationDetail\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"applicationId\",\"userId\",\"companyId\",\"productId\",\"purpose\",\"purposeDescription\",\"requestedAmountRub\",\"termMonths\",\"monthlyRevenueRub\",\"monthlyExpensesRub\",\"productName\",\"status\",\"version\",\"createdAt\",\"updatedAt\",\"submittedAt\",\"availableActions\",\"company\",\"product\",\"productTerms\",\"manualReviewRequired\"],\"properties\":{\"applicationId\":{\"type\":\"string\",\"format\":\"uuid\"},\"userId\":{\"type\":\"string\",\"format\":\"uuid\"},\"companyId\":{\"type\":\"string\",\"format\":\"uuid\"},\"productId\":{\"type\":\"string\",\"pattern\":\"^[a-z][a-z0-9_-]{0,31}$\"},\"purpose\":{\"type\":\"string\",\"enum\":[\"stock\",\"expenses\",\"seasonal\",\"equipment\",\"upgrade\",\"other\"]},\"purposeDescription\":{\"type\":[\"string\",\"null\"],\"maxLength\":300},\"requestedAmountRub\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":1000000000000},\"termMonths\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":120},\"monthlyRevenueRub\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":1000000000000},\"monthlyExpensesRub\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":1000000000000},\"productName\":{\"type\":\"string\"},\"status\":{\"$ref\":\"#/definitions/BankApplicationStatus\"},\"version\":{\"type\":\"integer\",\"minimum\":1},\"createdAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"updatedAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"submittedAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"availableActions\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"enum\":[\"decide\"]}},\"company\":{\"$ref\":\"#/definitions/Company\"},\"product\":{\"$ref\":\"#/definitions/BankProductSummary\"},\"productTerms\":{\"$ref\":\"#/definitions/CreditProduct\"},\"manualReviewRequired\":{\"type\":\"boolean\"}}},\"CreditProduct\":{\"type\":\"object\",\"required\":[\"id\",\"name\",\"purposes\",\"minAmountRub\",\"maxAmountRub\",\"minTermMonths\",\"maxTermMonths\",\"annualRatePercent\",\"minBusinessAgeMonths\",\"version\",\"illustrative\"],\"properties\":{\"id\":{\"type\":\"string\",\"enum\":[\"turnover\",\"investment\"]},\"name\":{\"type\":\"string\"},\"purposes\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"enum\":[\"stock\",\"expenses\",\"seasonal\",\"equipment\",\"upgrade\"]}},\"minAmountRub\":{\"type\":\"integer\",\"minimum\":1},\"maxAmountRub\":{\"type\":\"integer\",\"minimum\":1},\"minTermMonths\":{\"type\":\"integer\",\"minimum\":1},\"maxTermMonths\":{\"type\":\"integer\",\"minimum\":1},\"annualRatePercent\":{\"type\":\"number\",\"minimum\":0},\"minBusinessAgeMonths\":{\"type\":\"integer\",\"minimum\":0},\"version\":{\"type\":\"integer\",\"minimum\":1},\"illustrative\":{\"type\":\"boolean\",\"enum\":[true]}},\"additionalProperties\":false},\"BankProductSummary\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"id\",\"name\"],\"properties\":{\"id\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"}}},\"BankApplicationStatus\":{\"type\":\"string\",\"enum\":[\"submitted\",\"processing\",\"manual_review\",\"approved\",\"counter_offer\",\"rejected\",\"signed\",\"closed\"]},\"Company\":{\"type\":\"object\",\"required\":[\"id\",\"name\",\"organizationType\",\"inn\",\"registrationNumber\",\"registrationDate\",\"okved\",\"directorName\",\"contact\",\"financials\",\"simulation\"],\"properties\":{\"id\":{\"type\":\"string\",\"format\":\"uuid\"},\"name\":{\"type\":\"string\"},\"organizationType\":{\"type\":\"string\",\"enum\":[\"ИП\",\"ООО\"]},\"inn\":{\"type\":\"string\"},\"registrationNumber\":{\"type\":\"string\"},\"registrationDate\":{\"type\":\"string\",\"format\":\"date\"},\"okved\":{\"type\":\"string\"},\"directorName\":{\"type\":\"string\"},\"contact\":{\"$ref\":\"#/definitions/CompanyContact\"},\"financials\":{\"$ref\":\"#/definitions/CompanyFinancials\"},\"simulation\":{\"type\":\"boolean\",\"enum\":[true]},\"version\":{\"type\":\"integer\",\"minimum\":0}},\"additionalProperties\":false},\"CompanyContact\":{\"type\":\"object\",\"required\":[\"phone\",\"email\",\"address\"],\"properties\":{\"phone\":{\"type\":\"string\"},\"email\":{\"type\":\"string\",\"format\":\"email\"},\"address\":{\"type\":\"string\"}},\"additionalProperties\":false},\"CompanyFinancials\":{\"type\":\"object\",\"required\":[\"monthlyRevenueRub\",\"monthlyExpensesRub\",\"existingDebtRub\",\"existingMonthlyPaymentsRub\",\"overdueCount\"],\"properties\":{\"monthlyRevenueRub\":{\"type\":\"integer\",\"minimum\":0},\"monthlyExpensesRub\":{\"type\":\"integer\",\"minimum\":0},\"existingDebtRub\":{\"type\":\"integer\",\"minimum\":0},\"existingMonthlyPaymentsRub\":{\"type\":\"integer\",\"minimum\":0},\"overdueCount\":{\"type\":\"integer\",\"minimum\":0}},\"additionalProperties\":false}}},\"BankAssessment\":{\"$schema\":\"http://json-schema.org/draft-07/schema#\",\"$ref\":\"#/definitions/BankAssessment\",\"definitions\":{\"BankAssessment\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"applicationId\",\"status\",\"version\",\"companyCheck\",\"creditHistory\",\"scoring\",\"riskLevel\",\"manualReviewReasons\",\"recommendations\",\"manualDecision\",\"processing\",\"goDecision\"],\"properties\":{\"applicationId\":{\"type\":\"string\",\"format\":\"uuid\"},\"status\":{\"$ref\":\"#/definitions/BankApplicationStatus\"},\"version\":{\"type\":\"integer\",\"minimum\":1},\"companyCheck\":{\"$ref\":\"#/definitions/CompanyCheck\"},\"creditHistory\":{\"$ref\":\"#/definitions/CreditHistory\"},\"scoring\":{\"$ref\":\"#/definitions/ScoringAssessment\"},\"riskLevel\":{\"$ref\":\"#/definitions/RiskLevel\"},\"manualReviewReasons\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/AssessmentProblem\"}},\"recommendations\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/AssessmentRecommendation\"}},\"manualDecision\":{\"$ref\":\"#/definitions/ManualDecisionAudit\"},\"processing\":{\"$ref\":\"#/definitions/Processing\"},\"goDecision\":{\"$ref\":\"#/definitions/GoDecisionAssessment\"}}},\"BankApplicationStatus\":{\"type\":\"string\",\"enum\":[\"submitted\",\"processing\",\"manual_review\",\"approved\",\"counter_offer\",\"rejected\",\"signed\",\"closed\"]},\"AssessmentProblem\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"code\",\"message\"],\"properties\":{\"code\":{\"type\":\"string\"},\"message\":{\"type\":\"string\"}}},\"RiskLevel\":{\"type\":[\"string\",\"null\"],\"enum\":[\"LOW\",\"MEDIUM\",\"HIGH\",null]},\"Processing\":{\"type\":[\"object\",\"null\"],\"additionalProperties\":false,\"required\":[\"stage\",\"state\",\"retryAt\",\"message\"],\"properties\":{\"stage\":{\"type\":\"string\",\"enum\":[\"prechecks\",\"scoring\",\"decision\"]},\"state\":{\"type\":\"string\",\"enum\":[\"waiting\",\"running\",\"retrying\",\"failed\"]},\"retryAt\":{\"type\":[\"string\",\"null\"],\"format\":\"date-time\"},\"message\":{\"type\":[\"string\",\"null\"]}}},\"CreditHistory\":{\"type\":[\"object\",\"null\"],\"additionalProperties\":false,\"required\":[\"existingDebtRub\",\"existingMonthlyPaymentsRub\",\"overdueCount\",\"checkedAt\",\"simulation\"],\"properties\":{\"existingDebtRub\":{\"type\":\"integer\",\"minimum\":0},\"existingMonthlyPaymentsRub\":{\"type\":\"integer\",\"minimum\":0},\"overdueCount\":{\"type\":\"integer\",\"minimum\":0},\"checkedAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"simulation\":{\"type\":\"boolean\",\"enum\":[true]}}},\"GoDecisionAssessment\":{\"type\":[\"object\",\"null\"],\"additionalProperties\":false,\"required\":[\"decision\",\"score\",\"riskLevel\",\"reasons\",\"assessedAt\"],\"properties\":{\"decision\":{\"type\":\"string\",\"enum\":[\"approved\",\"counter_offer\",\"rejected\",\"manual_review\"]},\"score\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":100},\"riskLevel\":{\"type\":\"string\",\"enum\":[\"LOW\",\"MEDIUM\",\"HIGH\"]},\"reasons\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"assessedAt\":{\"type\":\"string\",\"format\":\"date-time\"}}},\"AssessmentRecommendation\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"decision\",\"reasons\",\"offer\"],\"properties\":{\"decision\":{\"type\":\"string\",\"enum\":[\"approved\",\"counter_offer\",\"rejected\"]},\"reasons\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"offer\":{\"type\":[\"object\",\"null\"],\"additionalProperties\":false,\"required\":[\"amountRub\",\"termMonths\"],\"properties\":{\"amountRub\":{\"type\":\"integer\",\"minimum\":1},\"termMonths\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":120}}}}},\"ScoringAssessment\":{\"type\":[\"object\",\"null\"],\"additionalProperties\":false,\"required\":[\"score\",\"assessedAt\",\"decision\",\"approvedAmountRub\",\"reasons\",\"factors\"],\"properties\":{\"score\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":100},\"assessedAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"decision\":{\"type\":\"string\",\"enum\":[\"approved\",\"counter_offer\",\"rejected\"]},\"approvedAmountRub\":{\"type\":\"integer\",\"minimum\":0},\"reasons\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"factors\":{\"$ref\":\"#/definitions/ScoringFactors\"}}},\"ScoringFactors\":{\"type\":[\"object\",\"null\"],\"additionalProperties\":false,\"required\":[\"operating_cash_flow\",\"operating_margin\",\"estimated_new_monthly_payment\",\"debt_service_share\",\"existing_debt_to_annual_revenue\",\"overdue_count\"],\"properties\":{\"operating_cash_flow\":{\"type\":\"number\"},\"operating_margin\":{\"type\":\"number\"},\"estimated_new_monthly_payment\":{\"type\":\"number\",\"minimum\":0},\"debt_service_share\":{\"type\":[\"number\",\"null\"]},\"existing_debt_to_annual_revenue\":{\"type\":[\"number\",\"null\"]},\"overdue_count\":{\"type\":\"integer\",\"minimum\":0}}},\"ManualDecisionAudit\":{\"type\":[\"object\",\"null\"],\"additionalProperties\":false,\"required\":[\"decision\",\"comment\",\"reviewedBy\",\"reviewedAt\",\"internalComment\",\"customerExplanation\"],\"properties\":{\"decision\":{\"type\":\"string\",\"enum\":[\"approved\",\"counter_offer\",\"rejected\"]},\"comment\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":1000},\"reviewedBy\":{\"type\":\"string\",\"format\":\"uuid\"},\"reviewedAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"internalComment\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":1000},\"customerExplanation\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":1000}}},\"CompanyCheck\":{\"type\":[\"object\",\"null\"],\"additionalProperties\":false,\"required\":[\"status\",\"checks\",\"problems\",\"checkedAt\",\"durationMs\",\"simulation\"],\"properties\":{\"status\":{\"type\":\"string\",\"enum\":[\"passed\",\"failed\"]},\"checks\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"code\",\"passed\"],\"properties\":{\"code\":{\"type\":\"string\"},\"passed\":{\"type\":\"boolean\"}}}},\"problems\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/AssessmentProblem\"}},\"checkedAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"durationMs\":{\"type\":\"integer\",\"minimum\":0},\"simulation\":{\"type\":\"boolean\",\"enum\":[true]}}}}},\"CurrentUser\":{\"$schema\":\"http://json-schema.org/draft-07/schema#\",\"$ref\":\"#/definitions/CurrentUser\",\"definitions\":{\"CurrentUser\":{\"type\":\"object\",\"required\":[\"id\",\"name\",\"phone\",\"role\",\"companyId\",\"additionalEmail\",\"version\"],\"properties\":{\"id\":{\"type\":\"string\",\"format\":\"uuid\"},\"name\":{\"type\":\"string\"},\"phone\":{\"type\":\"string\"},\"role\":{\"$ref\":\"#/definitions/Role\"},\"companyId\":{\"type\":[\"string\",\"null\"],\"format\":\"uuid\"},\"additionalEmail\":{\"type\":[\"string\",\"null\"],\"format\":\"email\",\"maxLength\":254},\"version\":{\"type\":\"integer\",\"minimum\":1}},\"additionalProperties\":false},\"Role\":{\"type\":\"string\",\"enum\":[\"CLIENT\",\"BANK_EMPLOYEE\"]}}},\"Company\":{\"$schema\":\"http://json-schema.org/draft-07/schema#\",\"$ref\":\"#/definitions/Company\",\"definitions\":{\"Company\":{\"type\":\"object\",\"required\":[\"id\",\"name\",\"organizationType\",\"inn\",\"registrationNumber\",\"registrationDate\",\"okved\",\"directorName\",\"contact\",\"financials\",\"simulation\"],\"properties\":{\"id\":{\"type\":\"string\",\"format\":\"uuid\"},\"name\":{\"type\":\"string\"},\"organizationType\":{\"type\":\"string\",\"enum\":[\"ИП\",\"ООО\"]},\"inn\":{\"type\":\"string\"},\"registrationNumber\":{\"type\":\"string\"},\"registrationDate\":{\"type\":\"string\",\"format\":\"date\"},\"okved\":{\"type\":\"string\"},\"directorName\":{\"type\":\"string\"},\"contact\":{\"$ref\":\"#/definitions/CompanyContact\"},\"financials\":{\"$ref\":\"#/definitions/CompanyFinancials\"},\"simulation\":{\"type\":\"boolean\",\"enum\":[true]},\"version\":{\"type\":\"integer\",\"minimum\":0}},\"additionalProperties\":false},\"CompanyContact\":{\"type\":\"object\",\"required\":[\"phone\",\"email\",\"address\"],\"properties\":{\"phone\":{\"type\":\"string\"},\"email\":{\"type\":\"string\",\"format\":\"email\"},\"address\":{\"type\":\"string\"}},\"additionalProperties\":false},\"CompanyFinancials\":{\"type\":\"object\",\"required\":[\"monthlyRevenueRub\",\"monthlyExpensesRub\",\"existingDebtRub\",\"existingMonthlyPaymentsRub\",\"overdueCount\"],\"properties\":{\"monthlyRevenueRub\":{\"type\":\"integer\",\"minimum\":0},\"monthlyExpensesRub\":{\"type\":\"integer\",\"minimum\":0},\"existingDebtRub\":{\"type\":\"integer\",\"minimum\":0},\"existingMonthlyPaymentsRub\":{\"type\":\"integer\",\"minimum\":0},\"overdueCount\":{\"type\":\"integer\",\"minimum\":0}},\"additionalProperties\":false}}}};",
+          "if(([\"GET\",\"PATCH\"].includes(pm.request.method) && pm.response.code===200)||(pm.request.method===\"POST\" && [200,201].includes(pm.response.code))){",
           " const path=pm.request.url.toString().split(\"?\")[0];let name=null;\n if(pm.request.method===\"POST\" && /\\/api\\/v1\\/(?:applications\\/[^/]+\\/(?:accept|decline)|bank\\/applications\\/[^/]+\\/decisions)$/.test(path))name=\"CreditDecision\";",
           " if(/\\/api\\/v1\\/applications\\/[^/]+\\/decision$/.test(path))name=\"CreditDecision\";",
           " else if(/\\/api\\/v1\\/bank\\/applications$/.test(path))name=\"BankApplicationPage\";",
           " else if(/\\/api\\/v1\\/bank\\/applications\\/[^/]+\\/assessment$/.test(path))name=\"BankAssessment\";",
           " else if(/\\/api\\/v1\\/bank\\/applications\\/[^/]+$/.test(path))name=\"BankApplicationDetail\";",
+          " if(/\\/api\\/v1\\/me$/.test(path))name=\"CurrentUser\";",
+          " else if(/\\/api\\/v1\\/companies\\/[^/]+$/.test(path))name=\"Company\";",
           " if(name)pm.test(\"OpenAPI v1 exact \"+name+\" DTO\",()=>pm.response.to.have.jsonSchema(readContracts[name]));",
           "}"
         ]

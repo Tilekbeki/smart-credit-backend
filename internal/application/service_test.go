@@ -184,3 +184,7 @@ func TestPaginationValidation(t *testing.T) {
 		}
 	}
 }
+
+func (r *repositoryStub) DeleteDraft(_ context.Context, _ Scope, _ string, _ int64) error {
+	return r.err
+}

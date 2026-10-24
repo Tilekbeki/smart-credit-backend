@@ -91,7 +91,7 @@ func TestApplicationRepositoryCreate(t *testing.T) {
 			if !validUUID(draft.ApplicationID) || draft.UserID != draftOwner.UserID || draft.CompanyID != draftOwner.CompanyID ||
 				draft.Status != application.Draft || draft.Version != 1 || draft.SubmittedAt != nil ||
 				draft.CreatedAt.IsZero() || !draft.CreatedAt.Equal(draft.UpdatedAt) ||
-				!reflect.DeepEqual(draft.Fields, tc.fields) || !reflect.DeepEqual(draft.AvailableActions, []string{"edit", "submit"}) {
+				!reflect.DeepEqual(draft.Fields, tc.fields) || !reflect.DeepEqual(draft.AvailableActions, []string{"edit", "submit", "delete"}) {
 				t.Fatalf("draft differs from submitted fields or expected defaults: %+v", draft)
 			}
 			if draft.ProductID != nil && (draft.ProductName == nil || *draft.ProductName != "Оборотный кредит") {

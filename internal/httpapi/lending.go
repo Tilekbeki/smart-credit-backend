@@ -66,12 +66,17 @@ func (h *LendingHandler) manual(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var input struct {
-		Version  int64                `json:"version"`
-		Decision string               `json:"decision"`
-		Comment  string               `json:"comment"`
-		Offer    *lending.ManualOffer `json:"offer"`
+		Version             int64                `json:"version"`
+		Decision            string               `json:"decision"`
+		Comment             string               `json:"comment"`
+		InternalComment     string               `json:"internalComment"`
+		CustomerExplanation string               `json:"customerExplanation"`
+		Offer               *lending.ManualOffer `json:"offer"`
 	}
-	object, ok := strictLendingObject(raw, &input, []string{"version", "decision", "comment", "offer"}, "offer")
+	object, ok := strictLendingObject(raw, &input, []string{"version", "decision", "offer"}, "offer", "comment", "internalComment", "customerExplanation")
+	_, legacyComment := object["comment"]
+	_, internalComment := object["internalComment"]
+	ok = ok && (legacyComment || internalComment)
 	if !ok {
 		writeLendingError(w, application.ErrInvalidInput)
 		return
@@ -83,6 +88,7 @@ func (h *LendingHandler) manual(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	command.Version, command.Decision, command.Comment, command.Offer = input.Version, input.Decision, input.Comment, input.Offer
+	command.InternalComment, command.CustomerExplanation = input.InternalComment, input.CustomerExplanation
 	h.execute(w, r, command)
 }
 
@@ -166,13 +172,22 @@ func writeLendingError(w http.ResponseWriter, err error) {
 
 // The ordinary decoder rejects unknown fields; this boundary additionally
 // rejects duplicate keys and distinguishes omitted fields from explicit null.
-func strictLendingObject(raw []byte, target any, required []string, nullable string) (map[string]json.RawMessage, bool) {
+func strictLendingObject(raw []byte, target any, required []string, nullable string, optional ...string) (map[string]json.RawMessage, bool) {
 	if !utf8.Valid(raw) || !json.Valid(raw) || !uniqueLendingKeys(json.NewDecoder(bytes.NewReader(raw)), 0) {
 		return nil, false
 	}
 	var object map[string]json.RawMessage
-	if json.Unmarshal(raw, &object) != nil || object == nil || len(object) != len(required) {
+	if json.Unmarshal(raw, &object) != nil || object == nil || len(object) < len(required) || len(object) > len(required)+len(optional) {
 		return nil, false
+	}
+	allowed := make(map[string]bool, len(required)+len(optional))
+	for _, key := range append(append([]string{}, required...), optional...) {
+		allowed[key] = true
+	}
+	for key, value := range object {
+		if !allowed[key] || (key != nullable && bytes.Equal(bytes.TrimSpace(value), []byte("null"))) {
+			return nil, false
+		}
 	}
 	for _, key := range required {
 		value, exists := object[key]

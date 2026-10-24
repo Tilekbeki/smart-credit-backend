@@ -14,14 +14,19 @@ import (
 
 // ApplicationRepository scopes every application read and write to its owner and company.
 type ApplicationRepository struct {
-	pool    *pgxpool.Pool
-	timeout time.Duration
+	pool            *pgxpool.Pool
+	timeout         time.Duration
+	maxActiveDrafts int
 }
 
 var _ application.Repository = (*ApplicationRepository)(nil)
 
-func NewApplicationRepository(pool *pgxpool.Pool, timeout time.Duration) *ApplicationRepository {
-	return &ApplicationRepository{pool: pool, timeout: timeout}
+func NewApplicationRepository(pool *pgxpool.Pool, timeout time.Duration, maxActiveDrafts ...int) *ApplicationRepository {
+	limit := 20
+	if len(maxActiveDrafts) > 0 && maxActiveDrafts[0] > 0 {
+		limit = maxActiveDrafts[0]
+	}
+	return &ApplicationRepository{pool: pool, timeout: timeout, maxActiveDrafts: limit}
 }
 
 const applicationColumns = `a.id::text, a.owner_id::text, a.company_id::text,
@@ -50,7 +55,7 @@ func scanApplication(row pgx.Row) (application.Application, error) {
 	}
 	result.AvailableActions = []string{}
 	if result.Status == application.Draft {
-		result.AvailableActions = []string{"edit", "submit"}
+		result.AvailableActions = []string{"edit", "submit", "delete"}
 	} else if (result.Status == application.Approved || result.Status == application.CounterOffer) && activeOffer {
 		result.AvailableActions = []string{"accept", "decline"}
 	}
@@ -66,7 +71,7 @@ func applicationByID(ctx context.Context, query interface {
 }, scope application.Scope, id string) (application.Application, error) {
 	result, err := scanApplication(query.QueryRow(ctx, `SELECT `+applicationColumns+`
 		FROM applications a LEFT JOIN credit_products p ON p.id=a.product_id
-		WHERE a.id=$1 AND a.owner_id=$2 AND a.company_id=$3`, id, scope.UserID, scope.CompanyID))
+		WHERE a.id=$1 AND a.owner_id=$2 AND a.company_id=$3 AND a.deleted_at IS NULL`, id, scope.UserID, scope.CompanyID))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return application.Application{}, application.ErrNotFound
 	}
@@ -117,6 +122,23 @@ func (r *ApplicationRepository) Create(ctx context.Context, scope application.Sc
 		return application.Application{}, application.ErrStorage
 	}
 	defer tx.Rollback(ctx)
+	// All draft creations for one client share this lock. READ COMMITTED gives
+	// the count a fresh snapshot after any competing creator commits.
+	var owner string
+	err = tx.QueryRow(ctx, `SELECT id::text FROM users WHERE id=$1 AND company_id=$2 AND role='CLIENT' FOR UPDATE`, scope.UserID, scope.CompanyID).Scan(&owner)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return application.Application{}, application.ErrNotFound
+	}
+	if err != nil {
+		return application.Application{}, application.ErrStorage
+	}
+	var count int
+	if tx.QueryRow(ctx, `SELECT count(*) FROM applications WHERE owner_id=$1 AND status='draft' AND deleted_at IS NULL`, scope.UserID).Scan(&count) != nil {
+		return application.Application{}, application.ErrStorage
+	}
+	if count >= r.maxActiveDrafts {
+		return application.Application{}, application.ErrDraftLimit
+	}
 	productID, err := applicationProductID(ctx, tx, fields)
 	if err != nil {
 		return application.Application{}, err
@@ -176,7 +198,7 @@ func (r *ApplicationRepository) List(ctx context.Context, scope application.Scop
 		status = string(*filter.Status)
 	}
 	result := application.Page{Items: []application.Summary{}, Limit: filter.Limit, Offset: filter.Offset}
-	const scopeWhere = ` WHERE a.owner_id=$1 AND a.company_id=$2 AND ($3::text IS NULL OR a.status=$3)`
+	const scopeWhere = ` WHERE a.owner_id=$1 AND a.company_id=$2 AND a.deleted_at IS NULL AND ($3::text IS NULL OR a.status=$3)`
 	if err := tx.QueryRow(ctx, `SELECT count(*) FROM applications a`+scopeWhere,
 		scope.UserID, scope.CompanyID, status).Scan(&result.Total); err != nil {
 		return application.Page{}, application.ErrStorage
@@ -223,7 +245,7 @@ func (r *ApplicationRepository) UpdateDraft(ctx context.Context, scope applicati
 	var status application.Status
 	var version int64
 	err = tx.QueryRow(ctx, `SELECT status, version FROM applications
-		WHERE id=$1 AND owner_id=$2 AND company_id=$3 FOR UPDATE`, id, scope.UserID, scope.CompanyID).Scan(&status, &version)
+		WHERE id=$1 AND owner_id=$2 AND company_id=$3 AND deleted_at IS NULL FOR UPDATE`, id, scope.UserID, scope.CompanyID).Scan(&status, &version)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return application.Application{}, application.ErrNotFound
 	}
@@ -243,7 +265,7 @@ func (r *ApplicationRepository) UpdateDraft(ctx context.Context, scope applicati
 	updated, err := tx.Exec(ctx, `UPDATE applications SET product_id=$4, goal_id=$5,
 		goal_description=$6, amount=$7, term_months=$8, monthly_revenue=$9, monthly_expenses=$10,
 		version=version+1, updated_at=clock_timestamp()
-		WHERE id=$1 AND owner_id=$2 AND company_id=$3 AND status='draft' AND version=$11`,
+		WHERE id=$1 AND owner_id=$2 AND company_id=$3 AND deleted_at IS NULL AND status='draft' AND version=$11`,
 		id, scope.UserID, scope.CompanyID, productID, fields.Purpose, fields.PurposeDescription,
 		fields.RequestedAmountRub, fields.TermMonths, fields.MonthlyRevenueRub, fields.MonthlyExpensesRub, expectedVersion)
 	if err != nil {
@@ -282,7 +304,7 @@ func (r *ApplicationRepository) Timeline(ctx context.Context, scope application.
 	defer tx.Rollback(ctx)
 	var exists bool
 	err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM applications
-		WHERE id=$1 AND owner_id=$2 AND company_id=$3)`, id, scope.UserID, scope.CompanyID).Scan(&exists)
+		WHERE id=$1 AND owner_id=$2 AND company_id=$3 AND deleted_at IS NULL)`, id, scope.UserID, scope.CompanyID).Scan(&exists)
 	if err != nil {
 		return nil, application.ErrStorage
 	}
@@ -292,7 +314,7 @@ func (r *ApplicationRepository) Timeline(ctx context.Context, scope application.
 	rows, err := tx.Query(ctx, `SELECT e.id::text, e.event_type, e.sequence, e.status,
 		e.created_at, e.actor_id::text, e.title FROM application_events e
 		JOIN applications a ON a.id=e.application_id
-		WHERE e.application_id=$1 AND a.owner_id=$2 AND a.company_id=$3 ORDER BY e.sequence`,
+		WHERE e.application_id=$1 AND a.owner_id=$2 AND a.company_id=$3 AND a.deleted_at IS NULL ORDER BY e.sequence`,
 		id, scope.UserID, scope.CompanyID)
 	if err != nil {
 		return nil, application.ErrStorage
@@ -315,4 +337,55 @@ func (r *ApplicationRepository) Timeline(ctx context.Context, scope application.
 		return nil, application.ErrStorage
 	}
 	return events, nil
+}
+
+// A tombstone preserves event/document audit. Access checks in every public
+// reader hide both the application and its files after this transaction commits.
+func (r *ApplicationRepository) DeleteDraft(ctx context.Context, scope application.Scope, id string, version int64) error {
+	if !validApplicationScope(scope) || !validUUID(id) {
+		return application.ErrNotFound
+	}
+	if version < 1 {
+		return application.ErrInvalidInput
+	}
+	ctx, cancel := context.WithTimeout(ctx, r.timeout)
+	defer cancel()
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return application.ErrStorage
+	}
+	defer tx.Rollback(ctx)
+	var status string
+	var actualVersion int64
+	var deletedAt *time.Time
+	err = tx.QueryRow(ctx, `SELECT status,version,deleted_at FROM applications
+		WHERE id=$1 AND owner_id=$2 AND company_id=$3 FOR UPDATE`, id, scope.UserID, scope.CompanyID).Scan(&status, &actualVersion, &deletedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return application.ErrNotFound
+	}
+	if err != nil {
+		return application.ErrStorage
+	}
+	// Repeating an authorized delete has the same outcome and no new event.
+	if deletedAt != nil {
+		return nil
+	}
+	if status != string(application.Draft) {
+		return application.ErrInvalidStatus
+	}
+	if actualVersion != version {
+		return application.ErrVersionConflict
+	}
+	if _, err = tx.Exec(ctx, `UPDATE applications SET deleted_at=clock_timestamp(),updated_at=clock_timestamp(),version=version+1 WHERE id=$1`, id); err != nil {
+		return application.ErrStorage
+	}
+	if _, err = tx.Exec(ctx, `INSERT INTO application_events(application_id,sequence,event_type,status,title,actor_id,created_at)
+		SELECT $1,COALESCE(max(sequence),0)+1,'draft_deleted','draft','Черновик удалён',$2,clock_timestamp()
+		FROM application_events WHERE application_id=$1`, id, scope.UserID); err != nil {
+		return application.ErrStorage
+	}
+	if tx.Commit(ctx) != nil {
+		return application.ErrStorage
+	}
+	return nil
 }

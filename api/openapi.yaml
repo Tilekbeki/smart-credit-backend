@@ -6,26 +6,27 @@ info:
     financing selection for a hackathon. DEMO_OTP_CODE defaults to 1234; no SMS is sent. Public profile
     selection includes a bank employee and must not be used for production access. Product conditions
     and company data are synthetic and are not actual Alfa-Bank offers. Recommendations neither create
-    applications nor constitute or guarantee credit decisions; the recommendations endpoint does not
-    call Python scoring. All responses
-    use Cache-Control: no-store. CLIENT users can persist partial credit drafts and inspect their history;
-    a separate submit operation validates and atomically queues preliminary checks. A durable worker in
-    the same process performs synthetic company and credit-history checks, calls a separately configured
-    Python scoring HTTP service and durably saves its validated recommendation. The same worker claims
-    awaiting_decision jobs and applies Go credit policy, producing approved, rejected, counter_offer or
-    manual_review. Final automatic decisions and applicable offers are persisted atomically; manual_review
-    stores the assessment without a fictitious final decision. Private application documents can be uploaded by their CLIENT owner and read by their owner
-    or BANK_EMPLOYEE after successful submit. Drafts are private to their CLIENT owner.
-    All 26 API v1 operations are implemented, including manual bank decisions and client offer actions.
-    Internal employee comments are visible only in the bank assessment. CLIENT can confirm or decline
-    the current active offer; signed means demonstration confirmation without loan disbursement.
-    Scoring integration follows the local JSON Schema and has been verified with the separate real
-    Python logreg_v1 service. Its source and model artifact remain in the scoring repository; an optional
-    local Compose configuration uses that unchanged checkout. Mandatory financial limits are enforced
-    by Go for automatic and manual proposals. Monetary amounts use integer rubles,
-    annualRatePercent uses percent, and
-    timestamps use RFC 3339 UTC. Clients may keep unlimited independent drafts, including several
-    drafts of the same product; submitting one does not alter the others.'
+    applications nor constitute or guarantee credit decisions; the recommendations endpoint does not call
+    Python scoring. All responses use Cache-Control: no-store. CLIENT users can persist partial credit
+    drafts and inspect their history; a separate submit operation validates and atomically queues preliminary
+    checks. A durable worker in the same process performs synthetic company and credit-history checks,
+    calls a separately configured Python scoring HTTP service and durably saves its validated recommendation.
+    The same worker claims awaiting_decision jobs and applies Go credit policy, producing approved, rejected,
+    counter_offer or manual_review. Final automatic decisions and applicable offers are persisted atomically;
+    manual_review stores the assessment without a fictitious final decision. Private application documents
+    can be uploaded by their CLIENT owner and read by their owner or BANK_EMPLOYEE after successful submit.
+    Drafts are private to their CLIENT owner. All 27 API v1 operations plus /health and /ready are implemented,
+    including manual bank decisions and client offer actions. Internal employee comments are visible only
+    in the bank assessment. CLIENT can confirm or decline the current active offer; signed means demonstration
+    confirmation without loan disbursement. Scoring integration follows the local JSON Schema and has
+    been verified with the separate real Python logreg_v1 service. Its source and model artifact remain
+    in the scoring repository; an optional local Compose configuration uses that unchanged checkout. Mandatory
+    financial limits are enforced by Go for automatic and manual proposals. Monetary amounts use integer
+    rubles, annualRatePercent uses percent, and timestamps use RFC 3339 UTC. Clients may keep independent
+    drafts within the configured active-draft limit, including several drafts of the same product; submitting
+    one does not alter the others. Clients may edit only contact data with optimistic versions and audit.
+    Each client remains bound to exactly one company. Active drafts are limited to 20 by default and owned
+    drafts can be soft-deleted.'
 x-application-lifecycle:
   transitions:
   - from: draft
@@ -72,14 +73,15 @@ x-application-lifecycle:
   - signed
   - closed
   technicalFailure: Retain submitted/processing. Decision and bank assessment APIs expose a safe Processing
-    state without private job errors. awaiting_scoring and awaiting_decision
-    are internal job states, never application statuses.
+    state without private job errors. awaiting_scoring and awaiting_decision are internal job states,
+    never application statuses.
   signedMeaning: MVP demonstration confirmation only; no loan disbursement or legally binding bank agreement.
 x-bank-draft-policy:
   visibilityStartsAt: successful submit
   draftListResult: never included; status=draft returns 400 invalid_request
   draftReadResult: 404 application_not_found for all bank reads, including existing document list/download
-  draftCountLimit: none for CLIENT; several independent drafts per product allowed
+  draftCountLimit: MAX_ACTIVE_DRAFTS_PER_CLIENT (default 20) active nondeleted draft applications per
+    CLIENT; submitted or later statuses are excluded
 servers:
 - url: http://localhost:8080
 paths:
@@ -309,6 +311,50 @@ paths:
           $ref: '#/components/responses/ServiceUnavailable'
         '500':
           $ref: '#/components/responses/InternalError'
+    patch:
+      x-implementation-status: implemented
+      operationId: patchOwnContacts
+      x-roles:
+      - CLIENT
+      summary: Change only the authenticated client’s additional email
+      description: CLIENT only. Positive version and additionalEmail are required. A string updates the
+        additional contact email; null clears it. Name, OTP phone, role, user ID and company binding are
+        immutable. Unknown, duplicate and incorrectly cased JSON keys are rejected. Successful writes
+        increment the entity version exactly once and persist before/after contact audit in the same PostgreSQL
+        transaction. BANK_EMPLOYEE cannot edit contacts. Stale versions return 409 version_conflict.
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserContactPatchInput'
+      responses:
+        '200':
+          description: Updated contact information and incremented entity version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUser'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Stale entity version (version_conflict). No mutation or audit event is committed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          $ref: '#/components/responses/RequestTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
   /api/v1/companies/{companyId}:
     get:
       x-implementation-status: implemented
@@ -344,7 +390,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-      parameters:
+      parameters: &id001
       - name: companyId
         in: path
         required: true
@@ -352,6 +398,53 @@ paths:
           type: string
           format: uuid
         description: Nonzero UUID matching the authenticated user’s companyId.
+    patch:
+      x-implementation-status: implemented
+      operationId: patchOwnCompanyContacts
+      x-roles:
+      - CLIENT
+      summary: Change only contact details of the authenticated client’s company
+      description: CLIENT owner only. Positive version and a contact object with at least one of phone,
+        email or address are required. Missing contact fields are unchanged; explicit null and empty contact
+        values are invalid. Legal identity, registration fields, financials and credit history cannot
+        be changed. Ownership is checked again inside the transaction. Unknown, duplicate and incorrectly
+        cased JSON keys are rejected. Successful writes increment the entity version exactly once and
+        persist before/after contact audit in the same PostgreSQL transaction. BANK_EMPLOYEE cannot edit
+        contacts. Stale versions return 409 version_conflict.
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyContactPatchInput'
+      responses:
+        '200':
+          description: Updated contact information and incremented entity version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Stale entity version (version_conflict). No mutation or audit event is committed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          $ref: '#/components/responses/RequestTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      parameters: *id001
   /api/v1/credit-products:
     get:
       x-implementation-status: implemented
@@ -469,13 +562,15 @@ paths:
       x-roles:
       - CLIENT
       summary: Create a partial client-owned credit draft
-      description: CLIENT only. Owner and company come from the current PostgreSQL user;
-        they must not be supplied in JSON. An empty object or nullable editable fields
-        are accepted. Provided values must be valid; when productId is selected, any
-        present purpose, amount and term must satisfy that active product. Creation
-        and draft_created event are committed atomically. No scoring, decision or background
-        job is created. Multiple independent drafts, including drafts of the same product,
-        are allowed without an MVP count limit. Submitting one never submits or deletes the others.
+      description: CLIENT only. Owner and company come from the current PostgreSQL user; they must not
+        be supplied in JSON. An empty object or nullable editable fields are accepted. Provided values
+        must be valid; when productId is selected, any present purpose, amount and term must satisfy that
+        active product. Creation and draft_created event are committed atomically. No scoring, decision
+        or background job is created. Multiple independent drafts, including drafts of the same product,
+        are allowed within the configured count limit. Submitting one never submits or deletes the others.
+        Active nondeleted drafts are limited per CLIENT by MAX_ACTIVE_DRAFTS_PER_CLIENT (default 20).
+        Counting and insertion are serialized on the user row in one PostgreSQL transaction; submitted
+        or later statuses do not count. Existing drafts are never automatically deleted.
       security:
       - BearerAuth: []
       requestBody:
@@ -522,6 +617,7 @@ paths:
                 availableActions:
                 - edit
                 - submit
+                - delete
         '400':
           $ref: '#/components/responses/InvalidRequest'
         '404':
@@ -542,18 +638,29 @@ paths:
           $ref: '#/components/responses/ServiceUnavailable'
         '500':
           $ref: '#/components/responses/InternalError'
+        '409':
+          description: The configured number of active drafts has been reached (draft_limit_reached).
+            Delete an unneeded draft or submit a complete application before creating another.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: draft_limit_reached
+                message: Достигнут лимит активных черновиков. Удалите ненужный черновик или отправьте
+                  заполненную заявку.
     get:
       x-implementation-status: implemented
       operationId: listOwnApplications
       x-roles:
       - CLIENT
       summary: List applications owned by the current client in their company
-      description: CLIENT only. SQL pagination and status filtering apply to both owner
-        and company scope; other owners are never included. Ordered by createdAt descending,
-        then applicationId descending. total counts all matching rows before pagination.
-        Unknown/repeated query parameters and malformed limits, offsets or statuses
-        are rejected. Creating a draft does not submit it; the separate submit operation
-        advances complete applications to submitted and asynchronous processing.
+      description: CLIENT only. SQL pagination and status filtering apply to both owner and company scope;
+        other owners are never included. Ordered by createdAt descending, then applicationId descending.
+        total counts all matching rows before pagination. Unknown/repeated query parameters and malformed
+        limits, offsets or statuses are rejected. Creating a draft does not submit it; the separate submit
+        operation advances complete applications to submitted and asynchronous processing. Soft-deleted
+        drafts are omitted from items and total.
       security:
       - BearerAuth: []
       parameters:
@@ -597,8 +704,8 @@ paths:
     - name: applicationId
       in: path
       required: true
-      description: Nonzero application UUID. Ownership is checked using both authenticated
-        user ID and company ID.
+      description: Nonzero application UUID. Ownership is checked using both authenticated user ID and
+        company ID.
       schema:
         type: string
         format: uuid
@@ -608,11 +715,12 @@ paths:
       x-roles:
       - CLIENT
       summary: Open the current client’s saved application
-      description: CLIENT only, owner and company must match the current user. Missing
-        and foreign UUIDs both return 404 application_not_found without disclosing existence.
-        Includes permitted company details and the selected product summary. Draft availableActions
-        is [edit, submit]; approved/counter_offer expose [accept, decline] only while the current offer is active.
-        Other client states expose []. Submit still validates completeness and documents.
+      description: CLIENT only, owner and company must match the current user. Missing and foreign UUIDs
+        both return 404 application_not_found without disclosing existence. Includes permitted company
+        details and the selected product summary. Draft availableActions is [edit, submit, delete]; approved/counter_offer
+        expose [accept, decline] only while the current offer is active. Other client states expose [].
+        Submit still validates completeness and documents. Soft-deleted drafts return 404, including their
+        timeline, decision and document APIs.
       security:
       - BearerAuth: []
       responses:
@@ -644,14 +752,12 @@ paths:
       x-roles:
       - CLIENT
       summary: Edit a draft using optimistic locking
-      description: CLIENT owner only. Positive non-null version and at least one editable
-        field are required. An absent field is unchanged; an explicit null clears that
-        editable field. Immutable/unknown fields are rejected. Validation uses the merged
-        draft and the selected active product. A successful PATCH, including assignment
-        of an existing value, increments version exactly once and appends draft_updated
-        in the same transaction. Stale/concurrent versions return 409 version_conflict;
-        a non-draft application returns 409 invalid_status. Neither error changes the
-        draft or timeline.
+      description: CLIENT owner only. Positive non-null version and at least one editable field are required.
+        An absent field is unchanged; an explicit null clears that editable field. Immutable/unknown fields
+        are rejected. Validation uses the merged draft and the selected active product. A successful PATCH,
+        including assignment of an existing value, increments version exactly once and appends draft_updated
+        in the same transaction. Stale/concurrent versions return 409 version_conflict; a non-draft application
+        returns 409 invalid_status. Neither error changes the draft or timeline.
       security:
       - BearerAuth: []
       requestBody:
@@ -674,8 +780,8 @@ paths:
         '400':
           $ref: '#/components/responses/InvalidRequest'
         '404':
-          description: Unknown/inactive product (product_not_found); for an application
-            path, a missing or foreign application (application_not_found).
+          description: Unknown/inactive product (product_not_found); for an application path, a missing
+            or foreign application (application_not_found).
           content:
             application/json:
               schema:
@@ -685,8 +791,7 @@ paths:
         '415':
           $ref: '#/components/responses/UnsupportedMediaType'
         '409':
-          description: Stale version (version_conflict) or an application whose status
-            is not draft (invalid_status).
+          description: Stale version (version_conflict) or an application whose status is not draft (invalid_status).
           content:
             application/json:
               schema:
@@ -699,6 +804,57 @@ paths:
           $ref: '#/components/responses/ServiceUnavailable'
         '500':
           $ref: '#/components/responses/InternalError'
+    delete:
+      x-implementation-status: implemented
+      operationId: deleteOwnApplicationDraft
+      x-roles:
+      - CLIENT
+      summary: Soft-delete an owned draft using its current version
+      description: CLIENT owner in the authenticated company only. The positive version query parameter
+        is required; no request body or Idempotency-Key is needed. Only draft can be deleted. A successful
+        operation increments version, sets deleted_at and appends draft_deleted atomically. The application
+        row lock serializes deletion against submit, draft edits and document publication. Deleting the
+        same owned tombstone again returns 204 without another event, even when the original version is
+        supplied. Missing or foreign applications return the same 404. Submitted and later states return
+        409 invalid_status. Tombstones are excluded from the active draft limit and every public read/mutation,
+        including document listing and download. Private stored files and metadata remain retained for
+        audit; this operation does not physically purge them.
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: version
+        in: query
+        required: true
+        schema: &id002
+          type: integer
+          format: int64
+          minimum: 1
+        description: Current application version from GET or PATCH. Unknown/repeated query parameters
+          are rejected.
+      responses:
+        '204':
+          description: Owned draft deleted, or the same owned draft was already deleted. Empty response
+            body.
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Missing, foreign or inaccessible application (application_not_found).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Stale application version (version_conflict) or application already submitted (invalid_status).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
   /api/v1/applications/{applicationId}/submit:
     post:
       x-implementation-status: implemented
@@ -706,32 +862,27 @@ paths:
       x-roles:
       - CLIENT
       summary: Submit the current client's complete draft for asynchronous preliminary checks
-      description: >-
-        CLIENT owner in the authenticated company only. No body is required; a nonempty
-        body is rejected. Missing and foreign applications both return 404
-        application_not_found. Requires productId, purpose, requestedAmountRub, termMonths,
-        monthlyRevenueRub and monthlyExpensesRub; purposeDescription is also required for
-        other. The active product's purpose, amount, term and minimum company age must
-        match. A turnover loan requires a ready BANK_STATEMENT unless the company's
-        private server-controlled profile has a trusted financial source. An investment
-        loan requires a ready EQUIPMENT_INVOICE. Pending uploads never satisfy these
-        requirements. Validation failures return detailed 422 errors without changing
-        the application, events or jobs.
-        In one PostgreSQL transaction the backend rechecks ownership, state and the
-        draft revision, saves immutable financial and product snapshots, changes draft
-        to submitted, sets submittedAt, appends APPLICATION_SUBMITTED and creates one
-        durable job. A concurrent draft change can produce 409 version_conflict.
-        The HTTP response does not wait for checks. The in-process worker changes the
-        application to processing and durably stores synthetic company and credit-history
-        results. The same worker calls the configured Python scoring service after prechecks, validates and
-        persists its recommendation, then moves the job to awaiting_decision. The same worker applies Go
-        credit policy and atomically persists approved, rejected or counter_offer with the final decision
-        and applicable offer, or manual_review with its assessment and reasons. An unavailable scoring service uses bounded retries;
-        technical failures never produce rejected.
-        Repeated or concurrent submits of a submitted/processing application return 202
-        with the same submittedAt and do not duplicate jobs or submission events.
-        Other non-draft states return 409 invalid_status. Poll the existing application
-        and timeline APIs to observe progress; internal job results are not public.
+      description: CLIENT owner in the authenticated company only. No body is required; a nonempty body
+        is rejected. Missing and foreign applications both return 404 application_not_found. Requires
+        productId, purpose, requestedAmountRub, termMonths, monthlyRevenueRub and monthlyExpensesRub;
+        purposeDescription is also required for other. The active product's purpose, amount, term and
+        minimum company age must match. A turnover loan requires a ready BANK_STATEMENT unless the company's
+        private server-controlled profile has a trusted financial source. An investment loan requires
+        a ready EQUIPMENT_INVOICE. Pending uploads never satisfy these requirements. Validation failures
+        return detailed 422 errors without changing the application, events or jobs. In one PostgreSQL
+        transaction the backend rechecks ownership, state and the draft revision, saves immutable financial
+        and product snapshots, changes draft to submitted, sets submittedAt, appends APPLICATION_SUBMITTED
+        and creates one durable job. A concurrent draft change can produce 409 version_conflict. The HTTP
+        response does not wait for checks. The in-process worker changes the application to processing
+        and durably stores synthetic company and credit-history results. The same worker calls the configured
+        Python scoring service after prechecks, validates and persists its recommendation, then moves
+        the job to awaiting_decision. The same worker applies Go credit policy and atomically persists
+        approved, rejected or counter_offer with the final decision and applicable offer, or manual_review
+        with its assessment and reasons. An unavailable scoring service uses bounded retries; technical
+        failures never produce rejected. Repeated or concurrent submits of a submitted/processing application
+        return 202 with the same submittedAt and do not duplicate jobs or submission events. Other non-draft
+        states return 409 invalid_status. Poll the existing application and timeline APIs to observe progress;
+        internal job results are not public.
       security:
       - BearerAuth: []
       parameters:
@@ -808,26 +959,24 @@ paths:
       x-roles:
       - CLIENT
       summary: Read the ordered history of the current client’s application
-      description: CLIENT owner only. Missing and foreign applications both return 404
-        application_not_found. Events are ordered by increasing sequence. Draft writes
-        record draft_created and draft_updated. Submission records APPLICATION_SUBMITTED
-        with the client actorId; processing records PROCESSING_STARTED,
-        COMPANY_CHECK_COMPLETED, CREDIT_HISTORY_CHECK_COMPLETED and PRECHECKS_COMPLETED
-        with null actorId for system actions. Scoring adds SCORING_STARTED and, only after its result
-        is durably saved, SCORING_COMPLETED. These events have null actorId and processing status.
-        Go policy then records DECISION_PROCESSING_STARTED with processing status, followed by exactly one
-        of APPLICATION_APPROVED (approved), APPLICATION_REJECTED (rejected), COUNTER_OFFER_CREATED
-        (counter_offer) or MANUAL_REVIEW_REQUIRED (manual_review), all with null actorId.
-        Retries do not duplicate durable events. Timeline never contains OTP, JWT,
-        internal errors, score, factors or editable financial values.
+      description: CLIENT owner only. Missing and foreign applications both return 404 application_not_found.
+        Events are ordered by increasing sequence. Draft writes record draft_created and draft_updated.
+        Submission records APPLICATION_SUBMITTED with the client actorId; processing records PROCESSING_STARTED,
+        COMPANY_CHECK_COMPLETED, CREDIT_HISTORY_CHECK_COMPLETED and PRECHECKS_COMPLETED with null actorId
+        for system actions. Scoring adds SCORING_STARTED and, only after its result is durably saved,
+        SCORING_COMPLETED. These events have null actorId and processing status. Go policy then records
+        DECISION_PROCESSING_STARTED with processing status, followed by exactly one of APPLICATION_APPROVED
+        (approved), APPLICATION_REJECTED (rejected), COUNTER_OFFER_CREATED (counter_offer) or MANUAL_REVIEW_REQUIRED
+        (manual_review), all with null actorId. Retries do not duplicate durable events. Timeline never
+        contains OTP, JWT, internal errors, score, factors or editable financial values.
       security:
       - BearerAuth: []
       parameters:
       - name: applicationId
         in: path
         required: true
-        description: Nonzero application UUID. Ownership is checked using both authenticated
-          user ID and company ID.
+        description: Nonzero application UUID. Ownership is checked using both authenticated user ID and
+          company ID.
         schema:
           type: string
           format: uuid
@@ -863,18 +1012,15 @@ paths:
       x-roles:
       - CLIENT
       summary: Upload a private document to the current client's draft
-      description: >-
-        CLIENT owner in the authenticated company only. Authorization and draft status
-        are checked before reading the body and checked again before activation.
-        Exactly one file and one documentType multipart part are required; unknown or
-        duplicate parts are rejected. PDF, PNG and JPEG are detected from actual bytes,
-        independently of the claimed part MIME type. The original filename must be a
-        safe basename with a matching .pdf, .png, .jpg or .jpeg extension; path separators,
-        traversal and control characters are rejected. File size is 1..5242880 bytes
-        (5 MiB); the entire request, including fields and boundaries, is limited to
-        5308416 bytes (5 MiB + 64 KiB). Multiple documents of the same type are allowed.
-        Storage keys, checksums and filesystem paths are never returned. The application
-        remains a draft and its optimistic version does not change. Required-document
+      description: CLIENT owner in the authenticated company only. Authorization and draft status are
+        checked before reading the body and checked again before activation. Exactly one file and one
+        documentType multipart part are required; unknown or duplicate parts are rejected. PDF, PNG and
+        JPEG are detected from actual bytes, independently of the claimed part MIME type. The original
+        filename must be a safe basename with a matching .pdf, .png, .jpg or .jpeg extension; path separators,
+        traversal and control characters are rejected. File size is 1..5242880 bytes (5 MiB); the entire
+        request, including fields and boundaries, is limited to 5308416 bytes (5 MiB + 64 KiB). Multiple
+        documents of the same type are allowed. Storage keys, checksums and filesystem paths are never
+        returned. The application remains a draft and its optimistic version does not change. Required-document
         checks are performed separately by submit; no OCR is performed.
       security:
       - BearerAuth: []
@@ -900,7 +1046,7 @@ paths:
                 contentType: application/pdf, image/png, image/jpeg
             example:
               documentType: BANK_STATEMENT
-              file: '(binary contents of sample.pdf)'
+              file: (binary contents of sample.pdf)
       responses:
         '201':
           description: Document is durably readable and its metadata is active in PostgreSQL
@@ -947,9 +1093,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '415':
-          description: >-
-            Content-Type is not multipart/form-data (unsupported_media_type), or actual
-            content is unsupported or does not match the filename extension (unsupported_file_type)
+          description: Content-Type is not multipart/form-data (unsupported_media_type), or actual content
+            is unsupported or does not match the filename extension (unsupported_file_type)
           content:
             application/json:
               schema:
@@ -974,15 +1119,13 @@ paths:
       - CLIENT
       - BANK_EMPLOYEE
       summary: List readable documents of an accessible application
-      description: >-
-        CLIENT can read only their own application in their company. BANK_EMPLOYEE can
-        read documents only after successful submit, across the MVP's single bank;
-        there is no branch or bank organization model. A draft is private to its CLIENT
-        owner and returns 404 application_not_found to BANK_EMPLOYEE, even when its UUID is known. Employees cannot upload documents. Missing and
-        foreign applications return the same 404 application_not_found. Only ready,
-        readable documents are returned; pending or failed uploads are excluded.
-        No pagination is exposed in this MVP. Documents remain readable after a
-        future application status change; no deletion or replacement API is available.
+      description: CLIENT can read only their own application in their company. BANK_EMPLOYEE can read
+        documents only after successful submit, across the MVP's single bank; there is no branch or bank
+        organization model. A draft is private to its CLIENT owner and returns 404 application_not_found
+        to BANK_EMPLOYEE, even when its UUID is known. Employees cannot upload documents. Missing and
+        foreign applications return the same 404 application_not_found. Only ready, readable documents
+        are returned; pending or failed uploads are excluded. No pagination is exposed in this MVP. Documents
+        remain readable after a future application status change; no deletion or replacement API is available.
       security:
       - BearerAuth: []
       responses:
@@ -1021,15 +1164,13 @@ paths:
       - CLIENT
       - BANK_EMPLOYEE
       summary: Download a private document as an attachment
-      description: >-
-        CLIENT owner in their company, including their own draft; BANK_EMPLOYEE only
-        after successful submit. A draft returns 404 application_not_found to BANK_EMPLOYEE. The application
-        scope is checked before the document lookup; a document ID from another
-        application cannot be substituted. A missing or foreign application returns
-        application_not_found; a missing, unreadable or wrong-application document
-        returns document_not_found. The private volume is never exposed as static
-        files. No absolute path or storage key is returned. Binary content uses its
-        detected MIME type and a safe attachment filename, with no-store and nosniff.
+      description: CLIENT owner in their company, including their own draft; BANK_EMPLOYEE only after
+        successful submit. A draft returns 404 application_not_found to BANK_EMPLOYEE. The application
+        scope is checked before the document lookup; a document ID from another application cannot be
+        substituted. A missing or foreign application returns application_not_found; a missing, unreadable
+        or wrong-application document returns document_not_found. The private volume is never exposed
+        as static files. No absolute path or storage key is returned. Binary content uses its detected
+        MIME type and a safe attachment filename, with no-store and nosniff.
       security:
       - BearerAuth: []
       responses:
@@ -1077,7 +1218,8 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
-          description: Missing or inaccessible application, including a draft requested by BANK_EMPLOYEE (application_not_found), or missing/unreadable/wrong-application document (document_not_found)
+          description: Missing or inaccessible application, including a draft requested by BANK_EMPLOYEE
+            (application_not_found), or missing/unreadable/wrong-application document (document_not_found)
           content:
             application/json:
               schema:
@@ -1095,10 +1237,10 @@ paths:
       - BearerAuth: []
       operationId: getApplicationDecision
       summary: Read the current client-owned credit decision or processing state
-      description: 'CLIENT owner and company must both match. Returns
-        200 in all nine application states, including a null decision before completion. Missing and foreign
-        applications both return 404. manual_review has decision=null and processing=null. signed/closed
-        preserve the credit decision; technical errors never mean rejected.'
+      description: CLIENT owner and company must both match. Returns 200 in all nine application states,
+        including a null decision before completion. Missing and foreign applications both return 404.
+        manual_review has decision=null and processing=null. signed/closed preserve the credit decision;
+        technical errors never mean rejected.
       x-roles:
       - CLIENT
       responses:
@@ -1126,6 +1268,7 @@ paths:
                       state: waiting
                       retryAt: null
                       message: Ожидается результат оценки.
+                    customerExplanation: null
                 manualReview:
                   value:
                     applicationId: 40000000-0000-4000-8000-000000000001
@@ -1139,6 +1282,7 @@ paths:
                     reviewedBy: null
                     offer: null
                     processing: null
+                    customerExplanation: null
                 approved:
                   value:
                     applicationId: 40000000-0000-4000-8000-000000000001
@@ -1162,6 +1306,7 @@ paths:
                       expiresAt: null
                       status: active
                     processing: null
+                    customerExplanation: Исходные условия одобрены.
                 counterOffer:
                   value:
                     applicationId: 40000000-0000-4000-8000-000000000001
@@ -1185,6 +1330,7 @@ paths:
                       expiresAt: null
                       status: active
                     processing: null
+                    customerExplanation: Предложена меньшая сумма кредита.
                 rejected:
                   value:
                     applicationId: 40000000-0000-4000-8000-000000000001
@@ -1199,6 +1345,7 @@ paths:
                     reviewedBy: 20000000-0000-4000-8000-000000000004
                     offer: null
                     processing: null
+                    customerExplanation: Кредит не одобрен по результатам рассмотрения.
         '400':
           $ref: '#/components/responses/InvalidRequest'
         '401':
@@ -1220,17 +1367,16 @@ paths:
       - BearerAuth: []
       operationId: acceptApplicationOffer
       summary: Accept the current active primary offer
-      description: 'CLIENT owner and company only. Allowed in approved/counter_offer
-        with a current active primary offer. Changes application to signed and offer to accepted atomically
-        with an event. Credit decision is preserved. signed is demonstration confirmation only, without
-        disbursement or a legally binding bank agreement. Repeating the same completed action on the same
-        offer succeeds without another event/version increment, including after idempotency retention expires,
-        only when durable audit confirms the actor, offer, operation and original/result version.
-        Opposite actions or stale/different offers return 409. State/version/offer checks and mutations
-        use one transaction and application row locking. Same Idempotency-Key and body replay the original
-        result before stale-version validation; changed body gives 409 idempotency_conflict. Authorization and
-        ownership are checked before replay. Keys live 24 hours; transactional
-        state guards remain afterwards.'
+      description: CLIENT owner and company only. Allowed in approved/counter_offer with a current active
+        primary offer. Changes application to signed and offer to accepted atomically with an event. Credit
+        decision is preserved. signed is demonstration confirmation only, without disbursement or a legally
+        binding bank agreement. Repeating the same completed action on the same offer succeeds without
+        another event/version increment, including after idempotency retention expires, only when durable
+        audit confirms the actor, offer, operation and original/result version. Opposite actions or stale/different
+        offers return 409. State/version/offer checks and mutations use one transaction and application
+        row locking. Same Idempotency-Key and body replay the original result before stale-version validation;
+        changed body gives 409 idempotency_conflict. Authorization and ownership are checked before replay.
+        Keys live 24 hours; transactional state guards remain afterwards.
       x-roles:
       - CLIENT
       parameters:
@@ -1273,6 +1419,7 @@ paths:
                   expiresAt: null
                   status: accepted
                 processing: null
+                customerExplanation: Предложена меньшая сумма кредита.
         '400':
           $ref: '#/components/responses/InvalidRequest'
         '401':
@@ -1300,17 +1447,16 @@ paths:
       - BearerAuth: []
       operationId: declineApplicationOffer
       summary: Decline the current active primary offer
-      description: 'CLIENT owner and company only. Allowed in approved/counter_offer
-        with a current active primary offer. Changes application to closed and offer to withdrawn atomically
-        with an event. Credit decision is preserved. signed is demonstration confirmation only, without
-        disbursement or a legally binding bank agreement. Repeating the same completed action on the same
-        offer succeeds without another event/version increment, including after idempotency retention expires,
-        only when durable audit confirms the actor, offer, operation and original/result version.
-        Opposite actions or stale/different offers return 409. State/version/offer checks and mutations
-        use one transaction and application row locking. Same Idempotency-Key and body replay the original
-        result before stale-version validation; changed body gives 409 idempotency_conflict. Authorization and
-        ownership are checked before replay. Keys live 24 hours; transactional
-        state guards remain afterwards.'
+      description: CLIENT owner and company only. Allowed in approved/counter_offer with a current active
+        primary offer. Changes application to closed and offer to withdrawn atomically with an event.
+        Credit decision is preserved. signed is demonstration confirmation only, without disbursement
+        or a legally binding bank agreement. Repeating the same completed action on the same offer succeeds
+        without another event/version increment, including after idempotency retention expires, only when
+        durable audit confirms the actor, offer, operation and original/result version. Opposite actions
+        or stale/different offers return 409. State/version/offer checks and mutations use one transaction
+        and application row locking. Same Idempotency-Key and body replay the original result before stale-version
+        validation; changed body gives 409 idempotency_conflict. Authorization and ownership are checked
+        before replay. Keys live 24 hours; transactional state guards remain afterwards.
       x-roles:
       - CLIENT
       parameters:
@@ -1353,6 +1499,7 @@ paths:
                   expiresAt: null
                   status: withdrawn
                 processing: null
+                customerExplanation: Предложена меньшая сумма кредита.
         '400':
           $ref: '#/components/responses/InvalidRequest'
         '401':
@@ -1378,12 +1525,12 @@ paths:
       - BearerAuth: []
       operationId: listBankApplications
       summary: List submitted applications visible to bank employees
-      description: 'BANK_EMPLOYEE only. Server-side access excludes
-        drafts regardless of knowing their UUID. Bank visibility starts only after successful submit. With
-        no status filter returns all eight bank-visible statuses. status=draft is 400 invalid_request. Optional
-        filters are status and companyId; limit/offset pagination follows the client-list convention. Repeated/unknown
-        query parameters are rejected. Sort: createdAt DESC, applicationId DESC; total is counted after
-        filters and before pagination. No draft counts or data are exposed.'
+      description: 'BANK_EMPLOYEE only. Server-side access excludes drafts regardless of knowing their
+        UUID. Bank visibility starts only after successful submit. With no status filter returns all eight
+        bank-visible statuses. status=draft is 400 invalid_request. Optional filters are status and companyId;
+        limit/offset pagination follows the client-list convention. Repeated/unknown query parameters
+        are rejected. Sort: createdAt DESC, applicationId DESC; total is counted after filters and before
+        pagination. No draft counts or data are exposed.'
       x-roles:
       - BANK_EMPLOYEE
       parameters:
@@ -1440,11 +1587,11 @@ paths:
       - BearerAuth: []
       operationId: getBankApplication
       summary: Read a submitted application with frozen company/product data
-      description: 'BANK_EMPLOYEE only. Server-side access excludes
-        drafts regardless of knowing their UUID. Bank visibility starts only after successful submit. A
-        draft and a missing application both return 404 application_not_found. Financial/company and product
-        data are read from the submitted snapshots. No employee edit, upload or submit operation is provided.
-        Documents use the existing protected list/download endpoints.'
+      description: BANK_EMPLOYEE only. Server-side access excludes drafts regardless of knowing their
+        UUID. Bank visibility starts only after successful submit. A draft and a missing application both
+        return 404 application_not_found. Financial/company and product data are read from the submitted
+        snapshots. No employee edit, upload or submit operation is provided. Documents use the existing
+        protected list/download endpoints.
       x-roles:
       - BANK_EMPLOYEE
       responses:
@@ -1493,6 +1640,7 @@ paths:
                     existingMonthlyPaymentsRub: 180000
                     overdueCount: 0
                   simulation: true
+                  version: 1
                 product:
                   id: turnover
                   name: Оборотный кредит
@@ -1533,13 +1681,14 @@ paths:
       - BearerAuth: []
       operationId: getBankApplicationAssessment
       summary: Read normalized checks, risk assessment and review recommendations
-      description: 'BANK_EMPLOYEE only. Server-side access excludes
-        drafts regardless of knowing their UUID. Bank visibility starts only after successful submit. A
-        draft and a missing application both return 404 application_not_found. Existing check results are
-        reused. Empty assessments use null fields and empty arrays; do not manufacture a zero score. Go
-        policy owns final decisions and categories; demo policy uses LOW for score >= 80, MEDIUM for
-        50 <= score < 80 and HIGH for score < 50.
-        Private manual comments are bank-only.'
+      description: BANK_EMPLOYEE only. Server-side access excludes drafts regardless of knowing their
+        UUID. Bank visibility starts only after successful submit. A draft and a missing application both
+        return 404 application_not_found. Existing check results are reused. Empty assessments use null
+        fields and empty arrays; do not manufacture a zero score. Go policy owns final decisions and categories;
+        demo policy uses LOW for score >= 80, MEDIUM for 50 <= score < 80 and HIGH for score < 50. Private
+        manual comments are bank-only. scoring contains the persisted Python recommendation, amount, reasons
+        and original factors; goDecision contains the saved automatic Go outcome and reasons. The manualDecision
+        section remains separate from both. GET never calls Python or recomputes policy.
       x-roles:
       - BANK_EMPLOYEE
       responses:
@@ -1571,19 +1720,31 @@ paths:
                 scoring:
                   score: 62
                   assessedAt: '2026-10-24T09:32:00Z'
+                  decision: counter_offer
+                  approvedAmountRub: 800000
+                  reasons:
+                  - Модель рекомендует уменьшить сумму.
+                  factors:
+                    operating_cash_flow: 900000
+                    operating_margin: 0.375
+                    estimated_new_monthly_payment: 73048.22
+                    debt_service_share: 0.2812
+                    existing_debt_to_annual_revenue: 0.0417
+                    overdue_count: 0
                 riskLevel: MEDIUM
                 manualReviewReasons:
                 - code: policy_review_required
                   message: Требуется подтверждение условий сотрудником банка.
-                recommendations:
-                - decision: counter_offer
-                  reasons:
-                  - Рассмотреть уменьшение суммы.
-                  offer:
-                    amountRub: 800000
-                    termMonths: 24
+                recommendations: []
                 manualDecision: null
                 processing: null
+                goDecision:
+                  decision: manual_review
+                  score: 62
+                  riskLevel: MEDIUM
+                  reasons:
+                  - Требуется рассмотрение сотрудником банка.
+                  assessedAt: '2026-10-24T09:33:00Z'
         '400':
           $ref: '#/components/responses/InvalidRequest'
         '401':
@@ -1605,19 +1766,22 @@ paths:
       - BearerAuth: []
       operationId: createManualCreditDecision
       summary: Record an employee decision for a manual-review application
-      description: 'BANK_EMPLOYEE only. Server-side access excludes
-        drafts regardless of knowing their UUID. Bank visibility starts only after successful submit. Only
-        manual_review may be decided. A draft is hidden with 404 application_not_found, before state validation.
-        Current application version and a trimmed 1..1000-character internal comment are required. approved
-        preserves submitted amount/term; counter_offer amount cannot exceed requested amount, both conditions
-        satisfy frozen product limits, and at least one changes. Frozen rate and product are unchanged;
-        backend calculates the payment and validates it against the frozen financial budget and hard product limits.
-        All decisions require the offer property; rejected requires offer=null. Employee identity comes from authentication,
-        not JSON. Application/decision/offer/event/idempotency result commit in one transaction with application
-        locking. Same key and canonical typed body replay original 201 before stale-version validation; changed body
-        gives 409 idempotency_conflict. Keys live 24 hours; state/version
-        constraints still prevent repeating the decision after expiry. Manual approval does not redefine
-        the scoring result or original risk assessment.'
+      description: BANK_EMPLOYEE only. Server-side access excludes drafts regardless of knowing their
+        UUID. Bank visibility starts only after successful submit. Only manual_review may be decided.
+        A draft is hidden with 404 application_not_found, before state validation. Current application
+        version and a trimmed 1..1000-character internal comment are required. approved preserves submitted
+        amount/term; counter_offer amount cannot exceed requested amount, both conditions satisfy frozen
+        product limits, and at least one changes. Frozen rate and product are unchanged; backend calculates
+        the payment and validates it against the frozen financial budget and hard product limits. All
+        decisions require the offer property; rejected requires offer=null. Employee identity comes from
+        authentication, not JSON. Application/decision/offer/event/idempotency result commit in one transaction
+        with application locking. Same key and canonical typed body replay original 201 before stale-version
+        validation; changed body gives 409 idempotency_conflict. Keys live 24 hours; state/version constraints
+        still prevent repeating the decision after expiry. Manual approval does not redefine the scoring
+        result or original risk assessment. internalComment and legacy comment retain bank-only semantics;
+        different nonblank aliases are invalid. Optional customerExplanation is client-facing and participates
+        in request identity when nonblank. Missing or blank public explanation is saved as an outcome-specific
+        safe default, never copied from internal notes.
       x-roles:
       - BANK_EMPLOYEE
       parameters:
@@ -1680,6 +1844,7 @@ paths:
                   expiresAt: null
                   status: active
                 processing: null
+                customerExplanation: Предложена меньшая сумма кредита.
         '400':
           $ref: '#/components/responses/InvalidRequest'
         '401':
@@ -1723,7 +1888,8 @@ components:
       name: applicationId
       in: path
       required: true
-      description: Nonzero application UUID; CLIENT access requires both owner and company match; BANK_EMPLOYEE reads only successfully submitted applications and receives 404 for draft
+      description: Nonzero application UUID; CLIENT access requires both owner and company match; BANK_EMPLOYEE
+        reads only successfully submitted applications and receives 404 for draft
       schema:
         type: string
         format: uuid
@@ -1731,8 +1897,8 @@ components:
       name: applicationId
       in: path
       required: true
-      description: Nonzero UUID. CLIENT access requires both authenticated owner and company; foreign and
-        absent applications both return 404.
+      description: Nonzero UUID. CLIENT access requires both authenticated owner and company; foreign
+        and absent applications both return 404.
       schema:
         type: string
         format: uuid
@@ -1750,11 +1916,12 @@ components:
       in: header
       required: true
       description: UUID generated once per logical new POST operation. Scoped by authenticated user, operation
-        and application. Canonical typed JSON is hashed; formatting and object-key ordering do not change identity.
-        Same canonical body/key replays original status/body before stale-version validation; changed body
-        returns 409 idempotency_conflict. Retention is 24 hours. Access and ownership are rechecked before
-        replay; state/transaction guards prevent duplicate actions after expiry. Manual decisions then conflict;
-        a completed identical offer action requires matching durable audit and original/result version. Existing submit does not require this header.
+        and application. Canonical typed JSON is hashed; formatting and object-key ordering do not change
+        identity. Same canonical body/key replays original status/body before stale-version validation;
+        changed body returns 409 idempotency_conflict. Retention is 24 hours. Access and ownership are
+        rechecked before replay; state/transaction guards prevent duplicate actions after expiry. Manual
+        decisions then conflict; a completed identical offer action requires matching durable audit and
+        original/result version. Existing submit does not require this header.
       schema:
         type: string
         format: uuid
@@ -1763,8 +1930,8 @@ components:
       name: status
       in: query
       required: false
-      description: One optional bank-visible status. Omitting returns all eight submitted states; draft, unknown
-        or repeated values return 400 invalid_request.
+      description: One optional bank-visible status. Omitting returns all eight submitted states; draft,
+        unknown or repeated values return 400 invalid_request.
       schema:
         $ref: '#/components/schemas/BankApplicationStatus'
     BankCompanyId:
@@ -1918,6 +2085,8 @@ components:
       - phone
       - role
       - companyId
+      - additionalEmail
+      - version
       properties:
         id:
           type: string
@@ -1934,6 +2103,17 @@ components:
           format: uuid
           nullable: true
           description: Null for BANK_EMPLOYEE
+        additionalEmail:
+          type: string
+          format: email
+          nullable: true
+          maxLength: 254
+          description: Optional contact email, independently editable from the immutable OTP login phone.
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Current personal contact revision. Required in PATCH /me.
     Error:
       type: object
       required:
@@ -2040,6 +2220,13 @@ components:
           type: boolean
           enum:
           - true
+        version:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Live company contact revision starts at 1 and is required in PATCH. Historical
+            submitted snapshots created before migration 000012 may carry 0; they are not editable company
+            records.
     CreditProduct:
       type: object
       required:
@@ -2312,23 +2499,23 @@ components:
       - counter_offer
       - signed
       - closed
-      description: Create and PATCH work with draft. Submit advances draft to submitted;
-        the worker advances it to processing, saves scoring and applies Go policy to produce approved,
-        rejected, counter_offer or manual_review. A bank employee resolves manual_review; CLIENT accept/decline
-        transitions an active approved/counter_offer proposal to signed/closed respectively;
-        technical errors are stored separately and never imply a credit refusal.
+      description: Create and PATCH work with draft. Submit advances draft to submitted; the worker advances
+        it to processing, saves scoring and applies Go policy to produce approved, rejected, counter_offer
+        or manual_review. A bank employee resolves manual_review; CLIENT accept/decline transitions an
+        active approved/counter_offer proposal to signed/closed respectively; technical errors are stored
+        separately and never imply a credit refusal.
     ApplicationDraftInput:
       type: object
       additionalProperties: false
-      description: All seven editable fields are optional and nullable. Empty object is
-        a valid draft. Caller-supplied owner, company, status and service fields are forbidden.
+      description: All seven editable fields are optional and nullable. Empty object is a valid draft.
+        Caller-supplied owner, company, status and service fields are forbidden.
       properties:
         productId:
           type: string
           nullable: true
           pattern: ^[a-z][a-z0-9_-]{0,31}$
-          description: Public active product code, currently turnover or investment; internal
-            product UUID is never accepted.
+          description: Public active product code, currently turnover or investment; internal product
+            UUID is never accepted.
         purpose:
           type: string
           nullable: true
@@ -2340,15 +2527,14 @@ components:
           - upgrade
           - other
           - null
-          description: With a selected product the purpose must be listed in its purposes.
-            other may be saved without a product; its description is not required for
-            a draft.
+          description: With a selected product the purpose must be listed in its purposes. other may be
+            saved without a product; its description is not required for a draft.
         purposeDescription:
           type: string
           nullable: true
           maxLength: 300
-          description: Trimmed nonblank text, at most 300 Unicode characters, no NUL.
-            null clears the description.
+          description: Trimmed nonblank text, at most 300 Unicode characters, no NUL. null clears the
+            description.
         requestedAmountRub:
           type: integer
           nullable: true
@@ -2380,9 +2566,8 @@ components:
       required:
       - version
       minProperties: 2
-      description: A positive current version and at least one editable field. Missing
-        editable fields stay unchanged; explicit null clears. Updated combined values
-        must meet the selected product constraints.
+      description: A positive current version and at least one editable field. Missing editable fields
+        stay unchanged; explicit null clears. Updated combined values must meet the selected product constraints.
       properties:
         version:
           type: integer
@@ -2392,8 +2577,8 @@ components:
           type: string
           nullable: true
           pattern: ^[a-z][a-z0-9_-]{0,31}$
-          description: Public active product code, currently turnover or investment; internal
-            product UUID is never accepted.
+          description: Public active product code, currently turnover or investment; internal product
+            UUID is never accepted.
         purpose:
           type: string
           nullable: true
@@ -2405,15 +2590,14 @@ components:
           - upgrade
           - other
           - null
-          description: With a selected product the purpose must be listed in its purposes.
-            other may be saved without a product; its description is not required for
-            a draft.
+          description: With a selected product the purpose must be listed in its purposes. other may be
+            saved without a product; its description is not required for a draft.
         purposeDescription:
           type: string
           nullable: true
           maxLength: 300
-          description: Trimmed nonblank text, at most 300 Unicode characters, no NUL.
-            null clears the description.
+          description: Trimmed nonblank text, at most 300 Unicode characters, no NUL. null clears the
+            description.
         requestedAmountRub:
           type: integer
           nullable: true
@@ -2474,9 +2658,8 @@ components:
           type: string
           nullable: true
           pattern: ^[a-z][a-z0-9_-]{0,31}$
-          description: Public selected product code, currently turnover or investment.
-            An existing application can retain a subsequently inactive product; writes
-            require an active product.
+          description: Public selected product code, currently turnover or investment. An existing application
+            can retain a subsequently inactive product; writes require an active product.
         purpose:
           type: string
           nullable: true
@@ -2488,15 +2671,14 @@ components:
           - upgrade
           - other
           - null
-          description: With a selected product the purpose must be listed in its purposes.
-            other may be saved without a product; its description is not required for
-            a draft.
+          description: With a selected product the purpose must be listed in its purposes. other may be
+            saved without a product; its description is not required for a draft.
         purposeDescription:
           type: string
           nullable: true
           maxLength: 300
-          description: Trimmed nonblank text, at most 300 Unicode characters, no NUL.
-            null clears the description.
+          description: Trimmed nonblank text, at most 300 Unicode characters, no NUL. null clears the
+            description.
         requestedAmountRub:
           type: integer
           nullable: true
@@ -2552,9 +2734,10 @@ components:
             - submit
             - accept
             - decline
-          description: '[edit, submit] for draft; [accept, decline] in approved/counter_offer only with
-            a current active offer; [] otherwise. Submit availability does not imply successful validation;
-            completeness and mandatory documents are checked by POST submit.'
+            - delete
+          description: '[edit, submit, delete] for draft; [accept, decline] in approved/counter_offer
+            only with a current active offer; [] otherwise. Submit availability does not imply successful
+            validation; completeness and mandatory documents are checked by POST submit.'
     ApplicationSubmitResponse:
       type: object
       additionalProperties: false
@@ -2582,8 +2765,8 @@ components:
           - prechecks
           - awaiting_scoring
           description: Frozen coarse progress marker. prechecks means preliminary checks are queued/running;
-            awaiting_scoring means prechecks are durably saved, including scoring in progress or
-            already saved while the internal Decision Engine is pending. It does not prove a scoring result exists.
+            awaiting_scoring means prechecks are durably saved, including scoring in progress or already
+            saved while the internal Decision Engine is pending. It does not prove a scoring result exists.
     ApplicationSubmitValidationError:
       type: object
       additionalProperties: false
@@ -2637,8 +2820,7 @@ components:
           description: Public product code.
         name:
           type: string
-      description: Selected product code and display name, or null when no product is
-        selected.
+      description: Selected product code and display name, or null when no product is selected.
     ApplicationDetail:
       allOf:
       - $ref: '#/components/schemas/Application'
@@ -2671,8 +2853,7 @@ components:
           type: string
           nullable: true
           pattern: ^[a-z][a-z0-9_-]{0,31}$
-          description: Public selected product code; a saved application can retain an
-            inactive product.
+          description: Public selected product code; a saved application can retain an inactive product.
         productName:
           type: string
           nullable: true
@@ -2742,13 +2923,11 @@ components:
           format: uuid
         eventType:
           type: string
-          description: >-
-            draft_created, draft_updated, APPLICATION_SUBMITTED, PROCESSING_STARTED,
-            COMPANY_CHECK_COMPLETED, CREDIT_HISTORY_CHECK_COMPLETED, PRECHECKS_COMPLETED,
-            SCORING_STARTED, SCORING_COMPLETED, DECISION_PROCESSING_STARTED, APPLICATION_APPROVED,
-            APPLICATION_REJECTED, COUNTER_OFFER_CREATED, MANUAL_REVIEW_REQUIRED, MANUAL_DECISION_APPROVED,
-            MANUAL_DECISION_REJECTED, MANUAL_COUNTER_OFFER_CREATED, OFFER_ACCEPTED or OFFER_DECLINED. System events
-            contain no financial results, score or private decision details.
+          description: draft_created, draft_updated, APPLICATION_SUBMITTED, PROCESSING_STARTED, COMPANY_CHECK_COMPLETED,
+            CREDIT_HISTORY_CHECK_COMPLETED, PRECHECKS_COMPLETED, SCORING_STARTED, SCORING_COMPLETED, DECISION_PROCESSING_STARTED,
+            APPLICATION_APPROVED, APPLICATION_REJECTED, COUNTER_OFFER_CREATED, MANUAL_REVIEW_REQUIRED,
+            MANUAL_DECISION_APPROVED, MANUAL_DECISION_REJECTED, MANUAL_COUNTER_OFFER_CREATED, OFFER_ACCEPTED
+            or OFFER_DECLINED. System events contain no financial results, score or private decision details.
         sequence:
           type: integer
           format: int64
@@ -2762,7 +2941,8 @@ components:
           type: string
           nullable: true
           format: uuid
-          description: Acting user for draft/submission, manual decision and client offer-action events; null for system processing events.
+          description: Acting user for draft/submission, manual decision and client offer-action events;
+            null for system processing events.
         title:
           type: string
           example: Черновик создан
@@ -2777,11 +2957,9 @@ components:
             $ref: '#/components/schemas/ApplicationEvent'
     DocumentType:
       type: string
-      description: >-
-        BANK_STATEMENT is required on turnover submit without a trusted server-controlled
-        financial source; EQUIPMENT_INVOICE is required on investment submit. Draft
-        upload permits either type without checking completeness; only ready documents
-        satisfy submit validation.
+      description: BANK_STATEMENT is required on turnover submit without a trusted server-controlled financial
+        source; EQUIPMENT_INVOICE is required on investment submit. Draft upload permits either type without
+        checking completeness; only ready documents satisfy submit validation.
       enum:
       - BANK_STATEMENT
       - EQUIPMENT_INVOICE
@@ -2854,8 +3032,8 @@ components:
       - MEDIUM
       - HIGH
       - null
-      description: Demo risk category assigned by Go backend policy. Higher score means lower risk;
-        LOW for score >= 80, MEDIUM for 50 <= score < 80, HIGH for score < 50. null means not available.
+      description: Demo risk category assigned by Go backend policy. Higher score means lower risk; LOW
+        for score >= 80, MEDIUM for 50 <= score < 80, HIGH for score < 50. null means not available.
     CreditOutcome:
       type: string
       nullable: true
@@ -2903,7 +3081,8 @@ components:
         annualRatePercent:
           type: number
           minimum: 0
-          description: 'Fixed annual rate in percent: 22 means 22%, not 0.22. The frozen product rate is used.'
+          description: 'Fixed annual rate in percent: 22 means 22%, not 0.22. The frozen product rate
+            is used.'
         monthlyPaymentRub:
           type: integer
           format: int64
@@ -2953,8 +3132,8 @@ components:
         message:
           type: string
           nullable: true
-          description: Safe user-facing message. Never contains raw errors, SQL, addresses, lease data or
-            scoring payloads.
+          description: Safe user-facing message. Never contains raw errors, SQL, addresses, lease data
+            or scoring payloads.
       description: Normalized background-processing state. Null for drafts, final states and manual_review.
         A technical failure never implies a rejected credit decision.
       nullable: true
@@ -2992,16 +3171,16 @@ components:
           nullable: true
           minimum: 0
           maximum: 100
-          description: Python scoring integer scale 0..100; higher score means lower risk in the demo policy.
-            LOW >= 80, MEDIUM 50..79, HIGH < 50. null means not available, not zero.
+          description: Python scoring integer scale 0..100; higher score means lower risk in the demo
+            policy. LOW >= 80, MEDIUM 50..79, HIGH < 50. null means not available, not zero.
         riskLevel:
           $ref: '#/components/schemas/RiskLevel'
         reasons:
           type: array
           items:
             type: string
-          description: Safe client-facing reasons generated by backend. Private employee comments are not
-            exposed here.
+          description: Safe client-facing reasons generated by backend. Private employee comments are
+            not exposed here.
         assessedAt:
           type: string
           format: date-time
@@ -3016,10 +3195,19 @@ components:
           $ref: '#/components/schemas/CreditOffer'
         processing:
           $ref: '#/components/schemas/Processing'
+        customerExplanation:
+          type: string
+          nullable: true
+          maxLength: 1000
+          description: Public explanation of a manual credit decision, never the internal employee comment.
+            Null before a manual final decision or for automatic decisions. If omitted or blank in the
+            manual request, a safe nonempty outcome-specific explanation is saved; reasons also include
+            that explanation. Fresh GET responses and newly saved action results include this field. Historical
+            idempotency replay bodies are returned unchanged and may omit it.
       description: Decision view for every client-owned application state. manual_review has decision=null
-        and processing=null; score and riskLevel may be present. signed/closed preserve the last credit decision.
-        Declining a proposal does not turn the bank decision into rejected. Score examples are synthetic and
-        do not define risk thresholds.
+        and processing=null; score and riskLevel may be present. signed/closed preserve the last credit
+        decision. Declining a proposal does not turn the bank decision into rejected. Score examples are
+        synthetic and do not define risk thresholds.
     OfferActionInput:
       type: object
       additionalProperties: false
@@ -3032,13 +3220,13 @@ components:
           format: int64
           minimum: 1
           description: Current application revision. Exact idempotent replay precedes stale-version validation.
-            A completed same-offer action may repeat with its original or resulting revision if durable audit
-            confirms the actor, offer and operation; any unrelated revision conflicts.
+            A completed same-offer action may repeat with its original or resulting revision if durable
+            audit confirms the actor, offer and operation; any unrelated revision conflicts.
         offerId:
           type: string
           format: uuid
-      description: The current active primary offer of the current decision. Only CLIENT owner in the same
-        company may act.
+      description: The current active primary offer of the current decision. Only CLIENT owner in the
+        same company may act.
     ManualOfferInput:
       type: object
       additionalProperties: false
@@ -3063,7 +3251,6 @@ components:
       required:
       - version
       - decision
-      - comment
       - offer
       properties:
         version:
@@ -3076,20 +3263,36 @@ components:
           - approved
         comment:
           type: string
-          minLength: 1
           maxLength: 1000
-          description: 'Required bank-internal comment: 1..1000 Unicode characters after trimming outer whitespace.
-            Never copied automatically to client-facing reasons.'
+          description: Legacy alias of internalComment, preserving its bank-only semantics. At least one
+            alias must be nonblank after trimming; differing nonblank aliases are rejected with 400.
         offer:
           $ref: '#/components/schemas/ManualOfferInput'
-      description: Both amountRub and termMonths must equal the original submitted request.
+        internalComment:
+          type: string
+          maxLength: 1000
+          description: Bank-internal employee explanation. At least one of internalComment or legacy comment
+            must contain 1..1000 Unicode characters after trimming. Never exposed to clients or their
+            timeline.
+        customerExplanation:
+          type: string
+          maxLength: 1000
+          description: Optional client-facing explanation, at most 1000 Unicode characters after trimming.
+            Omitted or blank values use a safe nonempty standard formulation. Null is not accepted.
+      description: Both amountRub and termMonths must equal the original submitted request. Internal employee
+        notes and the customer explanation are distinct; explanation is included in idempotency request
+        identity when supplied.
+      anyOf:
+      - required:
+        - comment
+      - required:
+        - internalComment
     CounterOfferDecisionInput:
       type: object
       additionalProperties: false
       required:
       - version
       - decision
-      - comment
       - offer
       properties:
         version:
@@ -3102,21 +3305,37 @@ components:
           - counter_offer
         comment:
           type: string
-          minLength: 1
           maxLength: 1000
-          description: 'Required bank-internal comment: 1..1000 Unicode characters after trimming outer whitespace.
-            Never copied automatically to client-facing reasons.'
+          description: Legacy alias of internalComment, preserving its bank-only semantics. At least one
+            alias must be nonblank after trimming; differing nonblank aliases are rejected with 400.
         offer:
           $ref: '#/components/schemas/ManualOfferInput'
-      description: Amount must not exceed the original requested amount; amount and term must satisfy frozen
-        product limits; at least one must differ. Rate stays fixed.
+        internalComment:
+          type: string
+          maxLength: 1000
+          description: Bank-internal employee explanation. At least one of internalComment or legacy comment
+            must contain 1..1000 Unicode characters after trimming. Never exposed to clients or their
+            timeline.
+        customerExplanation:
+          type: string
+          maxLength: 1000
+          description: Optional client-facing explanation, at most 1000 Unicode characters after trimming.
+            Omitted or blank values use a safe nonempty standard formulation. Null is not accepted.
+      description: Amount must not exceed the original requested amount; amount and term must satisfy
+        frozen product limits; at least one must differ. Rate stays fixed. Internal employee notes and
+        the customer explanation are distinct; explanation is included in idempotency request identity
+        when supplied.
+      anyOf:
+      - required:
+        - comment
+      - required:
+        - internalComment
     RejectedDecisionInput:
       type: object
       additionalProperties: false
       required:
       - version
       - decision
-      - comment
       - offer
       properties:
         version:
@@ -3129,16 +3348,32 @@ components:
           - rejected
         comment:
           type: string
-          minLength: 1
           maxLength: 1000
-          description: 'Required bank-internal comment: 1..1000 Unicode characters after trimming outer whitespace.
-            Never copied automatically to client-facing reasons.'
+          description: Legacy alias of internalComment, preserving its bank-only semantics. At least one
+            alias must be nonblank after trimming; differing nonblank aliases are rejected with 400.
         offer:
           type: object
           nullable: true
           enum:
           - null
-      description: 'No proposal is allowed: offer must be null.'
+        internalComment:
+          type: string
+          maxLength: 1000
+          description: Bank-internal employee explanation. At least one of internalComment or legacy comment
+            must contain 1..1000 Unicode characters after trimming. Never exposed to clients or their
+            timeline.
+        customerExplanation:
+          type: string
+          maxLength: 1000
+          description: Optional client-facing explanation, at most 1000 Unicode characters after trimming.
+            Omitted or blank values use a safe nonempty standard formulation. Null is not accepted.
+      description: 'No proposal is allowed: offer must be null. Internal employee notes and the customer
+        explanation are distinct; explanation is included in idempotency request identity when supplied.'
+      anyOf:
+      - required:
+        - comment
+      - required:
+        - internalComment
     ManualDecisionInput:
       type: object
       oneOf:
@@ -3151,8 +3386,8 @@ components:
           approved: '#/components/schemas/ApprovedDecisionInput'
           counter_offer: '#/components/schemas/CounterOfferDecisionInput'
           rejected: '#/components/schemas/RejectedDecisionInput'
-      description: BANK_EMPLOYEE only, application must be manual_review. Employee identity is read from authentication;
-        reviewer, score, risk, rate and calculated payment input fields are forbidden.
+      description: BANK_EMPLOYEE only, application must be manual_review. Employee identity is read from
+        authentication; reviewer, score, risk, rate and calculated payment input fields are forbidden.
     BankCompanySummary:
       type: object
       additionalProperties: false
@@ -3238,8 +3473,8 @@ components:
             type: string
             enum:
             - decide
-          description: '[decide] only in manual_review; [] otherwise. No draft editing, upload or submit actions
-            for employees.'
+          description: '[decide] only in manual_review; [] otherwise. No draft editing, upload or submit
+            actions for employees.'
       description: Bank list item; drafts are never returned.
     BankApplicationPage:
       type: object
@@ -3266,8 +3501,8 @@ components:
           type: integer
           minimum: 0
           maximum: 2147483647
-      description: Filtered total before pagination. Ordered by createdAt DESC, applicationId DESC. With no
-        status filter all eight bank-visible statuses are included, never draft.
+      description: Filtered total before pagination. Ordered by createdAt DESC, applicationId DESC. With
+        no status filter all eight bank-visible statuses are included, never draft.
     BankApplicationDetail:
       type: object
       additionalProperties: false
@@ -3372,8 +3607,8 @@ components:
             type: string
             enum:
             - decide
-          description: '[decide] only in manual_review; [] otherwise. No draft editing, upload or submit actions
-            for employees.'
+          description: '[decide] only in manual_review; [] otherwise. No draft editing, upload or submit
+            actions for employees.'
         company:
           $ref: '#/components/schemas/Company'
         product:
@@ -3384,8 +3619,9 @@ components:
           type: boolean
           description: True exactly when status is manual_review.
       description: Submitted application only; draft returns 404 application_not_found. Company and productTerms
-        are the snapshots frozen by submit, not current mutable company/product data. Documents use the existing
-        list/download operations. Bank availableActions is independent of the existing client Application.availableActions.
+        are the snapshots frozen by submit, not current mutable company/product data. Documents use the
+        existing list/download operations. Bank availableActions is independent of the existing client
+        Application.availableActions.
     AssessmentProblem:
       type: object
       additionalProperties: false
@@ -3481,6 +3717,10 @@ components:
       required:
       - score
       - assessedAt
+      - decision
+      - approvedAmountRub
+      - reasons
+      - factors
       properties:
         score:
           type: integer
@@ -3489,8 +3729,29 @@ components:
         assessedAt:
           type: string
           format: date-time
-      description: Normalized existing scoring result, not a final credit decision. Demo policy treats higher
-        score as lower risk; LOW >= 80, MEDIUM 50..79, HIGH < 50.
+        decision:
+          type: string
+          enum:
+          - approved
+          - counter_offer
+          - rejected
+          description: Persisted Python recommendation. This is not the final Go credit decision.
+        approvedAmountRub:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Amount recommended by Python in whole rubles; advisory only.
+        reasons:
+          type: array
+          items:
+            type: string
+          description: Reasons returned by Python, preserved without using them to recalculate policy.
+        factors:
+          $ref: '#/components/schemas/ScoringFactors'
+      description: 'Persisted successful Python scoring result, including its recommendation and original
+        factors. No HTTP scoring request or recalculation occurs during GET. Null until a result and its
+        assessment timestamp have been saved. Higher score means lower demo risk: LOW >= 80, MEDIUM 50..79,
+        HIGH < 50.'
       nullable: true
     AssessmentRecommendation:
       type: object
@@ -3536,6 +3797,8 @@ components:
       - comment
       - reviewedBy
       - reviewedAt
+      - internalComment
+      - customerExplanation
       properties:
         decision:
           type: string
@@ -3553,6 +3816,16 @@ components:
         reviewedAt:
           type: string
           format: date-time
+        internalComment:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: Bank-only internal comment; comment is retained as its legacy alias.
+        customerExplanation:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: The public explanation saved with this manual decision.
       description: Bank-only audit of a manual final decision. Null before a manual decision.
       nullable: true
     BankAssessment:
@@ -3570,6 +3843,7 @@ components:
       - recommendations
       - manualDecision
       - processing
+      - goDecision
       properties:
         applicationId:
           type: string
@@ -3600,10 +3874,13 @@ components:
           $ref: '#/components/schemas/ManualDecisionAudit'
         processing:
           $ref: '#/components/schemas/Processing'
-      description: Bank-only normalized assessment of a submitted application. Draft returns 404. Missing
-        results are null; missing reason/recommendation lists are []. Risk policy is authoritative in Go;
-        Python scoring provides recommendations. No raw service response or private infrastructure details
-        are exposed.
+        goDecision:
+          $ref: '#/components/schemas/GoDecisionAssessment'
+      description: Bank-only view of persisted prechecks, the Python recommendation, automatic Go assessment
+        and optional employee decision. Drafts and deleted drafts return 404. Missing results are null;
+        reason/recommendation lists without entries are []. GET never reruns scoring, prechecks or policy.
+        Existing fields remain available; client decision APIs never expose Python factors or internal
+        employee comments.
     DecisionValidationError:
       type: object
       additionalProperties: false
@@ -3643,6 +3920,115 @@ components:
                 type: string
       description: Business validation failures; the application, decision, offer, timeline and idempotency
         result are not partially committed.
+    UserContactPatchInput:
+      type: object
+      additionalProperties: false
+      required:
+      - version
+      - additionalEmail
+      properties:
+        version: *id002
+        additionalEmail:
+          type: string
+          format: email
+          nullable: true
+          maxLength: 254
+      description: Only additionalEmail is editable. Leading/trailing whitespace is trimmed; null clears
+        the optional address. Empty strings, display-name email syntax and control characters are rejected.
+    CompanyContactPatchInput:
+      type: object
+      additionalProperties: false
+      required:
+      - version
+      - contact
+      properties:
+        version: *id002
+        contact:
+          type: object
+          additionalProperties: false
+          minProperties: 1
+          properties:
+            phone:
+              type: string
+              pattern: ^\+[1-9][0-9]{7,14}$
+            email:
+              type: string
+              format: email
+              maxLength: 254
+            address:
+              type: string
+              minLength: 1
+              maxLength: 300
+      description: Nested contact fields keep the existing Company.contact names. Values are trimmed,
+        nonempty and non-null. Version is the company revision, not the user or application revision.
+    ScoringFactors:
+      type: object
+      additionalProperties: false
+      nullable: true
+      required:
+      - operating_cash_flow
+      - operating_margin
+      - estimated_new_monthly_payment
+      - debt_service_share
+      - existing_debt_to_annual_revenue
+      - overdue_count
+      properties:
+        operating_cash_flow:
+          type: number
+        operating_margin:
+          type: number
+        estimated_new_monthly_payment:
+          type: number
+          minimum: 0
+        debt_service_share:
+          type: number
+          nullable: true
+        existing_debt_to_annual_revenue:
+          type: number
+          nullable: true
+        overdue_count:
+          type: integer
+          minimum: 0
+      description: Original Python factor names and units; nullable ratios remain null rather than becoming
+        zero. These model factors do not replace authoritative submitted inputs or Go annuity calculations.
+    GoDecisionAssessment:
+      type: object
+      additionalProperties: false
+      nullable: true
+      required:
+      - decision
+      - score
+      - riskLevel
+      - reasons
+      - assessedAt
+      properties:
+        decision:
+          type: string
+          enum:
+          - approved
+          - counter_offer
+          - rejected
+          - manual_review
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        riskLevel:
+          type: string
+          enum:
+          - LOW
+          - MEDIUM
+          - HIGH
+        reasons:
+          type: array
+          items:
+            type: string
+        assessedAt:
+          type: string
+          format: date-time
+      description: Saved automatic Go Decision Engine outcome and reasons. It may differ from the Python
+        recommendation. It remains historical after a later employee decision; manualDecision and the
+        application status show the employee outcome. Null before automatic assessment.
   responses:
     InvalidRequest:
       description: Invalid fields, UUID or JSON (invalid_request); unknown fields and trailing JSON values
@@ -3688,7 +4074,8 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
     DocumentApplicationNotFound:
-      description: Missing application, application inaccessible to this CLIENT, or draft requested by BANK_EMPLOYEE (application_not_found)
+      description: Missing application, application inaccessible to this CLIENT, or draft requested by
+        BANK_EMPLOYEE (application_not_found)
       content:
         application/json:
           schema:
@@ -3710,9 +4097,9 @@ components:
             error: application_not_found
             message: Заявка не найдена.
     DecisionConflict:
-      description: State forbids action (invalid_status), stale application version (version_conflict), stale/inactive/current-offer
-        mismatch (offer_not_active), or Idempotency-Key reused with another body (idempotency_conflict). Conflicts
-        do not partially change application/decision/offer/events.
+      description: State forbids action (invalid_status), stale application version (version_conflict),
+        stale/inactive/current-offer mismatch (offer_not_active), or Idempotency-Key reused with another
+        body (idempotency_conflict). Conflicts do not partially change application/decision/offer/events.
       content:
         application/json:
           schema:

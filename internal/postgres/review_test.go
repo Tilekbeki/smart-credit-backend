@@ -24,6 +24,7 @@ import (
 	"smart-credit-backend/internal/httpapi"
 	"smart-credit-backend/internal/pipeline"
 	"smart-credit-backend/internal/review"
+	"smart-credit-backend/internal/scoring"
 )
 
 func readFingerprint(t *testing.T, pool *pgxpool.Pool) string {
@@ -169,6 +170,24 @@ func TestReadAPIFullPipelineAllOutcomes(t *testing.T) {
 			}
 			if assessment.CompanyCheck == nil || assessment.CreditHistory == nil || assessment.Scoring == nil || assessment.Scoring.Score != tc.score || assessment.RiskLevel == nil || *assessment.RiskLevel != *client.RiskLevel || assessment.Processing != nil || assessment.ManualDecision != nil {
 				t.Fatalf("assessment %+v", assessment)
+			}
+			var storedScoring, storedAssessment []byte
+			var storedAt time.Time
+			if err := pool.QueryRow(ctx, `SELECT scoring_response,scoring_received_at,assessment_result FROM jobs WHERE application_id=$1`, app.ApplicationID).Scan(&storedScoring, &storedAt, &storedAssessment); err != nil {
+				t.Fatal(err)
+			}
+			var python scoring.Response
+			var goResult review.Assessment
+			if json.Unmarshal(storedScoring, &python) != nil || json.Unmarshal(storedAssessment, &goResult) != nil {
+				t.Fatal("persisted assessment invalid")
+			}
+			if assessment.Scoring.Decision != tc.recommendation || assessment.Scoring.ApprovedAmountRub != tc.amount ||
+				!reflect.DeepEqual(assessment.Scoring.Reasons, python.Reasons) || !reflect.DeepEqual(assessment.Scoring.Factors, &python.Factors) || !assessment.Scoring.AssessedAt.Equal(storedAt) {
+				t.Fatalf("bank projection differs from saved Python output: %+v", assessment.Scoring)
+			}
+			if assessment.GoDecision == nil || assessment.GoDecision.Decision != tc.want || assessment.GoDecision.RiskLevel != goResult.Result.RiskLevel ||
+				!reflect.DeepEqual(assessment.GoDecision.Reasons, goResult.Result.Reasons) || !assessment.GoDecision.AssessedAt.Equal(goResult.AssessedAt) {
+				t.Fatalf("saved Go policy is confused with Python recommendation: %+v", assessment.GoDecision)
 			}
 			if tc.want == application.ManualReview {
 				if len(assessment.ManualReviewReasons) == 0 || !reflect.DeepEqual(detail.AvailableActions, []string{"decide"}) || len(assessment.Recommendations) != 0 {

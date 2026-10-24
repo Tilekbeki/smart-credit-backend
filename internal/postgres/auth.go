@@ -117,9 +117,9 @@ func (r *AuthRepository) VerifyOTP(ctx context.Context, requestID string, codeMa
 		return auth.User{}, auth.ErrStorage
 	}
 	var user auth.User
-	err = tx.QueryRow(ctx, `SELECT id::text, full_name, phone, role, company_id::text
+	err = tx.QueryRow(ctx, `SELECT id::text, full_name, phone, role, company_id::text, additional_email, version
 		FROM users WHERE id = $1 FOR UPDATE`, userID).
-		Scan(&user.ID, &user.Name, &user.Phone, &user.Role, &user.CompanyID)
+		Scan(&user.ID, &user.Name, &user.Phone, &user.Role, &user.CompanyID, &user.AdditionalEmail, &user.Version)
 	if err != nil {
 		return auth.User{}, auth.ErrStorage
 	}
@@ -179,9 +179,9 @@ func (r *AuthRepository) UserByID(ctx context.Context, id string) (auth.User, er
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
 	var user auth.User
-	err := r.pool.QueryRow(ctx, `SELECT id::text, full_name, phone, role, company_id::text
+	err := r.pool.QueryRow(ctx, `SELECT id::text, full_name, phone, role, company_id::text, additional_email, version
 		FROM users WHERE id = $1`, id).
-		Scan(&user.ID, &user.Name, &user.Phone, &user.Role, &user.CompanyID)
+		Scan(&user.ID, &user.Name, &user.Phone, &user.Role, &user.CompanyID, &user.AdditionalEmail, &user.Version)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return auth.User{}, auth.ErrUserNotFound
 	}

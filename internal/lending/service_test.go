@@ -2,6 +2,9 @@ package lending
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -19,6 +22,83 @@ type repositoryStub struct {
 	command Command
 	calls   int
 	err     error
+}
+
+func TestManualCommentAliasesPreserveLegacyHashAndSeparatePublicExplanation(t *testing.T) {
+	repo := new(repositoryStub)
+	service := NewService(repo)
+	legacy := manualCommand()
+	if _, err := service.Execute(context.Background(), legacy); err != nil {
+		t.Fatal(err)
+	}
+	legacyHash := repo.command.RequestHash
+	// The previous canonical body must retain exactly the same hash after the
+	// optional fields are introduced, including requests persisted before upgrade.
+	body, err := json.Marshal(struct {
+		Version  int64        `json:"version"`
+		Decision string       `json:"decision"`
+		Comment  string       `json:"comment"`
+		Offer    *ManualOffer `json:"offer"`
+	}{legacy.Version, legacy.Decision, strings.TrimSpace(legacy.Comment), legacy.Offer})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(body)
+	if legacyHash != hex.EncodeToString(sum[:]) {
+		t.Fatal("legacy idempotency hash changed")
+	}
+
+	alias := legacy
+	alias.Comment = ""
+	alias.InternalComment = legacy.Comment
+	if _, err := service.Execute(context.Background(), alias); err != nil || repo.command.RequestHash != legacyHash {
+		t.Fatalf("internalComment alias changes request identity: %v", err)
+	}
+	alias.Comment = strings.TrimSpace(legacy.Comment)
+	if _, err := service.Execute(context.Background(), alias); err != nil || repo.command.RequestHash != legacyHash {
+		t.Fatalf("matching aliases change request identity: %v", err)
+	}
+	alias.CustomerExplanation = "  Публичное объяснение решения.  "
+	if _, err := service.Execute(context.Background(), alias); err != nil {
+		t.Fatal(err)
+	}
+	customHash := repo.command.RequestHash
+	if customHash == legacyHash || repo.command.CustomerExplanation != "Публичное объяснение решения." || repo.command.Comment != strings.TrimSpace(legacy.Comment) {
+		t.Fatal("public explanation not normalized or excluded from idempotency identity")
+	}
+	alias.CustomerExplanation = "Публичное объяснение решения."
+	if _, err := service.Execute(context.Background(), alias); err != nil || repo.command.RequestHash != customHash {
+		t.Fatal("equivalent explanation changes hash", err)
+	}
+	alias.CustomerExplanation = " \n\t "
+	if _, err := service.Execute(context.Background(), alias); err != nil || repo.command.RequestHash != legacyHash {
+		t.Fatal("blank optional explanation must select the same default", err)
+	}
+}
+
+func TestManualNewCommentValidation(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		change func(*Command)
+		want   error
+	}{
+		{"conflicting aliases", func(c *Command) { c.InternalComment = "Другое внутреннее основание." }, application.ErrInvalidInput},
+		{"empty alias", func(c *Command) { c.Comment = ""; c.InternalComment = " \t " }, ErrValidation},
+		{"long alias", func(c *Command) { c.Comment = ""; c.InternalComment = strings.Repeat("я", 1001) }, ErrValidation},
+		{"invalid alias", func(c *Command) { c.Comment = ""; c.InternalComment = string([]byte{255}) }, ErrValidation},
+		{"long explanation", func(c *Command) { c.CustomerExplanation = strings.Repeat("я", 1001) }, ErrValidation},
+		{"NUL explanation", func(c *Command) { c.CustomerExplanation = "public\x00text" }, ErrValidation},
+		{"invalid explanation", func(c *Command) { c.CustomerExplanation = string([]byte{255}) }, ErrValidation},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := manualCommand()
+			tc.change(&c)
+			repo := new(repositoryStub)
+			if _, err := NewService(repo).Execute(context.Background(), c); !errors.Is(err, tc.want) || repo.calls != 0 {
+				t.Fatalf("err=%v calls=%d", err, repo.calls)
+			}
+		})
+	}
 }
 
 func (s *repositoryStub) Execute(_ context.Context, command Command) (Response, error) {

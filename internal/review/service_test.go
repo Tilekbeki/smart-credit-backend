@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -151,5 +152,85 @@ func TestFilterValidationAndErrors(t *testing.T) {
 	}
 	if _, err := s.BankDetail(context.Background(), "a"); !errors.Is(err, application.ErrStorage) {
 		t.Fatal("storage error hidden")
+	}
+}
+
+func TestBankAssessmentKeepsPythonAndGoResultsDistinct(t *testing.T) {
+	assessedAt := time.Date(2026, 10, 25, 1, 2, 3, 0, time.UTC)
+	goAt := assessedAt.Add(time.Second)
+	response := scoring.Response{Decision: "approved", Score: 65, ApprovedAmount: 1_234_567,
+		Reasons: []string{"PYTHON_ONLY_REASON"}, Factors: scoring.Factors{
+			OperatingCashFlow: 321_123.25, OperatingMargin: 0.23, EstimatedNewMonthlyPayment: 89_456.75,
+			DebtServiceShare: pointer(0.37), ExistingDebtToAnnualRevenue: pointer(0.45), OverdueCount: 2,
+		}}
+	result := decision.Result{Status: application.ManualReview, Score: 65, RiskLevel: "MEDIUM",
+		Reasons: []string{"GO_POLICY_REASON"}, ManualReviewReasons: []decision.Reason{{Code: "medium_risk", Message: "Средний риск."}}}
+	repo := &memoryRepository{record: Record{Application: application.Application{ApplicationID: "saved", Status: application.ManualReview, Version: 4},
+		Job: &Job{Scoring: &response, ScoringAt: &assessedAt, Assessment: &Assessment{SchemaVersion: 1, Source: "automatic", Result: result, AssessedAt: goAt}}}}
+	view, err := NewService(repo).BankAssessment(context.Background(), "saved")
+	if err != nil || view.Scoring == nil || view.GoDecision == nil {
+		t.Fatalf("assessment %+v %v", view, err)
+	}
+	if view.Scoring.Decision != response.Decision || view.Scoring.ApprovedAmountRub != response.ApprovedAmount ||
+		view.Scoring.Score != response.Score || !view.Scoring.AssessedAt.Equal(assessedAt) ||
+		!reflect.DeepEqual(view.Scoring.Reasons, response.Reasons) || !reflect.DeepEqual(view.Scoring.Factors, &response.Factors) {
+		t.Fatalf("Python result changed in projection: %+v", view.Scoring)
+	}
+	if view.GoDecision.Decision != result.Status || view.GoDecision.RiskLevel != result.RiskLevel ||
+		!reflect.DeepEqual(view.GoDecision.Reasons, result.Reasons) || !view.GoDecision.AssessedAt.Equal(goAt) || len(view.Recommendations) != 0 {
+		t.Fatalf("Go policy confused with Python recommendation: %+v", view)
+	}
+	if repo.calls != 1 {
+		t.Fatal("assessment must be one persisted read")
+	}
+	client, err := NewService(repo).Decision(context.Background(), application.Scope{}, "saved")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := json.Marshal(client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, forbidden := range []string{"PYTHON_ONLY_REASON", "operating_cash_flow", "approvedAmountRub", "goDecision", "manualReviewReasons"} {
+		if strings.Contains(string(body), forbidden) {
+			t.Fatalf("bank-only assessment leaked %s", forbidden)
+		}
+	}
+	if repo.calls != 2 {
+		t.Fatal("client decision must not recalculate scoring")
+	}
+}
+
+func TestBankAssessmentMissingScoringAndNullableFactors(t *testing.T) {
+	now := time.Now().UTC()
+	for _, tc := range []struct {
+		name        string
+		job         *Job
+		wantScoring bool
+	}{
+		{"missing job", nil, false},
+		{"missing scoring", &Job{ScoringAt: &now}, false},
+		{"missing timestamp", &Job{Scoring: &scoring.Response{Score: 0}}, false},
+		{"nullable ratios", &Job{ScoringAt: &now, Scoring: &scoring.Response{Score: 0, Decision: "rejected", Reasons: []string{"Сохранённая причина."}, Factors: scoring.Factors{}}}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := &memoryRepository{record: Record{Application: application.Application{Status: application.Processing}, Job: tc.job}}
+			got, err := NewService(repo).BankAssessment(context.Background(), "saved")
+			if err != nil || (got.Scoring != nil) != tc.wantScoring || got.GoDecision != nil {
+				t.Fatalf("unexpected absent assessment %+v %v", got, err)
+			}
+			body, err := json.Marshal(got)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.wantScoring {
+				if got.Scoring.Score != 0 || got.Scoring.ApprovedAmountRub != 0 || got.Scoring.Factors == nil ||
+					!strings.Contains(string(body), `"debt_service_share":null`) || !strings.Contains(string(body), `"existing_debt_to_annual_revenue":null`) {
+					t.Fatal("zero and nullable factors were fabricated or omitted", string(body))
+				}
+			} else if !strings.Contains(string(body), `"scoring":null`) {
+				t.Fatal("missing scoring must remain null")
+			}
+		})
 	}
 }

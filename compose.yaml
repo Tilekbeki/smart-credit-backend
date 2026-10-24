@@ -30,6 +30,7 @@ services:
       JWT_AUDIENCE: ${JWT_AUDIENCE:-smart-credit-frontend}
       AUTH_DB_TIMEOUT: ${AUTH_DB_TIMEOUT:-3s}
       DEMO_OTP_CODE: ${DEMO_OTP_CODE:-1234}
+      MAX_ACTIVE_DRAFTS_PER_CLIENT: ${MAX_ACTIVE_DRAFTS_PER_CLIENT:-20}
     ports:
       - "127.0.0.1:${HTTP_PORT:-8080}:${HTTP_PORT:-8080}"
     volumes:

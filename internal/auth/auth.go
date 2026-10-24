@@ -17,11 +17,13 @@ const (
 // User is always loaded from PostgreSQL; role and company claims supplied by a
 // caller are never used to authorize a request.
 type User struct {
-	ID        string  `json:"id"`
-	Name      string  `json:"name"`
-	Phone     string  `json:"phone"`
-	Role      Role    `json:"role"`
-	CompanyID *string `json:"companyId"`
+	ID              string  `json:"id"`
+	Name            string  `json:"name"`
+	Phone           string  `json:"phone"`
+	Role            Role    `json:"role"`
+	CompanyID       *string `json:"companyId"`
+	AdditionalEmail *string `json:"additionalEmail"`
+	Version         int64   `json:"version"`
 }
 
 type Profile struct {

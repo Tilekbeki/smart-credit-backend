@@ -35,19 +35,20 @@ type Database struct {
 }
 
 type Config struct {
-	AppEnv              string
-	HTTP                HTTP
-	Database            Database
-	LogLevel            slog.Level
-	DocumentStoragePath string
-	ScoringURL          string
-	ScoringTimeout      time.Duration
-	JWTSecret           string
-	JWTSecretFile       string
-	JWTIssuer           string
-	JWTAudience         string
-	AuthDBTimeout       time.Duration
-	DemoOTPCode         string
+	AppEnv                   string
+	HTTP                     HTTP
+	Database                 Database
+	LogLevel                 slog.Level
+	DocumentStoragePath      string
+	ScoringURL               string
+	ScoringTimeout           time.Duration
+	JWTSecret                string
+	JWTSecretFile            string
+	JWTIssuer                string
+	JWTAudience              string
+	AuthDBTimeout            time.Duration
+	DemoOTPCode              string
+	MaxActiveDraftsPerClient int
 }
 
 func Load() (Config, error) { return load(os.LookupEnv) }
@@ -82,6 +83,7 @@ func load(lookup func(string) (string, bool)) (Config, error) {
 		return d
 	}
 	cfg.AppEnv = get("APP_ENV", "production")
+	cfg.MaxActiveDraftsPerClient = int(integer("MAX_ACTIVE_DRAFTS_PER_CLIENT", "20", 1, 10000))
 	if cfg.AppEnv != "demo" && cfg.AppEnv != "production" {
 		invalid("APP_ENV", "must be demo or production")
 	}

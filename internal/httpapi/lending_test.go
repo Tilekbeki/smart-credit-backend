@@ -247,6 +247,48 @@ func TestLendingBusinessValidationAndSafeErrors(t *testing.T) {
 	}
 }
 
+func TestManualHTTPInternalCommentAliasAndCustomerExplanation(t *testing.T) {
+	path := "/api/v1/bank/applications/" + testApplicationID + "/decisions"
+	for _, tc := range []struct {
+		name, body string
+		status     int
+	}{
+		{"new fields", `{"version":4,"decision":"rejected","internalComment":"  BANK_PRIVATE_MARKER  ","customerExplanation":"  Объяснение для предпринимателя.  ","offer":null}`, 201},
+		{"matching aliases", `{"version":4,"decision":"rejected","comment":"BANK_PRIVATE_MARKER","internalComment":" BANK_PRIVATE_MARKER ","offer":null}`, 201},
+		{"optional explanation missing", `{"version":4,"decision":"rejected","internalComment":"BANK_PRIVATE_MARKER","offer":null}`, 201},
+		{"blank explanation selects default", `{"version":4,"decision":"rejected","internalComment":"BANK_PRIVATE_MARKER","customerExplanation":"   ","offer":null}`, 201},
+		{"conflicting aliases", `{"version":4,"decision":"rejected","comment":"legacy","internalComment":"different","offer":null}`, 400},
+		{"missing both aliases", `{"version":4,"decision":"rejected","customerExplanation":"public","offer":null}`, 400},
+		{"null new comment", `{"version":4,"decision":"rejected","internalComment":null,"offer":null}`, 400},
+		{"null explanation", `{"version":4,"decision":"rejected","internalComment":"private","customerExplanation":null,"offer":null}`, 400},
+		{"wrong case alias", `{"version":4,"decision":"rejected","InternalComment":"private","offer":null}`, 400},
+		{"duplicate explanation", `{"version":4,"decision":"rejected","internalComment":"private","customerExplanation":"one","customerExplanation":"two","offer":null}`, 400},
+		{"empty new comment", `{"version":4,"decision":"rejected","internalComment":"   ","offer":null}`, 422},
+		{"long explanation", `{"version":4,"decision":"rejected","internalComment":"private","customerExplanation":"` + strings.Repeat("я", 1001) + `","offer":null}`, 422},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := lendingFixture(201)
+			h, token := lendingHTTP(t, repo, auth.RoleBankEmployee)
+			w := lendingRequest(h, path, tc.body, token, lendingKey)
+			if w.Code != tc.status {
+				t.Fatalf("HTTP %d, want %d: %s", w.Code, tc.status, w.Body)
+			}
+			if tc.status != 201 {
+				if repo.calls != 0 {
+					t.Fatal("invalid request reached repository")
+				}
+				return
+			}
+			if repo.calls != 1 || repo.command.Comment != "BANK_PRIVATE_MARKER" || repo.command.InternalComment != "BANK_PRIVATE_MARKER" {
+				t.Fatalf("comment alias not normalized: %+v", repo.command)
+			}
+			if tc.name == "new fields" && repo.command.CustomerExplanation != "Объяснение для предпринимателя." {
+				t.Fatal("customer explanation not normalized")
+			}
+		})
+	}
+}
+
 func TestLendingMediaLimitAndInvalidStoredResponse(t *testing.T) {
 	repo := lendingFixture(201)
 	h, token := lendingHTTP(t, repo, auth.RoleBankEmployee)

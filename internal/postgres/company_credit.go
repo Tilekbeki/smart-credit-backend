@@ -35,27 +35,31 @@ func (r *CompanyCreditRepository) CompanyByID(ctx context.Context, id string) (c
 	}
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
-	var result company.Company
-	err := r.pool.QueryRow(ctx, `SELECT id::text, name, organization_type, inn,
-		registration_number, to_char(registration_date, 'YYYY-MM-DD'), okved,
-		director_name, contact_phone, contact_email, contact_address,
-		monthly_revenue, monthly_expenses, existing_debt, monthly_debt_payments, overdue_count
-		FROM companies WHERE id = $1`, id).Scan(
-		&result.ID, &result.Name, &result.OrganizationType, &result.INN,
-		&result.RegistrationNumber, &result.RegistrationDate, &result.OKVED,
-		&result.DirectorName, &result.Contact.Phone, &result.Contact.Email, &result.Contact.Address,
-		&result.Financials.MonthlyRevenueRub, &result.Financials.MonthlyExpensesRub,
-		&result.Financials.ExistingDebtRub, &result.Financials.ExistingMonthlyPaymentsRub,
-		&result.Financials.OverdueCount,
-	)
+	result, err := scanCompany(r.pool.QueryRow(ctx, `SELECT `+companyColumns+` FROM companies WHERE id=$1`, id))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return company.Company{}, company.ErrNotFound
 	}
 	if err != nil {
 		return company.Company{}, company.ErrStorage
 	}
-	result.Simulation = true
 	return result, nil
+}
+
+const companyColumns = `id::text, name, COALESCE(organization_type,''), COALESCE(inn,''),
+ COALESCE(registration_number,''), COALESCE(to_char(registration_date,'YYYY-MM-DD'),''), COALESCE(okved,''),
+ COALESCE(director_name,''), COALESCE(contact_phone,''), COALESCE(contact_email,''), COALESCE(contact_address,''),
+ monthly_revenue, monthly_expenses, existing_debt, monthly_debt_payments, overdue_count, version`
+
+func scanCompany(row pgx.Row) (company.Company, error) {
+	var result company.Company
+	err := row.Scan(&result.ID, &result.Name, &result.OrganizationType, &result.INN,
+		&result.RegistrationNumber, &result.RegistrationDate, &result.OKVED, &result.DirectorName,
+		&result.Contact.Phone, &result.Contact.Email, &result.Contact.Address,
+		&result.Financials.MonthlyRevenueRub, &result.Financials.MonthlyExpensesRub,
+		&result.Financials.ExistingDebtRub, &result.Financials.ExistingMonthlyPaymentsRub,
+		&result.Financials.OverdueCount, &result.Version)
+	result.Simulation = true
+	return result, err
 }
 
 const productColumns = `code, name, purposes, min_amount, max_amount,

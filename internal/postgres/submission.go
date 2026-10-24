@@ -41,7 +41,7 @@ func (r *SubmissionRepository) Submit(ctx context.Context, scope application.Sco
 	defer tx.Rollback(ctx)
 	app, err := scanApplication(tx.QueryRow(ctx, `SELECT `+applicationColumns+`
 		FROM applications a LEFT JOIN credit_products p ON p.id=a.product_id
-		WHERE a.id=$1 AND a.owner_id=$2 AND a.company_id=$3 FOR UPDATE OF a`, id, scope.UserID, scope.CompanyID))
+		WHERE a.id=$1 AND a.owner_id=$2 AND a.company_id=$3 AND a.deleted_at IS NULL FOR UPDATE OF a`, id, scope.UserID, scope.CompanyID))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return pipeline.SubmitResult{}, application.ErrNotFound
 	}
@@ -159,13 +159,13 @@ func submissionCompany(ctx context.Context, tx pgx.Tx, id string) (pipeline.Comp
 		COALESCE(registration_number,''), COALESCE(to_char(registration_date,'YYYY-MM-DD'),''), COALESCE(okved,''),
 		COALESCE(director_name,''), COALESCE(contact_phone,''), COALESCE(contact_email,''), COALESCE(contact_address,''),
 		monthly_revenue, monthly_expenses, existing_debt, monthly_debt_payments, overdue_count,
-		financial_data_source, registration_status FROM companies WHERE id=$1 FOR SHARE`, id).Scan(
+		financial_data_source, registration_status, version FROM companies WHERE id=$1 FOR SHARE`, id).Scan(
 		&profile.ID, &profile.Name, &profile.OrganizationType, &profile.INN,
 		&profile.RegistrationNumber, &profile.RegistrationDate, &profile.OKVED,
 		&profile.DirectorName, &profile.Contact.Phone, &profile.Contact.Email, &profile.Contact.Address,
 		&profile.Financials.MonthlyRevenueRub, &profile.Financials.MonthlyExpensesRub,
 		&profile.Financials.ExistingDebtRub, &profile.Financials.ExistingMonthlyPaymentsRub,
-		&profile.Financials.OverdueCount, &result.FinancialDataSource, &result.RegistrationStatus,
+		&profile.Financials.OverdueCount, &result.FinancialDataSource, &result.RegistrationStatus, &profile.Version,
 	)
 	if err != nil {
 		return pipeline.CompanySnapshot{}, pipeline.ErrStorage

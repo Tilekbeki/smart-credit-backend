@@ -32,6 +32,7 @@ var (
 	ErrInvalidStatus   = errors.New("application is not editable")
 	ErrProductNotFound = errors.New("application product not found")
 	ErrStorage         = errors.New("application storage unavailable")
+	ErrDraftLimit      = errors.New("active draft limit reached")
 )
 
 type Scope struct {
@@ -144,6 +145,7 @@ type Repository interface {
 	Get(context.Context, Scope, string) (Application, error)
 	List(context.Context, Scope, ListFilter) (Page, error)
 	UpdateDraft(context.Context, Scope, string, int64, Fields) (Application, error)
+	DeleteDraft(context.Context, Scope, string, int64) error
 	Timeline(context.Context, Scope, string) ([]Event, error)
 }
 

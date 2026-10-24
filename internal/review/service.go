@@ -66,6 +66,7 @@ func DecisionView(r Record) (CreditDecision, error) {
 		v.AssessedAt = &r.Final.AssessedAt
 		v.ReviewedBy = r.Final.ReviewedBy
 		v.RiskLevel = r.Final.RiskLevel
+		v.CustomerExplanation = r.Final.CustomerExplanation
 		if r.Final.Outcome != "rejected" {
 			v.Offer = r.Final.Offer
 		}
@@ -162,7 +163,9 @@ func (s *Service) BankAssessment(ctx context.Context, id string) (BankAssessment
 		v.CreditHistory = &j.Prechecks.CreditHistory
 	}
 	if j.Scoring != nil && j.ScoringAt != nil {
-		v.Scoring = &ScoringAssessment{Score: j.Scoring.Score, AssessedAt: *j.ScoringAt}
+		v.Scoring = &ScoringAssessment{Score: j.Scoring.Score, AssessedAt: *j.ScoringAt,
+			Decision: j.Scoring.Decision, ApprovedAmountRub: j.Scoring.ApprovedAmount,
+			Reasons: j.Scoring.Reasons, Factors: &j.Scoring.Factors}
 	}
 	if j.Assessment != nil {
 		result := j.Assessment.Result
@@ -170,6 +173,8 @@ func (s *Service) BankAssessment(ctx context.Context, id string) (BankAssessment
 			return BankAssessment{}, application.ErrStorage
 		}
 		v.RiskLevel = &result.RiskLevel
+		v.GoDecision = &GoDecision{Decision: result.Status, Score: result.Score, RiskLevel: result.RiskLevel,
+			Reasons: result.Reasons, AssessedAt: j.Assessment.AssessedAt}
 		if a.Status == application.ManualReview {
 			v.ManualReviewReasons = result.ManualReviewReasons
 		}

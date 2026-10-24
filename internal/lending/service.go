@@ -43,6 +43,13 @@ func (s *Service) Execute(ctx context.Context, command Command) (Response, error
 			return Response{}, application.ErrInvalidInput
 		}
 		command.Comment = strings.TrimSpace(command.Comment)
+		command.InternalComment = strings.TrimSpace(command.InternalComment)
+		if command.InternalComment != "" {
+			if command.Comment != "" && command.Comment != command.InternalComment {
+				return Response{}, application.ErrInvalidInput
+			}
+			command.Comment = command.InternalComment
+		}
 		if command.Comment == "" {
 			return Response{}, invalidField("comment", "required", "Добавьте внутренний комментарий сотрудника банка.")
 		}
@@ -52,6 +59,10 @@ func (s *Service) Execute(ctx context.Context, command Command) (Response, error
 		if utf8.RuneCountInString(command.Comment) > 1000 {
 			return Response{}, invalidField("comment", "out_of_range", "Комментарий должен содержать не более 1000 символов.")
 		}
+		command.CustomerExplanation = strings.TrimSpace(command.CustomerExplanation)
+		if !utf8.ValidString(command.CustomerExplanation) || strings.ContainsRune(command.CustomerExplanation, 0) || utf8.RuneCountInString(command.CustomerExplanation) > 1000 {
+			return Response{}, invalidField("customerExplanation", "invalid_value", "Объяснение должно содержать не более 1000 допустимых символов.")
+		}
 		if command.Offer != nil && (command.Offer.AmountRub < 1 || command.Offer.AmountRub > 1_000_000_000_000) {
 			return Response{}, invalidField("offer.amountRub", "out_of_range", "Сумма должна быть от 1 до 1000000000000 рублей.")
 		}
@@ -59,16 +70,17 @@ func (s *Service) Execute(ctx context.Context, command Command) (Response, error
 			return Response{}, invalidField("offer.termMonths", "out_of_range", "Срок должен быть от 1 до 120 месяцев.")
 		}
 		body = struct {
-			Version  int64        `json:"version"`
-			Decision string       `json:"decision"`
-			Comment  string       `json:"comment"`
-			Offer    *ManualOffer `json:"offer"`
-		}{command.Version, command.Decision, command.Comment, command.Offer}
+			Version             int64        `json:"version"`
+			Decision            string       `json:"decision"`
+			Comment             string       `json:"comment"`
+			Offer               *ManualOffer `json:"offer"`
+			CustomerExplanation string       `json:"customerExplanation,omitempty"`
+		}{command.Version, command.Decision, command.Comment, command.Offer, command.CustomerExplanation}
 	case Accept, Decline:
 		if command.CompanyID, ok = canonicalID(command.CompanyID); !ok {
 			return Response{}, application.ErrInvalidInput
 		}
-		if command.OfferID, ok = canonicalID(command.OfferID); !ok || command.Offer != nil || command.Decision != "" || command.Comment != "" {
+		if command.OfferID, ok = canonicalID(command.OfferID); !ok || command.Offer != nil || command.Decision != "" || command.Comment != "" || command.InternalComment != "" || command.CustomerExplanation != "" {
 			return Response{}, application.ErrInvalidInput
 		}
 		body = struct {

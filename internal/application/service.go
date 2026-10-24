@@ -173,3 +173,10 @@ func (s *Service) Patch(ctx context.Context, scope Scope, id string, version int
 func (s *Service) Timeline(ctx context.Context, scope Scope, id string) ([]Event, error) {
 	return s.repo.Timeline(ctx, scope, id)
 }
+
+func (s *Service) Delete(ctx context.Context, scope Scope, id string, version int64) error {
+	if version < 1 {
+		return ErrInvalidInput
+	}
+	return s.repo.DeleteDraft(ctx, scope, id, version)
+}

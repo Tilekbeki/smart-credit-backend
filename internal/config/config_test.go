@@ -48,6 +48,9 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.ScoringTimeout != 5*time.Second {
 		t.Fatal("scoring requests must have a bounded default timeout")
 	}
+	if cfg.MaxActiveDraftsPerClient != 20 {
+		t.Fatal("unexpected default draft limit")
+	}
 	if cfg.AppEnv != "production" || cfg.JWTSecretFile != "./data/secrets/jwt-secret" {
 		t.Fatal("local configuration must default to explicit production secrets")
 	}
@@ -55,26 +58,27 @@ func TestLoadDefaults(t *testing.T) {
 
 func TestLoadOverridesAndIPv6Address(t *testing.T) {
 	cfg, err := load(environment(map[string]string{
-		"DATABASE_URL":             "postgres://custom:password@db/custom",
-		"HTTP_HOST":                "::1",
-		"HTTP_PORT":                "9090",
-		"HTTP_READ_HEADER_TIMEOUT": "1s",
-		"HTTP_READ_TIMEOUT":        "3s",
-		"HTTP_WRITE_TIMEOUT":       "4s",
-		"HTTP_IDLE_TIMEOUT":        "30s",
-		"HTTP_SHUTDOWN_TIMEOUT":    "8s",
-		"DB_MAX_CONNS":             "7",
-		"DB_MIN_CONNS":             "0",
-		"DB_CONNECT_TIMEOUT":       "300ms",
-		"DB_PING_TIMEOUT":          "100ms",
-		"DB_MAX_CONN_LIFETIME":     "2h",
-		"DB_MAX_CONN_IDLE_TIME":    "5m",
-		"LOG_LEVEL":                "debug",
-		"DOCUMENT_STORAGE_PATH":    "/tmp/custom-documents",
-		"SCORING_URL":              "https://scoring.example.test/v1",
-		"SCORING_TIMEOUT":          "2s",
-		"JWT_SECRET":               "future-auth-secret-at-least-32-bytes",
-		"DEMO_OTP_CODE":            "0123",
+		"DATABASE_URL":                 "postgres://custom:password@db/custom",
+		"HTTP_HOST":                    "::1",
+		"HTTP_PORT":                    "9090",
+		"HTTP_READ_HEADER_TIMEOUT":     "1s",
+		"HTTP_READ_TIMEOUT":            "3s",
+		"HTTP_WRITE_TIMEOUT":           "4s",
+		"HTTP_IDLE_TIMEOUT":            "30s",
+		"HTTP_SHUTDOWN_TIMEOUT":        "8s",
+		"DB_MAX_CONNS":                 "7",
+		"DB_MIN_CONNS":                 "0",
+		"DB_CONNECT_TIMEOUT":           "300ms",
+		"DB_PING_TIMEOUT":              "100ms",
+		"DB_MAX_CONN_LIFETIME":         "2h",
+		"DB_MAX_CONN_IDLE_TIME":        "5m",
+		"LOG_LEVEL":                    "debug",
+		"DOCUMENT_STORAGE_PATH":        "/tmp/custom-documents",
+		"SCORING_URL":                  "https://scoring.example.test/v1",
+		"SCORING_TIMEOUT":              "2s",
+		"JWT_SECRET":                   "future-auth-secret-at-least-32-bytes",
+		"DEMO_OTP_CODE":                "0123",
+		"MAX_ACTIVE_DRAFTS_PER_CLIENT": "7",
 	}))
 	if err != nil {
 		t.Fatal(err)
@@ -94,6 +98,9 @@ func TestLoadOverridesAndIPv6Address(t *testing.T) {
 	if cfg.ScoringTimeout != 2*time.Second {
 		t.Fatal("scoring timeout override was not applied")
 	}
+	if cfg.MaxActiveDraftsPerClient != 7 {
+		t.Fatal("draft limit override ignored")
+	}
 }
 
 func TestLoadRejectsInvalidConfigurationWithoutEchoingValues(t *testing.T) {
@@ -104,6 +111,10 @@ func TestLoadRejectsInvalidConfigurationWithoutEchoingValues(t *testing.T) {
 	}{
 		{name: "missing DSN", key: "DATABASE_URL", value: ""},
 		{name: "blank DSN", key: "DATABASE_URL", value: " \t "},
+		{name: "zero draft limit", key: "MAX_ACTIVE_DRAFTS_PER_CLIENT", value: "0"},
+		{name: "negative draft limit", key: "MAX_ACTIVE_DRAFTS_PER_CLIENT", value: "-1"},
+		{name: "invalid draft limit", key: "MAX_ACTIVE_DRAFTS_PER_CLIENT", value: "secret-invalid"},
+		{name: "excessive draft limit", key: "MAX_ACTIVE_DRAFTS_PER_CLIENT", value: "10001"},
 		{name: "unknown app environment", key: "APP_ENV", value: "staging"},
 		{name: "empty app environment", key: "APP_ENV", value: ""},
 		{name: "port is not numeric", key: "HTTP_PORT", value: "secret-port"},

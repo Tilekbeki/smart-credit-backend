@@ -179,6 +179,9 @@ func TestLendingManualOutcomesCommentPrivacyAndFrozenTerms(t *testing.T) {
 			} else if body.Offer != nil {
 				t.Fatal("rejection has an offer")
 			}
+			if body.CustomerExplanation == nil || *body.CustomerExplanation != manualPublicReasons(outcome)[0] {
+				t.Fatal("legacy comment request must receive a safe default public explanation")
+			}
 			var source, reviewer, comment, eventActor string
 			var eventTime time.Time
 			if err := pool.QueryRow(ctx, `SELECT d.source,d.decided_by::text,d.internal_comment,e.actor_id::text,e.created_at
@@ -205,6 +208,9 @@ func TestLendingManualOutcomesCommentPrivacyAndFrozenTerms(t *testing.T) {
 				assessment.ManualDecision.ReviewedBy != demoEmployeeID || !assessment.ManualDecision.ReviewedAt.Equal(*body.AssessedAt) ||
 				assessment.Scoring == nil || assessment.Scoring.Score != 65 || assessment.RiskLevel == nil || *assessment.RiskLevel != "MEDIUM" {
 				t.Fatalf("bank manual audit %+v error=%v", assessment, err)
+			}
+			if assessment.ManualDecision.InternalComment != comment || assessment.ManualDecision.CustomerExplanation != *body.CustomerExplanation {
+				t.Fatal("bank audit lost separate comment fields")
 			}
 			exportReadContract(t, "BankAssessment", assessment)
 			get, err := reads.Decision(ctx, draftOwner, id)
@@ -266,6 +272,99 @@ func TestLendingManualRejectsInvalidTermsAndDataWithoutMutation(t *testing.T) {
 	cmd := manualCommand(id, "counter_offer")
 	cmd.Offer = &lending.ManualOffer{AmountRub: 1_500_000, TermMonths: 18}
 	executeLending(t, service, cmd, 201)
+}
+
+func TestManualSeparatedCommentsPersistAndReplayWithoutClientLeak(t *testing.T) {
+	pool, id := lendingFixture(t, 65)
+	ctx := context.Background()
+	service := lendingService(pool)
+	command := manualCommand(id, "rejected")
+	command.Comment = ""
+	command.InternalComment = "  BANK_INTERNAL_ONLY_MARKER: документация проверена.  "
+	command.CustomerExplanation = "  По результатам рассмотрения заявка не соответствует условиям продукта.  "
+	original, client := executeLending(t, service, command, 201)
+	if client.CustomerExplanation == nil || *client.CustomerExplanation != strings.TrimSpace(command.CustomerExplanation) ||
+		!reflect.DeepEqual(client.Reasons, []string{strings.TrimSpace(command.CustomerExplanation)}) {
+		t.Fatalf("public explanation %+v", client)
+	}
+	if strings.Contains(string(original.Body), "BANK_INTERNAL_ONLY_MARKER") || strings.Contains(string(original.Body), "internalComment") || strings.Contains(string(original.Body), `"comment"`) {
+		t.Fatal("private comment leaked in mutation response")
+	}
+
+	before := lendingFingerprint(t, pool)
+	reads := review.NewService(NewReviewRepository(pool, time.Second))
+	bank, err := reads.BankAssessment(ctx, id)
+	if err != nil || bank.ManualDecision == nil || bank.ManualDecision.InternalComment != strings.TrimSpace(command.InternalComment) ||
+		bank.ManualDecision.Comment != bank.ManualDecision.InternalComment || bank.ManualDecision.CustomerExplanation != *client.CustomerExplanation {
+		t.Fatalf("bank comment audit %+v %v", bank.ManualDecision, err)
+	}
+	current, err := reads.Decision(ctx, draftOwner, id)
+	if err != nil || !reflect.DeepEqual(current, client) {
+		t.Fatal("client GET differs from committed decision", err)
+	}
+	timeline, err := NewApplicationRepository(pool, time.Second).Timeline(ctx, draftOwner, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	timelineBody, err := json.Marshal(timeline)
+	if err != nil || strings.Contains(string(timelineBody), "BANK_INTERNAL_ONLY_MARKER") || strings.Contains(string(timelineBody), "internalComment") {
+		t.Fatal("bank comment leaked in client timeline")
+	}
+	if lendingFingerprint(t, pool) != before {
+		t.Fatal("reading separated comments changed lending data")
+	}
+
+	// Replaying with the legacy alias denotes the same normalized request.
+	legacyReplay := command
+	legacyReplay.Comment = strings.TrimSpace(command.InternalComment)
+	legacyReplay.InternalComment = ""
+	replay, _ := executeLending(t, lendingService(pool), legacyReplay, 201)
+	assertLendingResponseEqual(t, original, replay)
+	if lendingFingerprint(t, pool) != before {
+		t.Fatal("alias replay changed decision audit")
+	}
+	changed := command
+	changed.CustomerExplanation = "Другое объяснение."
+	if _, err := service.Execute(ctx, changed); !errors.Is(err, lending.ErrIdempotencyConflict) {
+		t.Fatal("changed public explanation reused key", err)
+	}
+	changed = command
+	changed.InternalComment = "Другое внутреннее основание."
+	if _, err := service.Execute(ctx, changed); !errors.Is(err, lending.ErrIdempotencyConflict) {
+		t.Fatal("changed private comment reused key", err)
+	}
+	changed = command
+	changed.Key = uuid.NewString()
+	changed.Version = client.Version
+	if _, err := service.Execute(ctx, changed); !errors.Is(err, application.ErrInvalidStatus) {
+		t.Fatal("final decision was editable", err)
+	}
+	if lendingFingerprint(t, pool) != before {
+		t.Fatal("rejected rewrite changed the decision")
+	}
+}
+
+func TestLegacyManualDecisionWithMissingExplanationHasSafeFallback(t *testing.T) {
+	pool, id := lendingFixture(t, 65)
+	ctx := context.Background()
+	executeLending(t, lendingService(pool), manualCommand(id, "rejected"), 201)
+	// Simulate a valid legacy MANUAL row written before the new column existed.
+	if _, err := pool.Exec(ctx, `UPDATE credit_decisions SET customer_explanation=NULL,reasons='[]'::jsonb WHERE application_id=$1 AND source='MANUAL'`, id); err != nil {
+		t.Fatal(err)
+	}
+	before := lendingFingerprint(t, pool)
+	reads := review.NewService(NewReviewRepository(pool, time.Second))
+	client, err := reads.Decision(ctx, draftOwner, id)
+	if err != nil || client.CustomerExplanation == nil || *client.CustomerExplanation != manualPublicReasons("rejected")[0] {
+		t.Fatalf("legacy rejection has empty explanation: %+v %v", client, err)
+	}
+	bank, err := reads.BankAssessment(ctx, id)
+	if err != nil || bank.ManualDecision == nil || bank.ManualDecision.CustomerExplanation != *client.CustomerExplanation {
+		t.Fatalf("legacy bank explanation %+v %v", bank, err)
+	}
+	if lendingFingerprint(t, pool) != before {
+		t.Fatal("legacy fallback rewrote persisted data during GET")
+	}
 }
 
 func TestLendingManualCorruptSnapshotsAndInsufficientBudget(t *testing.T) {

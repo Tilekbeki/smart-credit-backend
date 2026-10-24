@@ -126,9 +126,22 @@ func decodeFinancial(raw []byte, snapshot *financialSnapshot) error {
 	default:
 		return ErrInvalidData
 	}
-	profile, err := objectFields(companyObject["profile"], []string{"id", "name", "organizationType", "inn", "registrationNumber", "registrationDate", "okved", "directorName", "contact", "financials", "simulation"})
+	profileFields := []string{"id", "name", "organizationType", "inn", "registrationNumber", "registrationDate", "okved", "directorName", "contact", "financials", "simulation"}
+	// Contact version is metadata. Snapshots submitted before contact editing
+	// existed do not contain it and must retain the original credit policy.
+	var profileObject map[string]json.RawMessage
+	if json.Unmarshal(companyObject["profile"], &profileObject) != nil {
+		return ErrInvalidData
+	}
+	if _, present := profileObject["version"]; present {
+		profileFields = append(profileFields, "version")
+	}
+	profile, err := objectFields(companyObject["profile"], profileFields)
 	if err != nil {
 		return err
+	}
+	if snapshot.Company.Profile.Version < 0 {
+		return ErrInvalidData
 	}
 	if _, err := objectFields(profile["contact"], []string{"phone", "email", "address"}); err != nil {
 		return err

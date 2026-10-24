@@ -66,7 +66,7 @@ func checkedDocumentApplication(ctx context.Context, query interface {
 	QueryRow(context.Context, string, ...any) pgx.Row
 }, scope document.Scope, id string, write, lock bool) (application.Status, error) {
 	bank, companyID := documentScopeValues(scope)
-	statement := `SELECT a.status FROM applications a WHERE a.id=$1
+	statement := `SELECT a.status FROM applications a WHERE a.id=$1 AND a.deleted_at IS NULL
 		AND (($2::boolean AND a.status<>'draft' AND a.submitted_at IS NOT NULL)
 		OR (NOT $2::boolean AND a.owner_id=$3::uuid AND a.company_id=$4::uuid))`
 	if lock {
@@ -212,7 +212,7 @@ func (r *DocumentRepository) List(ctx context.Context, scope document.Scope, app
 	bank, companyID := documentScopeValues(scope)
 	rows, err := tx.Query(ctx, `SELECT `+documentColumns+` FROM documents d
 		JOIN applications a ON a.id=d.application_id WHERE d.application_id=$1 AND d.status='ready'
-		AND (($2::boolean AND a.status<>'draft' AND a.submitted_at IS NOT NULL)
+		AND a.deleted_at IS NULL AND (($2::boolean AND a.status<>'draft' AND a.submitted_at IS NOT NULL)
 		OR (NOT $2::boolean AND a.owner_id=$3::uuid AND a.company_id=$4::uuid))
 		ORDER BY d.created_at, d.id`, applicationID, bank, scope.UserID, companyID)
 	if err != nil {
@@ -259,7 +259,7 @@ func (r *DocumentRepository) Get(ctx context.Context, scope document.Scope, appl
 	bank, companyID := documentScopeValues(scope)
 	result, err := scanDocument(tx.QueryRow(ctx, `SELECT `+documentColumns+` FROM documents d
 		JOIN applications a ON a.id=d.application_id WHERE d.id=$1 AND d.application_id=$2 AND d.status='ready'
-		AND (($3::boolean AND a.status<>'draft' AND a.submitted_at IS NOT NULL)
+		AND a.deleted_at IS NULL AND (($3::boolean AND a.status<>'draft' AND a.submitted_at IS NOT NULL)
 		OR (NOT $3::boolean AND a.owner_id=$4::uuid AND a.company_id=$5::uuid))`,
 		documentID, applicationID, bank, scope.UserID, companyID))
 	if errors.Is(err, pgx.ErrNoRows) {

@@ -28,6 +28,7 @@ type Financials struct {
 
 type Company struct {
 	ID                 string     `json:"id"`
+	Version            int64      `json:"version"`
 	Name               string     `json:"name"`
 	OrganizationType   string     `json:"organizationType"`
 	INN                string     `json:"inn"`
