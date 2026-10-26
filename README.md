@@ -59,6 +59,8 @@ curl --fail http://localhost:8001/health
 
 - [Демонстрация для жюри: полные пользовательские сценарии и отдельная Postman Collection](docs/JURY_DEMO_GUIDE.md).
 - [OpenAPI v1](api/openapi.yaml) — точные DTO, роли и коды ответов.
+- [Архитектура](docs/architecture.md), [модель данных и ER-схема](docs/data-model.md),
+  [диаграмма состояний](docs/credit-process.md).
 - [Подключение frontend](api/FRONTEND_INTEGRATION.md) — сценарии и ограничения интерфейса.
 - [Единая Postman Collection](api/postman/smart-credit.postman_collection.json).
 
